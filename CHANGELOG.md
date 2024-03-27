@@ -1,4 +1,4 @@
-# ⛅️Release Notes for Craft Cloud ⛅️
+# Release Notes for Craft Cloud  ⛅️
 
 ## 2024-03-27
 
