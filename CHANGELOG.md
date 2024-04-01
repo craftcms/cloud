@@ -1,5 +1,5 @@
 # Release Notes for Craft Cloud  ⛅️
 
-## 2024-03-27
+## 2024-03-31
 
-- Added the Cloud. 
+- MySQL database backups now pass in the `--single-transaction` flag to help prevent table locking during a backup. 
