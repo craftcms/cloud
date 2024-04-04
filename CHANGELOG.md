@@ -1,5 +1,9 @@
 # Release Notes for Craft Cloud  ⛅️
 
+## 2024-04-03
+
+- Fixed an bug where `artifact-path` could be incorrect with a non-default `app-path`.
+
 ## 2024-04-01
 
 - Greatly improved the DNS settings and management UX. 
