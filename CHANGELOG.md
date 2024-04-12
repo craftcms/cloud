@@ -1,5 +1,9 @@
 # Release Notes for Craft Cloud  ⛅️
 
+## 2024-04-11
+
+- Improved the reliability of backing up large databases via the Console UI.
+
 ## 2024-04-03
 
 - Fixed an bug where `artifact-path` could be incorrect with a non-default `app-path`.
