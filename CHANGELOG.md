@@ -6,7 +6,7 @@
 
 ## 2024-04-03
 
-- Fixed an bug where `artifact-path` could be incorrect with a non-default `app-path`.
+- Fixed a bug where `artifact-path` could be incorrect with a non-default `app-path`.
 
 ## 2024-04-01
 
