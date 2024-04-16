@@ -1,5 +1,9 @@
 # Release Notes for Craft Cloud  ⛅️
 
+## 2024-04-16
+
+- Fix a bug where the database backup utility may appear when it should not.
+
 ## 2024-04-11
 
 - Improved the reliability of backing up large databases via the Console UI.
