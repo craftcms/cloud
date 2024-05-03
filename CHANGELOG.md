@@ -1,5 +1,9 @@
 # Release Notes for Craft Cloud  ⛅️
 
+## 2024-05-03
+
+- Additional asset storage can now be purchased in your project's billing page.
+
 ## 2024-04-16
 
 - Fix a bug where the database backup utility may appear when it should not.
