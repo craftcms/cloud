@@ -1,8 +1,13 @@
 # Release Notes for Craft Cloud  ⛅️
 
+## 2024-05-10
+
+- Added a “Repository status” refresh button that checks the health of your Github integration with Craft Cloud.
+- You can now create environment variables with no values.
+
 ## 2024-05-03
 
-- Additional asset storage can now be purchased in your project's billing page.
+- Additional asset storage can now be purchased on your project’s billing page.
 
 ## 2024-04-16
 
