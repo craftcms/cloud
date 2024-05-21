@@ -1,5 +1,9 @@
 # Release Notes for Craft Cloud  ⛅️
 
+## 2024-05-21
+
+- Added support for Bitbucket and GitLab.
+
 ## 2024-05-10
 
 - Added a “Repository status” refresh button that checks the health of your Github integration with Craft Cloud.
