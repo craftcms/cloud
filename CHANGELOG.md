@@ -3,6 +3,7 @@
 ## 2024-05-21
 
 - Added support for Bitbucket and GitLab.
+- You can now view how much asset storage each environment is using under your project’s billing page.
 
 ## 2024-05-10
 
