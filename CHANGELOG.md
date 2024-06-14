@@ -1,5 +1,10 @@
 # Release Notes for Craft Cloud  ⛅️
 
+## 2024-06-14
+
+- Bumped the minimum `craftcms/cloud` extension version to ^1.50 or >=2.4.
+- Resolved an issue that could prevent deployments from occurring for environments with a lot of variables.
+
 ## 2024-05-21
 
 - Added support for Bitbucket and GitLab.
