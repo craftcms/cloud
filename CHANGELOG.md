@@ -1,5 +1,9 @@
 # Release Notes for Craft Cloud  ⛅️
 
+## 2024-06-17
+
+- Added support for PHP 8.3.
+
 ## 2024-06-14
 
 - Bumped the minimum `craftcms/cloud` extension version to ^1.50 or >=2.4.
