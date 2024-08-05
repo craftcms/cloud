@@ -1,5 +1,9 @@
 # Release Notes for Craft Cloud  ⛅️
 
+## 2024-08-05
+
+- Upgraded PHP versions to 8.2.22 and 8.3.10.
+
 ## 2024-06-17
 
 - Added support for PHP 8.3.
