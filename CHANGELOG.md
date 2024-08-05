@@ -1,5 +1,10 @@
 # Release Notes for Craft Cloud  ⛅️
 
+## 2024-08-05
+
+- Improved the stability and performance of many parts of Craft Cloud.
+- Updated to Bref 2.3.3, which includes PHP 8.2.22 and 8.3.10. 
+
 ## 2024-04-11
 
 - Improved the reliability of backing up large databases via the Console UI.
