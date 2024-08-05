@@ -5,6 +5,33 @@
 - Improved the stability and performance of many parts of Craft Cloud.
 - Updated to Bref 2.3.3, which includes PHP 8.2.22 and 8.3.10. 
 
+## 2024-06-17
+
+- Added support for PHP 8.3.
+
+## 2024-06-14
+
+- Bumped the minimum `craftcms/cloud` extension version to ^1.50 or >=2.4.
+- Resolved an issue that could prevent deployments from occurring for environments with a lot of variables.
+
+## 2024-05-21
+
+- Added support for Bitbucket and GitLab.
+- You can now view how much asset storage each environment is using under your project’s billing page.
+
+## 2024-05-10
+
+- Added a “Repository status” refresh button that checks the health of your Github integration with Craft Cloud.
+- You can now create environment variables with no values.
+
+## 2024-05-03
+
+- Additional asset storage can now be purchased on your project’s billing page.
+
+## 2024-04-16
+
+- Fix a bug where the database backup utility may appear when it should not.
+
 ## 2024-04-11
 
 - Improved the reliability of backing up large databases via the Console UI.
