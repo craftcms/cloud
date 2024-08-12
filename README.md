@@ -1,4 +1,4 @@
-<iframe src="https://status.craftcms.com/badge?theme=dark" width="250" height="30" frameborder="0" scrolling="no"></iframe>
+    <iframe src="https://status.craftcms.com/badge?theme=dark" width="250" height="30" frameborder="0" scrolling="no"></iframe>
 
 ## 👋 Welcome!
 
