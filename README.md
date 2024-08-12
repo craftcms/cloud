@@ -1,5 +1,3 @@
-    <iframe src="https://status.craftcms.com/badge?theme=dark" width="250" height="30" frameborder="0" scrolling="no"></iframe>
-
 ## 👋 Welcome!
 
 This is a public repository to [collect feature requests and feedback](https://github.com/craftcms/cloud/discussions) for [Craft Cloud](https://craftcms.com/cloud).
