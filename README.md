@@ -15,6 +15,6 @@ If you want to report a bug, please do so by emailing support@craft.cloud or usi
 
 Did you find a security issue you’d like to report? Please read our [Security Policy](https://github.com/craftcms/cloud?tab=security-ov-file), and submit your findings by emailing support@craft.cloud or using our [contact form](https://craftcms.com/contact).
 
-Check the [status of our services](https://status.craftcms.com/).
+Having issues with the Craft Cloud service itself? Check the [status of our services](https://status.craftcms.com/).
 
 Thanks for stopping by! It’s lovely to have you here.
