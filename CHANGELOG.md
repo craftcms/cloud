@@ -3,7 +3,6 @@
 ## 2024-12-02
 
 - Added support for CRON jobs (Scheduled Commands).
-- Added support for PHP 8.4.
 - Fix a bug where some Commands would be stuck as pending.
 
 ## 2024-11-1
@@ -16,7 +15,7 @@
 
 ## 2024-10-28
 
-- Added Canada as a region
+- Added Canada as a region.
 
 ## 2024-10-17
 
