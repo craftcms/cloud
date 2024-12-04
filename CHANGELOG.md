@@ -1,5 +1,27 @@
 # Release Notes for Craft Cloud  ⛅️
 
+## 2024-12-05
+
+- Added support for CRON jobs (Scheduled Commands).
+- Added support for PHP 8.4.
+- Fix a bug where some Commands would be stuck as pending.
+
+## 2024-11-1
+
+- Fix a bug where not all branches would show in BitBucket and GitLab integrations.
+
+## 2024-10-29
+
+- Add node:22 as a valid version for npm builds.
+
+## 2024-10-28
+
+- Added Canada as a region
+
+## 2024-10-17
+
+- Improved monitoring and alerting for Craft Cloud infrastructure.
+
 ## 2024-08-05
 
 - Improved the stability and performance of many parts of Craft Cloud.
