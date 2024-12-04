@@ -1,6 +1,6 @@
 # Release Notes for Craft Cloud  ⛅️
 
-## 2024-12-05
+## 2024-12-02
 
 - Added support for CRON jobs (Scheduled Commands).
 - Added support for PHP 8.4.
