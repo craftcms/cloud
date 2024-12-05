@@ -3,9 +3,9 @@
 ## 2024-12-02
 
 - Added support for CRON jobs (Scheduled Commands).
-- Fix a bug where some Commands would be stuck as pending.
+- Fix a bug where some Commands could be stuck in a pending state.
 
-## 2024-11-1
+## 2024-11-01
 
 - Fix a bug where not all branches would show in BitBucket and GitLab integrations.
 
