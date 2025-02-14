@@ -1,5 +1,9 @@
 # Release Notes for Craft Cloud  ⛅️
 
+## 2022-02-14
+
+- Released version 2.10.0 and 1.66.0 of the [Cloud extension](https://github.com/craftcms/cloud-extension-yii2).
+
 ## 2025-01-21
 
 - Added support for PHP 8.4.
