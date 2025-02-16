@@ -1,6 +1,10 @@
 # Release Notes for Craft Cloud  ⛅️
 
-## 2022-02-14
+## 2025-02-15
+
+- Released version 2.10.1 and 1.66.1 of the [Cloud extension](https://github.com/craftcms/cloud-extension-yii2/releases).
+
+## 2025-02-14
 
 - Released version 2.10.0 and 1.66.0 of the [Cloud extension](https://github.com/craftcms/cloud-extension-yii2/releases).
 
