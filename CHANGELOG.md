@@ -1,5 +1,9 @@
 # Release Notes for Craft Cloud  ⛅️
 
+## 2025-02-18
+
+- Added the ability to purge individual URLs from cache to the Gateway Worker.
+
 ## 2025-02-15
 
 - Released version 2.10.1 and 1.66.1 of the [Cloud extension](https://github.com/craftcms/cloud-extension-yii2/releases).
