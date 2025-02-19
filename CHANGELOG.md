@@ -2,7 +2,7 @@
 
 ## 2025-02-18
 
-- Added the ability to purge individual URLs from cache to the Gateway Worker.
+- Released version 1.10.0 of the Cloud Gateway Worker, which adds the ability to purge individual URLs from cache.
 
 ## 2025-02-15
 
@@ -10,7 +10,12 @@
 
 ## 2025-02-14
 
+- Reverted to version 1.8.3 of the Cloud Gateway worker because of a [regression](https://status.craftcms.com/incident/513937?mp=true).
+
+## 2025-02-14
+
 - Released version 2.10.0 and 1.66.0 of the [Cloud extension](https://github.com/craftcms/cloud-extension-yii2/releases).
+- Released version 1.9.0 of the Cloud Gateway worker, which adds prep work for rate limiting and support for custom static cache keys.
 
 ## 2025-01-21
 
