@@ -1,5 +1,9 @@
 # Release Notes for Craft Cloud  ⛅️
 
+## 2025-02-20
+
+- Released version 1.12.0 of the Cloud Gateway Worker, which renders unexpected errors more gracefully.
+
 ## 2025-02-19
 
 - Released version 1.11.0 of the Cloud Gateway Worker, which fixes a bug where a Cloudflare 522 could be returned instead of a 404 for hostnames not registered with Craft Cloud.
