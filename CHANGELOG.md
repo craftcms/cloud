@@ -1,5 +1,12 @@
 # Release Notes for Craft Cloud  ⛅️
 
+## 2025-03-04
+
+- Released version 1.13.0 of the Cloud Gateway Worker.
+  - Removed Vite and replaced it with Wrangler’s default builder `esbuild`.
+  - Greatly expands test coverage in the worker.
+  - Now collects purge analytics using the [Workers Analytics Engine](https://developers.cloudflare.com/analytics/analytics-engine/).
+
 ## 2025-02-20
 
 - Released version 1.12.0 of the Cloud Gateway Worker, which renders unexpected errors more gracefully.
@@ -31,7 +38,7 @@
 
 ## 2024-12-02
 
-- Added support for CRON jobs (Scheduled Commands).
+- Support for CRON jobs (Scheduled Commands) was added.
 - Fix a bug where some Commands could be stuck in a pending state.
 
 ## 2024-11-01
@@ -94,7 +101,7 @@
 
 - Greatly improved the DNS settings and management UX. 
 - MySQL database users now have `CREATE_VIEW` and `SHOW_VIEW` permissions by default.
-- You no longer have to do a deployment on a fresh project before you can back up your database.
+- You no longer have to deploy on a fresh project before you can back up your database.
 
 ## 2024-03-31
 
