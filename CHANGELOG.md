@@ -1,5 +1,10 @@
 # Release Notes for Craft Cloud  ⛅️
 
+## 2025-03-05
+
+- Released version 1.15.0 of the Cloud Gateway Worker.
+  - Added more analytics tracking.
+
 ## 2025-03-04
 
 - Released version 1.13.0 of the Cloud Gateway Worker.
