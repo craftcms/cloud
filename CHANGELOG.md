@@ -1,5 +1,10 @@
 # Release Notes for Craft Cloud  ⛅️
 
+## 2025-04-15
+
+- Released version 1.17.0 of the Cloud Gateway Worker.
+  - Protects against the critical RCE vulnerability that was fixed in Craft 5.6.17 and 4.14.15 for sites that aren’t running those patched versions.
+
 ## 2025-03-05
 
 - Released version 1.15.0 of the Cloud Gateway Worker.
