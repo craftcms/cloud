@@ -5,7 +5,7 @@ If you want to report a bug, please do so by emailing (support@craft.cloud)[mail
 
 ## Quick Links
 
-- [Status Page](https://status.craftcms.com/) _(for all web services, including Craft Cloud)_
+- [Web Services Status Page](https://status.craftcms.com/)
 - [Craft Cloud Knowledge Base](https://craftcms.com/knowledge-base/cloud)
 - [Craft Cloud Road Map](https://craftcms.com/roadmap/#cloud)
 - [Feature Requests](https://github.com/craftcms/cloud/discussions/categories/feature-requests-enhancements)
