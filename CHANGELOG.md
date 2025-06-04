@@ -1,9 +1,71 @@
 # Release Notes for Craft Cloud  ⛅️
 
+## 2025-05-30
+
+- Released version 1.24.0 of the Cloud Gateway Worker.
+  - Improved error handling.
+
+## 2025-05-20
+
+- Released version 1.57.9 of the Cloud API.
+  - Fixed a bug where Cloud subdomains would not get deleted if a domain was deleted.
+
+## 2025-05-15
+
+- Released version 1.22.0 of the Cloud Gateway Worker.
+  - `origin-cf-cache-status` and `origin-cf-ray` headers are returned with origin info in Cloudflare “Orange to Orange” scenarios.
+  - Workers are now deployed with GitHub actions instead of Wrangler.
+  - Increased request timeout at the worker level to 60 seconds.
+
+## 2025-05-13
+
+- Released version 1.56.7 of the Cloud API.
+  - Fixed a bug where deleted subdomains could not be reused in a project.
+
+## 2025-05-12
+
+- Released version 1.20.0 of the Cloud Gateway Worker.
+  - Enable more logging in the worker.
+
+## 2025-05-08
+
+- Released version 2.14.1 and 1.70.1 of the [Cloud extension](https://github.com/craftcms/cloud-extension-yii2).
+  - Ensure the Cloud transformer is only used with Craft Cloud filesystems.
+
+## 2025-05-05
+
+- Released version 1.19.0 of the Cloud Gateway Worker.
+  - Enforce a 30-second request timeout in the worker.
+
+## 2025-05-02
+
+- Released version 1.18.0 of the Cloud Gateway Worker.
+  - Added more analytics tracking.
+
+## 2025-04-30
+
+- Released version 2.14.0 and 1.70.0 of the [Cloud extension](https://github.com/craftcms/cloud-extension-yii2).
+  - Adds support for the Cloud Commands and Builds v2 infrastructure.
+
+## 2025-04-18
+
+- Released version 2.13.0 of the [Cloud extension](https://github.com/craftcms/cloud-extension-yii2).
+  - Fixes a bug where releasing all jobs in the queue in Craft would not delete the jobs in Craft Cloud.
+
 ## 2025-04-15
 
 - Released version 1.17.0 of the Cloud Gateway Worker.
   - Protects against the critical RCE vulnerability that was fixed in Craft 5.6.17 and 4.14.15 for sites that aren’t running those patched versions.
+
+## 2025-04-01
+
+- Released version 2.11.0 and 1.68.0 of the [Cloud extension](https://github.com/craftcms/cloud-extension-yii2).
+  - Adds configurable log levels.
+
+## 2025-03-14
+
+- Released version 2.12.0 and 1.67.0 of the [Cloud extension](https://github.com/craftcms/cloud-extension-yii2).
+  - Fixed a bug where replacing an asset would not trigger cache invalidation if they had duplicate file names.
 
 ## 2025-03-05
 
@@ -31,7 +93,7 @@
 
 ## 2025-02-15
 
-- Released version 2.10.1 and 1.66.1 of the [Cloud extension](https://github.com/craftcms/cloud-extension-yii2/releases).
+- Released version 2.10.1 and 1.66.1 of the [Cloud extension](https://github.com/craftcms/cloud-extension-yii2).
 
 ## 2025-02-14
 
@@ -39,7 +101,7 @@
 
 ## 2025-02-14
 
-- Released version 2.10.0 and 1.66.0 of the [Cloud extension](https://github.com/craftcms/cloud-extension-yii2/releases).
+- Released version 2.10.0 and 1.66.0 of the [Cloud extension](https://github.com/craftcms/cloud-extension-yii2).
 - Released version 1.9.0 of the Cloud Gateway worker, which adds prep work for rate limiting and support for custom static cache keys.
 
 ## 2025-01-21
