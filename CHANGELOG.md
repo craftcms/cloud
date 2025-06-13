@@ -1,14 +1,41 @@
 # Release Notes for Craft Cloud  ⛅️
 
+## 2025-06-13
+
+- Released version 1.62.3 of the Cloud API.
+  - Fixed a regression introduced in 1.62.0 where some projects using specific node configurations would not have their artifacts published to the CDN during a build.
+
+## 2025-06-12
+
+- Released version 1.62.1 of the Cloud API.
+  - Craft Console no longer warns you about read-only environment variable changes for pending deployments.
+
+## 2025-06-12
+
+- Released version 1.62.0 of the Cloud API.
+  - All Craft Cloud projects now explicitly have a read-only `CRAFT_USE_FILE_LOCKS` environment variable set to false, as it is not necessary on serverless/ephemeral environments.
+  - Fixed a bug where artifact publishing during a build did not run for Craft Cloud projects without a node build process.
+
+## 2025-06-06
+
+- Released version 1.61.0 of the Cloud API.
+  - All new Craft Cloud projects get the new builder and commands infrastructure.
+
 ## 2025-05-30
 
 - Released version 1.24.0 of the Cloud Gateway Worker.
   - Improved error handling.
 
+## 2025-05-28
+
+- Released version 1.59.5 of the Cloud API.
+  - Fixed a bug where Cloud subdomains would not get deleted if a domain was deleted.
+
 ## 2025-05-20
 
 - Released version 1.57.9 of the Cloud API.
-  - Fixed a bug where Cloud subdomains would not get deleted if a domain was deleted.
+  - Improved error handling during a build.
+  - Fixed a bug where custom php.ini settings were not being picked up with a custom `app-path` in `craft-cloud.yaml`.
 
 ## 2025-05-15
 
