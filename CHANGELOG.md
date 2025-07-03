@@ -1,5 +1,11 @@
 # Release Notes for Craft Cloud  ⛅️
 
+## 2025-06-23
+
+- Released version 1.63.0 of the Cloud API.
+  - Added support for the new backup infrastructure for MySQL.
+  - MySQL backups are now gzip-compressed.
+
 ## 2025-06-13
 
 - Released version 1.62.3 of the Cloud API.
