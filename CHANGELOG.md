@@ -1,5 +1,9 @@
 # Release Notes for Craft Cloud  ⛅️
 
+## 2025-07-11
+
+- Redirect and rewrites are now generally available.
+
 ## 2025-06-23
 
 - Released version 1.63.0 of the Cloud API.
