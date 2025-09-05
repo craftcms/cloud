@@ -1,8 +1,34 @@
 # Release Notes for Craft Cloud  ⛅️
 
+## 2025-09-03
+
+- Released version 1.66.1 of the Cloud API.
+  - Fixed a bug where jobs added to the queue via a CLI command were not being executed.
+
+## 2025-08-20
+
+- Released version 2.14.3 and 1.70.3 of the [Cloud extension](https://github.com/craftcms/cloud-extension-yii2).
+  - The extension is now more defensive against requests with large header quantities and values.
+
+## 2025-08-26
+
+- Released version 1.65.6 of the Cloud API.
+  - Fixed a validation issue with subdomains.
+
+## 2025-08-06
+
+- Released version 1.65.0 of the Cloud API.
+  - Postgres is now supported in the new backup infrastructure.
+  - Improved error handling and messages throughout the system.
+
 ## 2025-07-11
 
-- Redirect and rewrites are now generally available.
+- Redirects and rewrites are now generally available.
+
+## 2025-07-03
+
+- Released version 2.14.2 and 1.70.2 of the [Cloud extension](https://github.com/craftcms/cloud-extension-yii2).
+  - Improved the reliability of calls to the Craft Cloud API from the extension.
 
 ## 2025-06-23
 
