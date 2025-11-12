@@ -5,6 +5,16 @@
 - Released version 2.16.0 and 1.72.0 of the [Cloud extension](https://github.com/craftcms/cloud-extension-yii2).
   - An optional “Base URL” setting has been implemented that can be used in combination with CDN rewrites to have all URLs point to a custom domain.
 
+## 2025-09-23
+
+- Released version 1.68.0 of the Cloud API.
+  - Added a new MySQL database cluster in the EU region.
+
+## 2025-09-11
+
+- Released version 1.66.6 of the Cloud API.
+  - Fixed a bug where Postgres backups in the APAC region were not running.
+
 ## 2025-09-03
 
 - Released version 1.66.1 of the Cloud API.
