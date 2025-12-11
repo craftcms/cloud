@@ -1,5 +1,11 @@
 # Release Notes for Craft Cloud  ⛅️
 
+## 2025-12-11
+- Released version 1.27.0 of the Cloud Gateway Worker.
+  - Fixed an issue where redirects and rewrites could lose their request body. Thanks to @bymayo for [reporting](https://discord.com/channels/456442477667418113/1270427240064225340/1447903214119944282).
+    - For redirects, only GET, HEAD are now eligible
+    - For rewrites, method and body are passed along
+
 ## 2025-10-03
 
 - Released version 2.16.0 and 1.72.0 of the [Cloud extension](https://github.com/craftcms/cloud-extension-yii2).
