@@ -7,9 +7,9 @@
 ## 2025-12-11
 
 - Released version 1.27.0 of the Cloud Gateway Worker.
-  - Fixed an issue where redirects and rewrites could lose their request body, which could lead to broken requests, especiall in the Craft CP.
+  - Fixed an issue where redirects and rewrites could lose their request body, which could lead to broken requests, especially in the Craft control panel.
     - For redirects, only GET and HEAD are now eligible.
-    - For rewrites, method and body of the original request are passed to the rewrite.
+    - For rewrites, the method and body of the original request are passed to the rewrite.
 
 ## 2025-10-03
 
