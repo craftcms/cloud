@@ -1,6 +1,11 @@
 # Release Notes for Craft Cloud  ⛅️
 
+## 2025-12-19
+
+- Queue (worker) and web (HTTP) logs are now both available in the Logs UI in Craft Console.
+
 ## 2025-12-11
+
 - Released version 1.27.0 of the Cloud Gateway Worker.
   - Fixed an issue where redirects and rewrites could lose their request body, which could lead to broken requests, especiall in the Craft CP.
     - For redirects, only GET and HEAD are now eligible.
