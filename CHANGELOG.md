@@ -2,7 +2,7 @@
 
 ## 2025-12-19
 
-- Queue (worker) and web (HTTP) logs are now both available in the Logs UI in Craft Console.
+- Queue (worker) and web (HTTP) logs are now both separately available in the Craft Console logs UI.
 
 ## 2025-12-11
 
