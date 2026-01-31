@@ -1,0 +1,41 @@
+{
+  "name": "craftcms/cloud",
+  "description": "Craft Cloud plugin for Craft CMS",
+  "type": "craft-plugin",
+  "license": "proprietary",
+  "require": {
+    "php": "^8.2",
+    "craftcms/cms": "^4.6 || ^5.0",
+    "craftcms/cloud-ops": "^1.0",
+    "craftcms/flysystem": "^1.0.0",
+    "league/flysystem-aws-s3-v3": "^3.15",
+    "league/uri": "^7",
+    "league/uri-components": "^7",
+    "phlak/semver": "^4.1",
+    "99designs/http-signatures": "^4.0",
+    "symfony/process": "^6 || ^7"
+  },
+  "require-dev": {
+    "craftcms/ecs": "dev-main",
+    "craftcms/phpstan": "dev-main"
+  },
+  "autoload": {
+    "psr-4": {
+      "craft\\cloud\\": "src/"
+    }
+  },
+  "extra": {
+    "handle": "cloud",
+    "name": "Craft Cloud",
+    "developer": "Pixel & Tonic",
+    "developerUrl": "https://craftcms.com",
+    "documentationUrl": "https://craftcms.com/docs/cloud",
+    "class": "craft\\cloud\\Plugin"
+  },
+  "config": {
+    "allow-plugins": {
+      "craftcms/plugin-installer": true,
+      "yiisoft/yii2-composer": true
+    }
+  }
+}

@@ -1,0 +1,18 @@
+services:
+  mysql:
+    image: mysql:8.0
+    ports:
+      - ${CRAFT_DB_PORT}:3306
+    environment:
+      MYSQL_ALLOW_EMPTY_PASSWORD: 1
+      MYSQL_DATABASE: ${CRAFT_DB_DATABASE}
+      MYSQL_USER: ${CRAFT_DB_USER}
+      MYSQL_PASSWORD: ${CRAFT_DB_PASSWORD}
+#  postgres:
+#    image: postgres:15
+#    ports:
+#      - "${CRAFT_DB_PORT}:5432"
+#    environment:
+#      POSTGRES_DB: ${CRAFT_DB_DATABASE}
+#      POSTGRES_USER: ${CRAFT_DB_USER}
+#      POSTGRES_PASSWORD: ${CRAFT_DB_PASSWORD}
