@@ -58,7 +58,7 @@
       var o = e && e.prototype instanceof b ? e : b,
         a = Object.create(o.prototype),
         s = new I(n || []);
-      return i(a, '_invoke', {value: O(t, r, s)}), a;
+      return (i(a, '_invoke', {value: O(t, r, s)}), a);
     }
     function d(t, e, r) {
       try {
@@ -108,7 +108,7 @@
               )
             : r.resolve(f).then(
                 function (t) {
-                  (c.value = t), s(c);
+                  ((c.value = t), s(c));
                 },
                 function (t) {
                   return n('throw', t, s, l);
@@ -183,7 +183,7 @@
         );
       var a = d(o, t.iterator, e.arg);
       if ('throw' === a.type)
-        return (e.method = 'throw'), (e.arg = a.arg), (e.delegate = null), m;
+        return ((e.method = 'throw'), (e.arg = a.arg), (e.delegate = null), m);
       var i = a.arg;
       return i
         ? i.done
@@ -200,18 +200,18 @@
     }
     function A(t) {
       var e = {tryLoc: t[0]};
-      1 in t && (e.catchLoc = t[1]),
+      (1 in t && (e.catchLoc = t[1]),
         2 in t && ((e.finallyLoc = t[2]), (e.afterLoc = t[3])),
-        this.tryEntries.push(e);
+        this.tryEntries.push(e));
     }
     function k(t) {
       var e = t.completion || {};
-      (e.type = 'normal'), delete e.arg, (t.completion = e);
+      ((e.type = 'normal'), delete e.arg, (t.completion = e));
     }
     function I(t) {
-      (this.tryEntries = [{tryLoc: 'root'}]),
+      ((this.tryEntries = [{tryLoc: 'root'}]),
         t.forEach(A, this),
-        this.reset(!0);
+        this.reset(!0));
     }
     function U(e) {
       if (e || '' === e) {
@@ -222,8 +222,8 @@
           var o = -1,
             i = function t() {
               for (; ++o < e.length; )
-                if (a.call(e, o)) return (t.value = e[o]), (t.done = !1), t;
-              return (t.value = r), (t.done = !0), t;
+                if (a.call(e, o)) return ((t.value = e[o]), (t.done = !1), t);
+              return ((t.value = r), (t.done = !0), t);
             };
           return (i.next = i);
         }
@@ -284,9 +284,9 @@
           function t() {
             for (; r.length; ) {
               var n = r.pop();
-              if (n in e) return (t.value = n), (t.done = !1), t;
+              if (n in e) return ((t.value = n), (t.done = !1), t);
             }
-            return (t.done = !0), t;
+            return ((t.done = !0), t);
           }
         );
       }),
@@ -391,7 +391,7 @@
           for (var e = this.tryEntries.length - 1; e >= 0; --e) {
             var r = this.tryEntries[e];
             if (r.finallyLoc === t)
-              return this.complete(r.completion, r.afterLoc), k(r), m;
+              return (this.complete(r.completion, r.afterLoc), k(r), m);
           }
         },
         catch: function (t) {
@@ -455,10 +455,10 @@
       },
       n: function () {
         var t = r.next();
-        return (s = t.done), t;
+        return ((s = t.done), t);
       },
       e: function (t) {
-        (l = !0), (a = t);
+        ((l = !0), (a = t));
       },
       f: function () {
         try {
@@ -525,7 +525,7 @@
                 l = !0
               );
           } catch (t) {
-            (u = !0), (o = t);
+            ((u = !0), (o = t));
           } finally {
             try {
               if (!l && null != r.return && ((i = r.return()), Object(i) !== i))
@@ -566,7 +566,7 @@
     return n;
   }
   var l, u, c;
-  (Craft.CloudUploader = Craft.BaseUploader.extend(
+  ((Craft.CloudUploader = Craft.BaseUploader.extend(
     {
       element: null,
       $fileInput: null,
@@ -577,7 +577,7 @@
       _handleChange: null,
       init: function (t, e) {
         var r = this;
-        (e = $.extend({}, Craft.CloudUploader.defaults, e)),
+        ((e = $.extend({}, Craft.CloudUploader.defaults, e)),
           this.base(t, e),
           (this.element = t[0]),
           (this.$dropZone = e.dropZone),
@@ -604,7 +604,7 @@
               },
               dragenter: this.handleDragEvent,
               dragleave: this.handleDragEvent,
-            });
+            }));
       },
       handleDragEvent: function (t) {
         var e;
@@ -689,16 +689,16 @@
                         t.next = 23;
                         break;
                       }
-                      this.element.dispatchEvent(new Event('fileuploadstart')),
+                      (this.element.dispatchEvent(new Event('fileuploadstart')),
                         (l = r(a)),
                         (t.prev = 6),
-                        l.s();
+                        l.s());
                     case 8:
                       if ((u = l.n()).done) {
                         t.next = 15;
                         break;
                       }
-                      return (c = u.value), (t.next = 12), this.uploadFile(c);
+                      return ((c = u.value), (t.next = 12), this.uploadFile(c));
                     case 12:
                       this._inProgressCounter--;
                     case 13:
@@ -708,15 +708,15 @@
                       t.next = 20;
                       break;
                     case 17:
-                      (t.prev = 17), (t.t0 = t.catch(6)), l.e(t.t0);
+                      ((t.prev = 17), (t.t0 = t.catch(6)), l.e(t.t0));
                     case 20:
-                      return (t.prev = 20), l.f(), t.finish(20);
+                      return ((t.prev = 20), l.f(), t.finish(20));
                     case 23:
-                      (this._validFileCounter = 0),
+                      ((this._validFileCounter = 0),
                         (this._totalBytes = 0),
                         (this._uploadedBytes = 0),
                         (this._lastUploadedBytes = 0),
-                        (this._inProgressCounter = 0);
+                        (this._inProgressCounter = 0));
                     case 28:
                     case 'end':
                       return t.stop();
@@ -766,7 +766,7 @@
                         axios.put(o.data.url, r, {
                           headers: {'Content-Type': r.type},
                           onUploadProgress: function (t) {
-                            (u._uploadedBytes =
+                            ((u._uploadedBytes =
                               u._uploadedBytes +
                               t.loaded -
                               u._lastUploadedBytes),
@@ -778,7 +778,7 @@
                                     total: u._totalBytes,
                                   },
                                 }),
-                              );
+                              ));
                           },
                         })
                       );
@@ -801,14 +801,14 @@
                         axios.post(this.settings.url, n)
                       );
                     case 14:
-                      (o = t.sent),
+                      ((o = t.sent),
                         this.element.dispatchEvent(
                           new CustomEvent('fileuploaddone', {detail: o.data}),
                         ),
-                        (t.next = 21);
+                        (t.next = 21));
                       break;
                     case 18:
-                      (t.prev = 18),
+                      ((t.prev = 18),
                         (t.t0 = t.catch(1)),
                         this.element.dispatchEvent(
                           new CustomEvent('fileuploadfail', {
@@ -825,7 +825,7 @@
                               filename: r.name,
                             },
                           }),
-                        );
+                        ));
                     case 21:
                       return (
                         (t.prev = 21),
@@ -850,7 +850,7 @@
           return u.apply(this, arguments);
         }),
       handleChange: function (t) {
-        this.uploadFiles(t.target.files), this.$fileInput.val('');
+        (this.uploadFiles(t.target.files), this.$fileInput.val(''));
       },
       getImage:
         ((l = o(
@@ -869,7 +869,7 @@
                         n.decode()
                       );
                     case 5:
-                      URL.revokeObjectURL(n.src), (t.next = 11);
+                      (URL.revokeObjectURL(n.src), (t.next = 11));
                       break;
                     case 8:
                       return (
@@ -895,14 +895,14 @@
         }),
       destroy: function () {
         var t = this;
-        this.$fileInput.off('change', this._handleChange),
+        (this.$fileInput.off('change', this._handleChange),
           this.$dropZone.off('dragover drop dragenter dragleave'),
           Object.entries(this.settings.events).forEach(function (e) {
             var r = a(e, 2),
               n = r[0],
               o = r[1];
             t.element.removeEventListener(n, o);
-          });
+          }));
       },
     },
     {
@@ -916,6 +916,6 @@
     Craft.registerUploaderClass(
       'craft\\cloud\\fs\\AssetsFs',
       Craft.CloudUploader,
-    );
+    ));
 })();
 //# sourceMappingURL=Uploader.js.map
