@@ -2,8 +2,12 @@
 
 namespace craft\cloud\ops;
 
+use Closure;
 use Craft;
+use craft\cachecascade\CascadeCache;
 use craft\helpers\App;
+use yii\caching\ArrayCache;
+use yii\redis\Cache as RedisCache;
 
 class AppConfig
 {
@@ -49,7 +53,7 @@ class AppConfig
         return $id;
     }
 
-    private function getSessionConfig(): \Closure
+    private function getSessionConfig(): Closure
     {
         return function() {
             $config = App::sessionConfig();
@@ -63,37 +67,54 @@ class AppConfig
         };
     }
 
-    private function getCacheConfig(): \Closure
+    private function getCacheConfig(): Closure
     {
         return function() {
-            $redisUrl = App::env('CRAFT_CLOUD_REDIS_URL');
             $defaultDuration = Craft::$app->getConfig()->getGeneral()->cacheDuration;
+            $valkey = $this->resolveValkeyEndpoint();
 
-            if ($redisUrl) {
-                return Craft::createObject([
-                    'class' => \yii\redis\Cache::class,
-                    'defaultDuration' => $defaultDuration,
-                    'redis' => [
-                        'class' => Redis::class,
-                        'url' => $redisUrl,
-                        'database' => 0,
-                    ],
-                ]);
-            }
+            $primaryCache = $valkey ? [
+                'class' => RedisCache::class,
+                'defaultDuration' => $defaultDuration,
+                'redis' => [
+                    'class' => Redis::class,
+                    'url' => $valkey,
+                    'database' => 0,
+                ],
+            ] : [
+                'class' => \craft\cache\DbCache::class,
+                'cacheTable' => \craft\db\Table::CACHE,
+                'defaultDuration' => $defaultDuration,
+            ];
 
-            if ($this->tableExists(\craft\db\Table::CACHE)) {
-                return Craft::createObject([
-                    'class' => \craft\cache\DbCache::class,
-                    'cacheTable' => \craft\db\Table::CACHE,
-                    'defaultDuration' => $defaultDuration,
-                ]);
-            }
-
-            return Craft::createObject(App::cacheConfig());
+            return Craft::createObject([
+                'class' => CascadeCache::class,
+                'caches' => [
+                    $primaryCache,
+                    ['class' => ArrayCache::class],
+                ],
+            ]);
         };
     }
 
-    private function getQueueConfig(): \Closure
+    private function resolveValkeyEndpoint(): string
+    {
+        $srv = App::env('CRAFT_CLOUD_CACHE_SRV');
+
+        if ($srv) {
+            $record = dns_get_record($srv, DNS_SRV);
+
+            if (!empty($record)) {
+                return 'redis://' . $record[0]['target'] . ':' . $record[0]['port'];
+            }
+        }
+
+        // Deprecated. We are moving to CRAFT_CLOUD_CACHE_SRV for both Fargate and ECS.
+        // Once every website is moved over, we can disregared this fallback.
+        return App::env('CRAFT_CLOUD_REDIS_URL');
+    }
+
+    private function getQueueConfig(): Closure
     {
         return function() {
             $sqsUrl = App::env('CRAFT_CLOUD_SQS_URL');
@@ -113,7 +134,7 @@ class AppConfig
         };
     }
 
-    private function getAssetManagerConfig(): \Closure
+    private function getAssetManagerConfig(): Closure
     {
         return function() {
             $config = App::assetManagerConfig();

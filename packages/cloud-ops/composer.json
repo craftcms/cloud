@@ -9,6 +9,7 @@
     "craftcms/cms": "^4.6 || ^5.0",
     "bref/bref": "^2.4.2",
     "bref/extra-php-extensions": "^1.7.2",
+    "craftcms/yii2-cache-cascade": "^1.0",
     "yiisoft/yii2-redis": "^2.0",
     "yiisoft/yii2-queue": "^2.3.7",
     "aws/aws-sdk-php": "^3.342.6"
@@ -22,6 +23,9 @@
     ]
   },
   "extra": {
+    "branch-alias": {
+      "dev-main": "1.x-dev"
+    },
     "class": "craft\\cloud\\ops\\composer\\Plugin",
     "bootstrap": "craft\\cloud\\ops\\Module"
   },
