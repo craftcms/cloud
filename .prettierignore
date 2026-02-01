@@ -1,6 +1,7 @@
 *.md
 *.php
 composer.lock
-src/templates/*
+**/templates/*
 vendor/*
-src/web/assets/**/dist
+node_modules/*
+**/dist
