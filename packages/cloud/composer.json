@@ -15,10 +15,6 @@
     "99designs/http-signatures": "^4.0",
     "symfony/process": "^6 || ^7"
   },
-  "require-dev": {
-    "craftcms/ecs": "dev-main",
-    "craftcms/phpstan": "dev-main"
-  },
   "autoload": {
     "psr-4": {
       "craft\\cloud\\": "src/"
