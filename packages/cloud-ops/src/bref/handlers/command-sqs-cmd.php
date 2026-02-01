@@ -1,5 +1,5 @@
 <?php
 
-require __DIR__ . '/../../../../vendor/autoload.php';
+require __DIR__.'/../../../../../autoload.php';
 
-return new \craft\cloud\ops\bref\handlers\CommandSqsHandler();
+return new \craft\cloud\ops\bref\handlers\CommandSqsHandler;
