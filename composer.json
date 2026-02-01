@@ -1,0 +1,50 @@
+{
+  "name": "craftcms/cloud-monorepo",
+  "description": "Craft Cloud monorepo for development",
+  "type": "project",
+  "license": "proprietary",
+  "minimum-stability": "dev",
+  "prefer-stable": true,
+  "repositories": [
+    {
+      "type": "path",
+      "url": "packages/cloud-ops",
+      "options": {
+        "symlink": true
+      }
+    },
+    {
+      "type": "path",
+      "url": "packages/cloud",
+      "options": {
+        "symlink": true
+      }
+    }
+  ],
+  "require": {
+    "craftcms/cloud": "@dev",
+    "craftcms/cloud-ops": "@dev"
+  },
+  "require-dev": {
+    "craftcms/ecs": "dev-main",
+    "craftcms/phpstan": "dev-main",
+    "codeception/codeception": "^5.0",
+    "vlucas/phpdotenv": "^5.0",
+    "codeception/module-asserts": "~3.1.0",
+    "codeception/module-yii2": "^1.0"
+  },
+  "scripts": {
+    "check-cs": "ecs check --ansi",
+    "fix-cs": "ecs check --ansi --fix",
+    "phpstan": "phpstan --memory-limit=1G",
+    "test": "codecept run unit",
+    "test:coverage": "codecept run unit --coverage"
+  },
+  "config": {
+    "allow-plugins": {
+      "yiisoft/yii2-composer": true,
+      "craftcms/plugin-installer": true,
+      "craftcms/cloud-ops": true
+    }
+  }
+}

@@ -1,0 +1,33 @@
+{
+  "name": "craftcms/cloud-ops",
+  "description": "Craft Cloud infrastructure and runtime extension",
+  "type": "composer-plugin",
+  "license": "proprietary",
+  "require": {
+    "php": "^8.2",
+    "composer-plugin-api": "^2.0",
+    "craftcms/cms": "^4.6 || ^5.0",
+    "bref/bref": "^2.4.2",
+    "bref/extra-php-extensions": "^1.7.2",
+    "yiisoft/yii2-redis": "^2.0",
+    "yiisoft/yii2-queue": "^2.3.7",
+    "aws/aws-sdk-php": "^3.342.6"
+  },
+  "autoload": {
+    "psr-4": {
+      "craft\\cloud\\ops\\": "src/"
+    },
+    "files": [
+      "autoload.php"
+    ]
+  },
+  "extra": {
+    "class": "craft\\cloud\\ops\\composer\\Plugin",
+    "bootstrap": "craft\\cloud\\ops\\Module"
+  },
+  "config": {
+    "allow-plugins": {
+      "yiisoft/yii2-composer": true
+    }
+  }
+}
