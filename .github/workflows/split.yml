@@ -5,8 +5,8 @@ on:
     branches:
       - main
     tags:
-      - "cloud/[0-9]*"
-      - "cloud-ops/[0-9]*"
+      - 'cloud/[0-9]*'
+      - 'cloud-ops/[0-9]*'
   workflow_dispatch:
 
 jobs:
@@ -53,8 +53,8 @@ jobs:
           package_directory: ${{ matrix.package.path }}
           repository_organization: craftcms
           repository_name: ${{ matrix.package.name }}
-          user_name: "craftcms"
-          user_email: "github@craftcms.com"
+          user_name: 'craftcms'
+          user_email: 'github@craftcms.com'
           tag: ${{ steps.tag.outputs.tag }}
         env:
           GITHUB_TOKEN: ${{ secrets.CLOUD_SPLIT_REPO_TOKEN }}
