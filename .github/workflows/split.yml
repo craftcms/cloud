@@ -48,7 +48,7 @@ jobs:
 
       - name: Split ${{ matrix.package.name }}
         if: steps.tag.outputs.should_run == 'true'
-        uses: symplify/monorepo-split-github-action@v2.3.0
+        uses: danharrin/monorepo-split-github-action@v2.4.2
         with:
           package_directory: ${{ matrix.package.path }}
           repository_organization: craftcms

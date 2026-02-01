@@ -3,8 +3,7 @@ on:
   workflow_dispatch:
   push:
     branches:
-      - 1.x
-      - 2.x
+      - main
   pull_request:
 permissions:
   contents: read
@@ -17,5 +16,5 @@ jobs:
     uses: craftcms/.github/.github/workflows/code-quality.yml@v3
     with:
       node_version: '18'
-      php_version: '8.1'
+      php_version: '8.3'
       jobs: '["ecs", "phpstan", "prettier"]'
