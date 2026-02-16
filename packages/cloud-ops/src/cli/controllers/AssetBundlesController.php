@@ -4,10 +4,12 @@ namespace craft\cloud\ops\cli\controllers;
 
 use Craft;
 use craft\cloud\ops\cli\AssetBundlePublisher;
-use craft\cloud\ops\Composer;
 use craft\console\Controller;
 use craft\helpers\App;
+use craft\helpers\Json;
 use craft\web\assets\datepickeri18n\DatepickerI18nAsset;
+use Illuminate\Support\Collection;
+use League\Uri\Components\HierarchicalPath;
 use ReflectionClass;
 use yii\console\Exception;
 use yii\console\ExitCode;
@@ -33,9 +35,9 @@ class AssetBundlesController extends Controller
         }
 
         if (App::env('CRAFT_NO_DB')) {
-            Composer::getModuleAliases()
-                ->merge(Composer::getPluginAliases())
-                ->merge(Composer::getRootAliases())
+            $this->getModuleAliases()
+                ->merge($this->getPluginAliases())
+                ->merge($this->getRootAliases())
                 ->each(function($path, $alias) {
                     return Craft::setAlias($alias, $path);
                 });
@@ -104,5 +106,81 @@ class AssetBundlesController extends Controller
         $publisher->wait();
 
         return ExitCode::OK;
+    }
+
+    private function getPluginAliases(): Collection
+    {
+        $pluginInfo = Craft::$app->getPlugins()->getComposerPluginInfo();
+
+        return Collection::make($pluginInfo)
+            ->flatMap(fn(array $plugin) => $plugin['aliases'] ?? []);
+    }
+
+    private function getModuleAliases(): Collection
+    {
+        $data = Json::decode(file_get_contents(Craft::$app->getComposer()->getLockPath()));
+        $packages = new Collection($data['packages'] ?? null);
+
+        return $packages
+            ->flatMap(function(array $package) {
+                $packageName = $package['name'] ?? null;
+                $packageType = $package['type'] ?? null;
+
+                if (
+                    !$packageName ||
+                    !$packageType ||
+                    !preg_match('/^(craft|yii)/', $packageType)
+                ) {
+                    return null;
+                }
+
+                $basePath = HierarchicalPath::fromAbsolute(
+                    Craft::$app->getVendorPath(),
+                    $packageName,
+                );
+
+                return $this->psr4ToAliases(
+                    $package['autoload']['psr-4'] ?? [],
+                    $basePath,
+                );
+            });
+    }
+
+    private function getRootAliases(): Collection
+    {
+        $jsonPath = Craft::$app->getComposer()->getJsonPath();
+        $root = dirname($jsonPath);
+        $data = Json::decode(file_get_contents($jsonPath));
+
+        return $this->psr4ToAliases(
+            $data['autoload']['psr-4'] ?? [],
+            $root,
+        );
+    }
+
+    private function psr4ToAliases(iterable $psr4, string $basePath): Collection
+    {
+        return Collection::make($psr4)
+            ->mapWithKeys(function($path, $namespace) use ($basePath) {
+
+                // Yii doesn't support aliases that point to multiple base paths
+                if (is_array($path)) {
+                    return null;
+                }
+
+                $normalizedPath = HierarchicalPath::new($path);
+
+                if (!$normalizedPath->isAbsolute()) {
+                    $normalizedPath = HierarchicalPath::fromAbsolute(
+                        $basePath,
+                        $path,
+                    );
+                }
+
+                $alias = '@' . str_replace('\\', '/', trim($namespace, '\\'));
+                $normalizedPath = $normalizedPath->withoutTrailingSlash()->value();
+
+                return [$alias => $normalizedPath];
+            });
     }
 }

@@ -44,7 +44,7 @@
     "allow-plugins": {
       "yiisoft/yii2-composer": true,
       "craftcms/plugin-installer": true,
-      "craftcms/cloud-ops": true
+      "codezero/composer-preload-files": true
     }
   }
 }

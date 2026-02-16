@@ -419,6 +419,63 @@
             "time": "2018-03-26T11:24:36+00:00"
         },
         {
+            "name": "codezero/composer-preload-files",
+            "version": "1.0.2",
+            "source": {
+                "type": "git",
+                "url": "https://github.com/codezero-be/composer-preload-files.git",
+                "reference": "83246aa68c08ed7c2b1dbcb451b4faf65aa658d9"
+            },
+            "dist": {
+                "type": "zip",
+                "url": "https://api.github.com/repos/codezero-be/composer-preload-files/zipball/83246aa68c08ed7c2b1dbcb451b4faf65aa658d9",
+                "reference": "83246aa68c08ed7c2b1dbcb451b4faf65aa658d9",
+                "shasum": ""
+            },
+            "require": {
+                "composer-plugin-api": "^2.0",
+                "php": ">= 7.0"
+            },
+            "require-dev": {
+                "composer/composer": "^2.0"
+            },
+            "type": "composer-plugin",
+            "extra": {
+                "class": "CodeZero\\ComposerPreloadFiles\\Plugin"
+            },
+            "autoload": {
+                "psr-4": {
+                    "CodeZero\\ComposerPreloadFiles\\": "src"
+                }
+            },
+            "notification-url": "https://packagist.org/downloads/",
+            "license": [
+                "MIT"
+            ],
+            "authors": [
+                {
+                    "name": "Ivan Vermeyen",
+                    "email": "ivan@codezero.be"
+                }
+            ],
+            "description": "Composer plugin to autoload files before vendor files.",
+            "keywords": [
+                "autoload",
+                "composer",
+                "files",
+                "helpers",
+                "include",
+                "load",
+                "plugin",
+                "require"
+            ],
+            "support": {
+                "issues": "https://github.com/codezero-be/composer-preload-files/issues",
+                "source": "https://github.com/codezero-be/composer-preload-files/tree/1.0.2"
+            },
+            "time": "2023-05-24T15:46:41+00:00"
+        },
+        {
             "name": "commerceguys/addressing",
             "version": "v1.4.2",
             "source": {
@@ -1113,7 +1170,7 @@
             "dist": {
                 "type": "path",
                 "url": "packages/cloud",
-                "reference": "e858d32612f4de2510d092892778dab6f7858781"
+                "reference": "c886414e1461b514216ed321fa8ffc3a15bf6648"
             },
             "require": {
                 "99designs/http-signatures": "^4.0",
@@ -1126,10 +1183,6 @@
                 "phlak/semver": "^4.1",
                 "php": "^8.2",
                 "symfony/process": "^6 || ^7"
-            },
-            "require-dev": {
-                "craftcms/ecs": "dev-main",
-                "craftcms/phpstan": "dev-main"
             },
             "type": "craft-plugin",
             "extra": {
@@ -1163,26 +1216,28 @@
             "dist": {
                 "type": "path",
                 "url": "packages/cloud-ops",
-                "reference": "272600a3113488ac04ca786eca9309e7be5c3079"
+                "reference": "5a9b8775ff56caed5aa3ba52f5f0a96e23b8ca27"
             },
             "require": {
                 "aws/aws-sdk-php": "^3.342.6",
-                "bref/bref": "^2.4.2",
-                "bref/extra-php-extensions": "^1.7.2",
-                "composer-plugin-api": "^2.0",
+                "bref/bref": "^2.0",
+                "bref/extra-php-extensions": "^1.0",
+                "codezero/composer-preload-files": "^1.0",
                 "craftcms/cms": "^4.6 || ^5.0",
                 "craftcms/yii2-cache-cascade": "^1.0",
                 "php": "^8.2",
                 "yiisoft/yii2-queue": "^2.3.7",
                 "yiisoft/yii2-redis": "^2.0"
             },
-            "type": "composer-plugin",
+            "type": "yii2-extension",
             "extra": {
                 "branch-alias": {
                     "dev-main": "1.x-dev"
                 },
-                "class": "craft\\cloud\\ops\\composer\\Plugin",
-                "bootstrap": "craft\\cloud\\ops\\Module"
+                "bootstrap": "craft\\cloud\\ops\\Module",
+                "preload-files": [
+                    "autoload.php"
+                ]
             },
             "autoload": {
                 "psr-4": {
