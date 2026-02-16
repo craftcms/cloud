@@ -1216,7 +1216,7 @@
             "dist": {
                 "type": "path",
                 "url": "packages/cloud-ops",
-                "reference": "5a9b8775ff56caed5aa3ba52f5f0a96e23b8ca27"
+                "reference": "a13e6fb3adb6ad076c9bb95da19dc2d02d17b145"
             },
             "require": {
                 "aws/aws-sdk-php": "^3.342.6",
@@ -1236,16 +1236,13 @@
                 },
                 "bootstrap": "craft\\cloud\\ops\\Module",
                 "preload-files": [
-                    "autoload.php"
+                    "preload.php"
                 ]
             },
             "autoload": {
                 "psr-4": {
                     "craft\\cloud\\ops\\": "src/"
-                },
-                "files": [
-                    "autoload.php"
-                ]
+                }
             },
             "license": [
                 "proprietary"
