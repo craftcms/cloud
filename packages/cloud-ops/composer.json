@@ -17,10 +17,7 @@
   "autoload": {
     "psr-4": {
       "craft\\cloud\\ops\\": "src/"
-    },
-    "files": [
-      "autoload.php"
-    ]
+    }
   },
   "extra": {
     "branch-alias": {
@@ -28,7 +25,7 @@
     },
     "bootstrap": "craft\\cloud\\ops\\Module",
     "preload-files": [
-      "autoload.php"
+      "preload.php"
     ]
   },
   "config": {
