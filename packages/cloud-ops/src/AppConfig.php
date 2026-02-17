@@ -71,6 +71,7 @@ class AppConfig
     {
         return function() {
             $defaultDuration = Craft::$app->getConfig()->getGeneral()->cacheDuration;
+
             $valkey = $this->resolveValkeyEndpoint();
 
             $primaryCache = $valkey ? [
@@ -97,7 +98,7 @@ class AppConfig
         };
     }
 
-    private function resolveValkeyEndpoint(): string
+    private function resolveValkeyEndpoint(): ?string
     {
         $srv = App::env('CRAFT_CLOUD_CACHE_SRV');
 
