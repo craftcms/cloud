@@ -5,10 +5,8 @@ namespace craft\cloud\ops;
 use Closure;
 use Craft;
 use craft\cache\DbCache;
-use craft\cachecascade\CascadeCache;
 use craft\db\Table;
 use craft\helpers\App;
-use yii\caching\ArrayCache;
 use yii\redis\Cache as RedisCache;
 
 class AppConfig
@@ -72,37 +70,28 @@ class AppConfig
     private function getCacheConfig(): Closure
     {
         return function() {
-            // $defaultDuration = Craft::$app->getConfig()->getGeneral()->cacheDuration;
+            $valkey = $this->resolveValkeyEndpoint();
+            $defaultDuration = Craft::$app->getConfig()->getGeneral()->cacheDuration;
 
-            // $valkey = $this->resolveValkeyEndpoint();
-            //
-            // $primaryCache = $valkey ? [
-            //     'class' => RedisCache::class,
-            //     'defaultDuration' => $defaultDuration,
-            //     'redis' => [
-            //         'class' => Redis::class,
-            //         'url' => $valkey,
-            //         'database' => 0,
-            //     ],
-            // ] : [
-            //     'class' => \craft\cache\DbCache::class,
-            //     'cacheTable' => \craft\db\Table::CACHE,
-            //     'defaultDuration' => $defaultDuration,
-            // ];
-
-            $primaryCache = $this->tableExists(Table::CACHE) ? [
+            $config = $this->tableExists(Table::CACHE) ? [
                 'class' => DbCache::class,
                 'cacheTable' => Table::CACHE,
-                'defaultDuration' => Craft::$app->getConfig()->getGeneral()->cacheDuration,
+                'defaultDuration' => $defaultDuration,
             ] : App::cacheConfig();
 
-            return Craft::createObject([
-                'class' => CascadeCache::class,
-                'caches' => [
-                    $primaryCache,
-                    ['class' => ArrayCache::class],
-                ],
-            ]);
+            if ($valkey) {
+                $config = [
+                    'class' => RedisCache::class,
+                    'defaultDuration' => $defaultDuration,
+                    'redis' => [
+                        'class' => Redis::class,
+                        'url' => $valkey,
+                        'database' => 0,
+                    ],
+                ];
+            }
+
+            return Craft::createObject($config);
         };
     }
 
