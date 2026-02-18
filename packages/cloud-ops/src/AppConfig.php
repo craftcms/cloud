@@ -72,29 +72,21 @@ class AppConfig
     private function getCacheConfig(): Closure
     {
         return function() {
-            // $defaultDuration = Craft::$app->getConfig()->getGeneral()->cacheDuration;
-
-            // $valkey = $this->resolveValkeyEndpoint();
-            //
-            // $primaryCache = $valkey ? [
-            //     'class' => RedisCache::class,
-            //     'defaultDuration' => $defaultDuration,
-            //     'redis' => [
-            //         'class' => Redis::class,
-            //         'url' => $valkey,
-            //         'database' => 0,
-            //     ],
-            // ] : [
-            //     'class' => \craft\cache\DbCache::class,
-            //     'cacheTable' => \craft\db\Table::CACHE,
-            //     'defaultDuration' => $defaultDuration,
-            // ];
-
-            $primaryCache = $this->tableExists(Table::CACHE) ? [
+            $defaultDuration = Craft::$app->getConfig()->getGeneral()->cacheDuration;
+            $valkey = $this->resolveValkeyEndpoint();
+            $primaryCache = $valkey ? [
+                'class' => RedisCache::class,
+                'defaultDuration' => $defaultDuration,
+                'redis' => [
+                    'class' => Redis::class,
+                    'url' => $valkey,
+                    'database' => 0,
+                ],
+            ] : [
                 'class' => DbCache::class,
                 'cacheTable' => Table::CACHE,
-                'defaultDuration' => Craft::$app->getConfig()->getGeneral()->cacheDuration,
-            ] : App::cacheConfig();
+                'defaultDuration' => $defaultDuration,
+            ];
 
             return Craft::createObject([
                 'class' => CascadeCache::class,
