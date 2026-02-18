@@ -4,10 +4,9 @@ namespace craft\cloud\ops;
 
 use Closure;
 use Craft;
-use craft\cachecascade\CascadeCache;
+use craft\cache\DbCache;
+use craft\db\Table;
 use craft\helpers\App;
-use yii\caching\ArrayCache;
-use yii\redis\Cache as RedisCache;
 
 class AppConfig
 {
@@ -70,49 +69,15 @@ class AppConfig
     private function getCacheConfig(): Closure
     {
         return function() {
-            $defaultDuration = Craft::$app->getConfig()->getGeneral()->cacheDuration;
+            $config = $this->tableExists(Table::CACHE) ? [
+                'class' => DbCache::class,
+                'cacheTable' => Table::CACHE,
+                'defaultDuration' => Craft::$app->getConfig()->getGeneral()->cacheDuration,
+            ] : App::cacheConfig();
 
-            $valkey = $this->resolveValkeyEndpoint();
+            return Craft::createObject($config);
 
-            $primaryCache = $valkey ? [
-                'class' => RedisCache::class,
-                'defaultDuration' => $defaultDuration,
-                'redis' => [
-                    'class' => Redis::class,
-                    'url' => $valkey,
-                    'database' => 0,
-                ],
-            ] : [
-                'class' => \craft\cache\DbCache::class,
-                'cacheTable' => \craft\db\Table::CACHE,
-                'defaultDuration' => $defaultDuration,
-            ];
-
-            return Craft::createObject([
-                'class' => CascadeCache::class,
-                'caches' => [
-                    $primaryCache,
-                    ['class' => ArrayCache::class],
-                ],
-            ]);
         };
-    }
-
-    private function resolveValkeyEndpoint(): ?string
-    {
-        $srv = App::env('CRAFT_CLOUD_CACHE_SRV');
-
-        if ($srv) {
-            $record = dns_get_record($srv, DNS_SRV);
-
-            if (!empty($record)) {
-                return 'redis://' . $record[0]['target'] . ':' . $record[0]['port'];
-            }
-        }
-
-        // Deprecated. We are moving to CRAFT_CLOUD_CACHE_SRV for both Fargate and ECS.
-        // Once every website is moved over, we can disregared this fallback.
-        return App::env('CRAFT_CLOUD_REDIS_URL');
     }
 
     private function getQueueConfig(): Closure
