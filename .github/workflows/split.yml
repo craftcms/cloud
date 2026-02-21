@@ -19,9 +19,11 @@ jobs:
           - name: cloud-plugin
             path: packages/cloud
             prefix: cloud/
+            branch: 3.x
           - name: cloud-ops
             path: packages/cloud-ops
             prefix: cloud-ops/
+            branch: 1.x
 
     steps:
       - name: Checkout
@@ -37,17 +39,10 @@ jobs:
             PREFIX="${{ matrix.package.prefix }}"
             if [[ "$TAG" == ${PREFIX}* ]]; then
               echo "tag=${TAG#$PREFIX}" >> $GITHUB_OUTPUT
-              echo "should_run=true" >> $GITHUB_OUTPUT
-            else
-              echo "should_run=false" >> $GITHUB_OUTPUT
             fi
-          else
-            echo "should_run=true" >> $GITHUB_OUTPUT
-            echo "tag=" >> $GITHUB_OUTPUT
           fi
 
       - name: Split ${{ matrix.package.name }}
-        if: steps.tag.outputs.should_run == 'true'
         uses: danharrin/monorepo-split-github-action@v2.4.2
         with:
           package_directory: ${{ matrix.package.path }}
@@ -56,5 +51,6 @@ jobs:
           user_name: 'craftcms'
           user_email: 'github@craftcms.com'
           tag: ${{ steps.tag.outputs.tag }}
+          branch: ${{ matrix.package.branch }}
         env:
           GITHUB_TOKEN: ${{ secrets.CLOUD_SPLIT_REPO_TOKEN }}
