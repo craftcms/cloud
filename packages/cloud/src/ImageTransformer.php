@@ -7,6 +7,7 @@ use craft\base\Component;
 use craft\base\imagetransforms\ImageTransformerInterface;
 use craft\elements\Asset;
 use craft\helpers\Assets;
+use craft\helpers\Html;
 use craft\models\ImageTransform;
 use League\Uri\Components\Query;
 use League\Uri\Modifier;

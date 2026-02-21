@@ -10,7 +10,16 @@ on:
   workflow_dispatch:
 
 jobs:
+  ci:
+    name: CI
+    uses: craftcms/.github/.github/workflows/code-quality.yml@v3
+    with:
+      node_version: '18'
+      php_version: '8.3'
+      jobs: '["ecs", "phpstan", "prettier"]'
+
   split:
+    needs: ci
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
@@ -19,11 +28,9 @@ jobs:
           - name: cloud-plugin
             path: packages/cloud
             prefix: cloud/
-            branch: 3.x
           - name: cloud-ops
             path: packages/cloud-ops
             prefix: cloud-ops/
-            branch: 1.x
 
     steps:
       - name: Checkout
