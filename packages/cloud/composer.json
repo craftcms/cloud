@@ -21,9 +21,6 @@
     }
   },
   "extra": {
-    "branch-alias": {
-      "dev-main": "3.x-dev"
-    },
     "handle": "cloud",
     "name": "Craft Cloud",
     "developer": "Pixel & Tonic",
