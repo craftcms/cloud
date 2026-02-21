@@ -5,6 +5,7 @@ namespace craft\cloud;
 use Craft;
 use craft\elements\Asset;
 use craft\models\ImageTransform;
+use Illuminate\Support\Collection;
 
 class CloudflareImagesTransform
 {
@@ -50,15 +51,17 @@ class CloudflareImagesTransform
 
     public static function fromImageTransform(ImageTransform $imageTransform): self
     {
-        return new self(
-            background: self::resolveBackground($imageTransform),
-            fit: self::resolveFit($imageTransform),
-            format: self::resolveFormat($imageTransform),
-            gravity: self::resolveGravity($imageTransform),
-            height: $imageTransform->height,
-            quality: $imageTransform->quality,
-            width: $imageTransform->width,
-        );
+        $fields = Collection::make($imageTransform->toArray())
+            ->merge([
+                'background' => self::resolveBackground($imageTransform),
+                'fit' => self::resolveFit($imageTransform),
+                'format' => self::resolveFormat($imageTransform),
+                'gravity' => self::resolveGravity($imageTransform),
+            ])
+            ->filter(fn($value) => $value !== null)
+            ->filter(fn($value, $key) => property_exists(self::class, $key));
+
+        return new self(...$fields->all());
     }
 
     private static function resolveFormat(ImageTransform $imageTransform): ?string
