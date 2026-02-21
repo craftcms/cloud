@@ -25,7 +25,7 @@ class ImageTransformer extends Component implements ImageTransformerInterface
     public function getTransformUrl(Asset $asset, ImageTransform $imageTransform, bool $immediately): string
     {
         $fs = $asset->getVolume()->getTransformFs();
-        $assetUrl = Assets::generateUrl($fs, $asset);
+        $assetUrl = Html::encodeSpaces(Assets::generateUrl($fs, $asset));
         $mimeType = $asset->getMimeType();
 
         if ($mimeType === 'image/gif' && !Craft::$app->getConfig()->getGeneral()->transformGifs) {
