@@ -50,7 +50,7 @@ jobs:
           fi
 
       - name: Split ${{ matrix.package.name }}
-        uses: danharrin/monorepo-split-github-action@v2.4.2
+        uses: danharrin/monorepo-split-github-action@v2.4.4
         with:
           package_directory: ${{ matrix.package.path }}
           repository_organization: craftcms
