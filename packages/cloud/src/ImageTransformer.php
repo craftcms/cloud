@@ -7,9 +7,11 @@ use craft\base\Component;
 use craft\base\imagetransforms\ImageTransformerInterface;
 use craft\elements\Asset;
 use craft\helpers\Assets;
-use craft\helpers\Html;
-use craft\helpers\UrlHelper;
 use craft\models\ImageTransform;
+use League\Uri\Components\Query;
+use League\Uri\Modifier;
+use League\Uri\Uri;
+use Psr\Http\Message\UriInterface;
 use yii\base\NotSupportedException;
 
 /**
@@ -20,15 +22,10 @@ class ImageTransformer extends Component implements ImageTransformerInterface
     public const SUPPORTED_IMAGE_FORMATS = ['jpg', 'jpeg', 'gif', 'png', 'avif', 'webp'];
     private const SIGNING_PARAM = 's';
 
-    public function init(): void
-    {
-        parent::init();
-    }
-
     public function getTransformUrl(Asset $asset, ImageTransform $imageTransform, bool $immediately): string
     {
         $fs = $asset->getVolume()->getTransformFs();
-        $assetUrl = Html::encodeSpaces(Assets::generateUrl($fs, $asset));
+        $assetUrl = Assets::generateUrl($fs, $asset);
         $mimeType = $asset->getMimeType();
 
         if ($mimeType === 'image/gif' && !Craft::$app->getConfig()->getGeneral()->transformGifs) {
@@ -40,27 +37,20 @@ class ImageTransformer extends Component implements ImageTransformerInterface
         }
 
         $cfTransform = CloudflareImagesTransform::fromAsset($asset, $imageTransform);
+        $uri = Modifier::wrap(Uri::new($assetUrl))
+            ->mergeQuery(Query::fromVariable($cfTransform)->value())
+            ->unwrap();
 
-        $transformParams = array_filter(get_object_vars($cfTransform), fn($v) => $v !== null);
-
-        $path = parse_url($assetUrl, PHP_URL_PATH);
-        $params = $transformParams + [
-            self::SIGNING_PARAM => $this->sign($path, $transformParams),
-        ];
-
-        $query = http_build_query($params);
-
-        return UrlHelper::url($assetUrl . ($query ? "?{$query}" : ''));
+        return (string) $this->sign($uri);
     }
 
     public function invalidateAssetTransforms(Asset $asset): void
     {
     }
 
-    private function sign(string $path, array $params): string
+    private function sign(UriInterface $uri): UriInterface
     {
-        $paramString = http_build_query($params);
-        $data = "$path#?$paramString";
+        $data = "{$uri->getPath()}#?{$uri->getQuery()}";
 
         Craft::info("Signing transform: `{$data}`", __METHOD__);
 
@@ -72,7 +62,11 @@ class ImageTransformer extends Component implements ImageTransformerInterface
             true,
         );
 
-        return $this->base64UrlEncode($hash);
+        $signature = $this->base64UrlEncode($hash);
+
+        return Modifier::wrap($uri)
+            ->mergeQueryParameters([self::SIGNING_PARAM => $signature])
+            ->unwrap();
     }
 
     private function base64UrlEncode(string $data): string

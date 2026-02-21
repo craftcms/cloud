@@ -142,7 +142,7 @@ class Plugin extends BasePlugin
         Event::on(
             ImageTransform::class,
             Model::EVENT_DEFINE_FIELDS,
-            function (DefineFieldsEvent $event) {
+            function(DefineFieldsEvent $event) {
                 $event->fields = array_merge(
                     $event->fields,
                     array_keys(get_class_vars(CloudflareImagesTransform::class)),
