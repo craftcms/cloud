@@ -3,7 +3,6 @@
 namespace craft\cloud;
 
 use Craft;
-use craft\elements\Asset;
 
 /**
  * @see https://developers.cloudflare.com/images/transform-images/transform-via-workers/#fetch-options
