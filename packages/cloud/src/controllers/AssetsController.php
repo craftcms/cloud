@@ -65,7 +65,8 @@ class AssetsController extends Controller
             throw new BadRequestHttpException('The target folder provided for uploading is not valid');
         }
 
-        $pathInVolume = "{$folder->path}$filename";
+        $volume = $folder->getVolume();
+        $pathInVolume = "{$volume->getSubpath()}{$folder->path}$filename";
 
         /** @var Fs $fs */
         $fs = $folder->getVolume()->getFs();

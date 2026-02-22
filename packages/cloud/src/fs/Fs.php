@@ -340,50 +340,40 @@ abstract class Fs extends FlysystemFs
 
     /**
      * @inheritdoc
-     * Duping parent to add config…
-     * @see https://github.com/craftcms/flysystem/pull/9
      */
-    public function copyFile(string $path, string $newPath): void
+    public function copyFile(string $path, string $newPath, $config = []): void
     {
         if ($this->useLocalFs) {
             $this->getLocalFs()->copyFile($path, $newPath);
             return;
         }
 
-        try {
-            $config = $this->addFileMetadataToConfig([]);
-            $this->filesystem()->copy($path, $newPath, $config);
-        } catch (FilesystemException|UnableToCopyFile $exception) {
-            throw new FsException($exception->getMessage(), 0, $exception);
-        }
+        parent::copyFile(
+            $path,
+            $newPath,
+            $this->addFileMetadataToConfig($config),
+        );
     }
 
     /**
      * @inheritdoc
-     * Duping parent method to add config…
-     * @see https://github.com/craftcms/flysystem/pull/9
      */
-    public function renameFile(string $path, string $newPath): void
+    public function renameFile(string $path, string $newPath, $config = []): void
     {
         if ($this->useLocalFs) {
             $this->getLocalFs()->renameFile($path, $newPath);
             return;
         }
 
-        try {
-            $config = $this->addFileMetadataToConfig([]);
-            $this->filesystem()->move($path, $newPath, $config);
-        } catch (FilesystemException|UnableToMoveFile $exception) {
-            throw new FsException($exception->getMessage(), 0, $exception);
-        }
-
-        $this->invalidateCdnPath($path);
+        parent::renameFile(
+            $path,
+            $newPath,
+            $this->addFileMetadataToConfig($config),
+        );
     }
 
     /**
      * @inheritdoc
-     * Duping parent method to add config…
-     * @see https://github.com/craftcms/flysystem/pull/9
      */
     public function createDirectory(string $path, array $config = []): void
     {
@@ -392,12 +382,10 @@ abstract class Fs extends FlysystemFs
             return;
         }
 
-        try {
-            $config = $this->addFileMetadataToConfig([]);
-            $this->filesystem()->createDirectory($path, $config);
-        } catch (FilesystemException|UnableToCreateDirectory $exception) {
-            throw new FsException($exception->getMessage(), 0, $exception);
-        }
+        parent::createDirectory(
+            $path,
+            $this->addFileMetadataToConfig($config),
+        );
     }
 
     /**
@@ -448,7 +436,11 @@ abstract class Fs extends FlysystemFs
         }
 
         $this->invalidateCdnPath($path);
-        parent::write($path, $contents, $config);
+        parent::write(
+            $path,
+            $contents,
+            $this->addFileMetadataToConfig($config),
+        );
     }
 
     /**
@@ -474,7 +466,11 @@ abstract class Fs extends FlysystemFs
         }
 
         $this->invalidateCdnPath($path);
-        parent::writeFileFromStream($path, $stream, $config);
+        parent::writeFileFromStream(
+            $path,
+            $stream,
+            $this->addFileMetadataToConfig($config),
+        );
     }
 
     /**

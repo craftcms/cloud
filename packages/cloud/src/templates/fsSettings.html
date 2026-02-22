@@ -1,0 +1,116 @@
+{% import "_includes/forms" as forms %}
+
+{{ forms.autosuggestField({
+    label: "Subpath"|t('cloud'),
+    instructions: "An optional subpath where assets should be stored within the filesystem."|t('cloud'),
+    id: 'subpath',
+    class: 'ltr',
+    name: 'subpath',
+    suggestEnvVars: true,
+    suggestAliases: true,
+    value: fs.subpath,
+    errors: fs.getErrors('subpath'),
+    placeholder: "path/to/subpath"|t('cloud'),
+    tip: "This value will be appended to all paths and URLs for the filesystem."|t('cloud'),
+}) }}
+
+<div id="base-url-field-container" class="{% if not fs.hasUrls %}hidden{% endif %}">
+    {{ forms.autosuggestField({
+        label: "Base URL"|t('app'),
+        instructions: "The base URL to the files in this filesystem."|t('app'),
+        id: 'baseUrl',
+        class: ['ltr'],
+        name: 'baseUrl',
+        suggestEnvVars: true,
+        suggestAliases: true,
+        value: (fs is defined ? fs.baseUrl : null),
+        errors: (fs is defined ? fs.getErrors('baseUrl') : null),
+        placeholder: "//example.com/path/to/folder",
+        tip: 'Use **rewrite rules** to override the default `cdn.craft.cloud` URL. <a class="go" href="https://craftcms.com/docs/cloud/redirects.html#rewrites">Learn more</a>'|t('cloud'),
+    }) }}
+</div>
+
+{% set cacheDurationInput %}
+    {% set expires = fs.expires ? fs.expires|split(' ') : null %}
+
+    <div class="flex">
+        <div>
+            {{ forms.text({
+                id: 'expiresAmount',
+                value: expires[0] ?? null,
+                size: 2,
+                class: 's3-expires-amount',
+                name: 'expires[amount]',
+            }) }}
+        </div>
+        {{ forms.select({
+            id: 'expiresPeriod',
+            options: periods,
+            value: expires[1] ?? null,
+            class: 's3-expires-period',
+            name: 'expires[period]',
+        }) }}
+    </div>
+
+{% endset %}
+
+{{ forms.field({
+    label: "Cache Duration"|t,
+    instructions: 'The Cache-Control duration set on assets in this filesystem.',
+    id: 'cacheDuration',
+    tip: 'Caching files for one year is recommended for optimal performance. <a class="go" href="https://craftcms.com/knowledge-base/choosing-a-cache-duration-for-assets">Learn more</a>',
+}, cacheDurationInput) }}
+
+<hr />
+
+<h2>Local Filesystem</h2>
+
+<div class="readable">
+    <blockquote class="note tip">
+        <p>
+            When running outside of Craft Cloud, this filesystem will fall back to your local disk for storage.
+            {{ tag('a', {
+                href: 'https://craftcms.com/knowledge-base/cloud-assets',
+                class: 'go',
+                text: 'Learn more'|t('app'),
+            }) }}
+        </p>
+    </blockquote>
+</div>
+
+<div id="local-fs-url-field" class="field {% if not fs.hasUrls %}hidden{% endif %}">
+    {{ forms.autosuggestField({
+    label: "Base URL"|t('app'),
+    instructions: "The base URL to the files in this filesystem."|t('app'),
+    id: 'local-fs-url',
+    class: ['ltr', 'fs-url'],
+    name: 'localFsUrl',
+    suggestEnvVars: true,
+    suggestAliases: true,
+    value: fs.localFsUrl ?? null,
+    errors: fs.getErrors('localFsUrl') ?? null,
+    required: true,
+    placeholder: "@web/path/to/folder",
+    }) }}
+</div>
+
+{{ forms.autosuggestField({
+    label: "Base Path"|t('app'),
+    instructions: "The base folder path that should be used as the root of the filesystem."|t('app'),
+    id: 'local-fs-path',
+    class: 'ltr',
+    name: 'localFsPath',
+    suggestEnvVars: true,
+    suggestAliases: true,
+    value: fs.localFsPath ?? null,
+    errors: fs.getErrors('localFsPath') ?? null,
+    required: true,
+    placeholder: "@webroot/path/to/folder"|t('app'),
+}) }}
+
+{% js %}
+    const $urlField = $('#types-craft-cloud-fs-AssetsFs-has-urls')
+        .addClass('fieldtoggle')
+        .data({target: '#types-craft-cloud-fs-AssetsFs-local-fs-url-field, #types-craft-cloud-fs-AssetsFs-cacheDuration-field, #types-craft-cloud-fs-AssetsFs-base-url-field-container'});
+    new Craft.FieldToggle($urlField);
+{% endjs %}
