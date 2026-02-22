@@ -23,8 +23,6 @@ use Illuminate\Support\Collection;
 use League\Flysystem\AwsS3V3\AwsS3V3Adapter;
 use League\Flysystem\FilesystemException;
 use League\Flysystem\UnableToCopyFile;
-use League\Flysystem\UnableToCreateDirectory;
-use League\Flysystem\UnableToMoveFile;
 use League\Flysystem\Visibility;
 use League\Uri\Components\HierarchicalPath;
 use League\Uri\Contracts\SegmentedPathInterface;

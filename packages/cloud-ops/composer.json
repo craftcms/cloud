@@ -20,6 +20,9 @@
     }
   },
   "extra": {
+    "branch-alias": {
+      "dev-main": "1.x-dev"
+    },
     "bootstrap": "craft\\cloud\\ops\\Module",
     "preload-files": [
       "preload.php"
