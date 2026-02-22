@@ -11,7 +11,6 @@ use craft\cloud\twig\TwigExtension;
 use craft\cloud\web\assets\uploader\UploaderAsset;
 use craft\cloud\web\ResponseEventHandler;
 use craft\elements\Asset;
-use craft\events\DefineFieldsEvent;
 use craft\events\DefineRulesEvent;
 use craft\events\GenerateTransformEvent;
 use craft\events\RegisterComponentTypesEvent;
@@ -124,6 +123,9 @@ class Plugin extends BasePlugin
                 useEsi: Helper::isCraftCloud(),
             ),
         ]);
+
+        // Replace ImageTransform with cloud ImageTransform via DI
+        Craft::$container->set(ImageTransform::class, \craft\cloud\ImageTransform::class);
     }
 
     /**
@@ -136,17 +138,6 @@ class Plugin extends BasePlugin
             ImageTransforms::EVENT_REGISTER_IMAGE_TRANSFORMERS,
             static function(RegisterComponentTypesEvent $event) {
                 $event->types[] = ImageTransformer::class;
-            }
-        );
-
-        Event::on(
-            ImageTransform::class,
-            Model::EVENT_DEFINE_FIELDS,
-            function(DefineFieldsEvent $event) {
-                $event->fields = array_merge(
-                    $event->fields,
-                    array_keys(get_class_vars(CloudflareImagesTransform::class)),
-                );
             }
         );
 

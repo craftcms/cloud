@@ -8,7 +8,6 @@ use craft\base\imagetransforms\ImageTransformerInterface;
 use craft\elements\Asset;
 use craft\helpers\Assets;
 use craft\helpers\Html;
-use craft\models\ImageTransform;
 use League\Uri\Components\Query;
 use League\Uri\Modifier;
 use League\Uri\Uri;
@@ -23,7 +22,7 @@ class ImageTransformer extends Component implements ImageTransformerInterface
     public const SUPPORTED_IMAGE_FORMATS = ['jpg', 'jpeg', 'gif', 'png', 'avif', 'webp'];
     private const SIGNING_PARAM = 's';
 
-    public function getTransformUrl(Asset $asset, ImageTransform $imageTransform, bool $immediately): string
+    public function getTransformUrl(Asset $asset, \craft\models\ImageTransform $imageTransform, bool $immediately): string
     {
         $fs = $asset->getVolume()->getTransformFs();
         $assetUrl = Html::encodeSpaces(Assets::generateUrl($asset));
@@ -37,9 +36,15 @@ class ImageTransformer extends Component implements ImageTransformerInterface
             throw new NotSupportedException('SVG files shouldn’t be transformed.');
         }
 
-        $cfTransform = CloudflareImagesTransform::fromAsset($asset, $imageTransform);
+        if ($imageTransform instanceof ImageTransform) {
+            if ($asset->getHasFocalPoint() && !isset($imageTransform->gravity)) {
+                $imageTransform->gravity = $asset->getFocalPoint();
+            }
+            $imageTransform->normalize();
+        }
+
         $uri = Modifier::wrap(Uri::new($assetUrl))
-            ->mergeQuery(Query::fromVariable($cfTransform)->value())
+            ->mergeQuery(Query::fromVariable($imageTransform)->value())
             ->unwrap();
 
         return (string) $this->sign($uri);
