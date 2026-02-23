@@ -60,7 +60,7 @@ class ImageTransform extends \craft\models\ImageTransform
     public ?string $flip = null;
 
     /**
-     * @var 'auto'|'avif'|'webp'|'jpeg'|'baseline-jpeg'|'json'|null
+     * @var 'auto'|'avif'|'webp'|'jpeg'|'baseline-jpeg'|'json'|string|null
      */
     public ?string $format = null;
 
