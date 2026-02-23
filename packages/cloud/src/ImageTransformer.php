@@ -9,9 +9,9 @@ use craft\elements\Asset;
 use craft\helpers\Assets;
 use craft\helpers\Html;
 use League\Uri\Components\Query;
+use League\Uri\Contracts\UriInterface;
 use League\Uri\Modifier;
 use League\Uri\Uri;
-use Psr\Http\Message\UriInterface;
 use yii\base\NotSupportedException;
 
 /**
