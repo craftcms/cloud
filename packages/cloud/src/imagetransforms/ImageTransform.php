@@ -1,10 +1,9 @@
 <?php
 
-namespace craft\cloud;
+namespace craft\cloud\imagetransforms;
 
 use Craft;
 use Illuminate\Support\Collection;
-use League\Uri\Components\Query;
 
 /**
  * @see https://developers.cloudflare.com/images/transform-images/transform-via-workers/#fetch-options
@@ -16,32 +15,32 @@ class ImageTransform extends \craft\models\ImageTransform
     public ?string $background = null;
 
     /**
-     * @var int|null Blur radius (1-250)
+     * @var int<1, 250>|null
      */
     public ?int $blur = null;
 
     /**
-     * @var array{color: string, width: int}|array{color: string, top: int, right: int, bottom: int, left: int}|null Border configuration
+     * @var array{color: string, width: int}|array{color: string, top: int, right: int, bottom: int, left: int}|null
      */
     public ?array $border = null;
 
     /**
-     * @var float|null Brightness adjustment (-1.0 to 1.0)
+     * @var float|null
      */
     public ?float $brightness = null;
 
     /**
-     * @var string|null Compression level
+     * @var 'fast'|null
      */
     public ?string $compression = null;
 
     /**
-     * @var float|null Contrast adjustment (-1.0 to 1.0)
+     * @var float|null
      */
     public ?float $contrast = null;
 
     /**
-     * @var float|null Device pixel ratio (DPR)
+     * @var float|null
      */
     public ?float $dpr = null;
 
@@ -51,60 +50,54 @@ class ImageTransform extends \craft\models\ImageTransform
     public ?array $draw = null;
 
     /**
-     * @var string|null Fit mode override (Cloudflare-specific)
+     * @var 'scale-down'|'contain'|'cover'|'crop'|'pad'|'squeeze'|null
      */
     public ?string $fit = null;
-    public ?string $format = null;
 
     /**
-     * @var string|null Flip direction ('horizontal', 'vertical', 'both')
+     * @var 'h'|'v'|'hv'|null
      */
     public ?string $flip = null;
 
     /**
-     * @var float|null Gamma correction
+     * @var 'auto'|'avif'|'webp'|'jpeg'|'baseline-jpeg'|'json'|null
+     */
+    public ?string $format = null;
+
+    /**
+     * @var float|null
      */
     public ?float $gamma = null;
 
     /**
-     * @var 'face'|'left'|'right'|'top'|'bottom'|'center'|'auto'|'entropy'|array{x?: float, y?: float, mode?: 'remainder'|'box-center'}|null Gravity/focus point
+     * @var 'auto'|'face'|'left'|'right'|'top'|'bottom'|array{x?: float, y?: float}|null
      */
-    public null|string|array $gravity = null;
+    public string|array|null $gravity = null;
 
     public ?int $height;
 
     /**
-     * @var string|null Metadata handling ('keep', 'copyright', 'none')
+     * @var 'keep'|'copyright'|'none'|null
      */
     public ?string $metadata = null;
 
     /**
-     * @var string|null Error handling ('redirect')
-     */
-    public ?string $onerror = null;
-
-    /**
-     * @var string|null Origin authentication
-     */
-    public ?string $originAuth = null;
-
-    /**
-     * @var int|null Rotation angle (0, 90, 180, 270, 360)
+     * @var int|null
      */
     public ?int $rotate = null;
 
     /**
-     * @var float|null Saturation adjustment (-1.0 to 1.0)
+     * @var float|null
      */
     public ?float $saturation = null;
 
     /**
-     * @var string|null Segment to extract ('foreground', 'background')
+     * @var 'foreground'|null
      */
     public ?string $segment = null;
 
     /**
-     * @var float|null Sharpen amount (0.0 to 10.0)
+     * @var float|null
      */
     public ?float $sharpen = null;
 
@@ -114,6 +107,7 @@ class ImageTransform extends \craft\models\ImageTransform
     public null|string|array $trim = null;
 
     public ?int $width;
+
     public ?float $zoom = null;
 
     /**
@@ -136,18 +130,13 @@ class ImageTransform extends \craft\models\ImageTransform
 
     public function toOptions(): array
     {
-        // Get public properties declared in this class (including overridden ones)
         $reflection = new \ReflectionClass($this);
-        $localProps = [];
+        $this->normalize();
 
-        foreach ($reflection->getProperties(\ReflectionProperty::IS_PUBLIC) as $property) {
-            if ($property->getDeclaringClass()->getName() === self::class) {
-                $localProps[] = $property->getName();
-            }
-        }
-
-        return Collection::make($this->toArray($localProps))
-            ->filter(fn($value, $key) => $value !== null)
+        return Collection::make($reflection->getProperties(\ReflectionProperty::IS_PUBLIC))
+            ->filter(fn($property) => $property->getDeclaringClass()->getName() === self::class)
+            ->mapWithKeys(fn($property) => [$property->getName() => $property->getValue($this)])
+            ->filter(fn($value) => $value !== null)
             ->all();
     }
 

@@ -7,6 +7,7 @@ use craft\base\Event;
 use craft\base\Model;
 use craft\base\Plugin as BasePlugin;
 use craft\cloud\fs\AssetsFs;
+use craft\cloud\imagetransforms\ImageTransformer;
 use craft\cloud\twig\TwigExtension;
 use craft\cloud\web\assets\uploader\UploaderAsset;
 use craft\cloud\web\ResponseEventHandler;
@@ -125,7 +126,7 @@ class Plugin extends BasePlugin
         ]);
 
         // Replace ImageTransform with cloud ImageTransform via DI
-        Craft::$container->set(ImageTransform::class, \craft\cloud\ImageTransform::class);
+        Craft::$container->set(ImageTransform::class, \craft\cloud\imagetransforms\ImageTransform::class);
     }
 
     /**

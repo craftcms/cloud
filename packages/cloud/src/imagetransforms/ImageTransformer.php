@@ -1,10 +1,11 @@
 <?php
 
-namespace craft\cloud;
+namespace craft\cloud\imagetransforms;
 
 use Craft;
 use craft\base\Component;
 use craft\base\imagetransforms\ImageTransformerInterface;
+use craft\cloud\Plugin;
 use craft\elements\Asset;
 use craft\helpers\Assets;
 use craft\helpers\Html;
