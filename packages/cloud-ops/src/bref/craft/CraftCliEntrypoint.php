@@ -49,7 +49,7 @@ final class CraftCliEntrypoint
     {
         $environment = $this->invocationContext($context);
 
-        return $this->command("cloud/queue/exec $jobId", $environment, self::LAMBDA_EXECUTION_LIMIT);
+        return $this->command("cloud-ops/queue/exec $jobId", $environment, self::LAMBDA_EXECUTION_LIMIT);
     }
 
     private function invocationContext(Context $context): array
