@@ -12,6 +12,7 @@ use League\Uri\Components\Query;
 use League\Uri\Contracts\UriInterface;
 use League\Uri\Modifier;
 use League\Uri\Uri;
+use yii\base\InvalidValueException;
 use yii\base\NotSupportedException;
 
 /**
@@ -24,9 +25,12 @@ class ImageTransformer extends Component implements ImageTransformerInterface
 
     public function getTransformUrl(Asset $asset, \craft\models\ImageTransform $imageTransform, bool $immediately): string
     {
-        $fs = $asset->getVolume()->getTransformFs();
         $assetUrl = Html::encodeSpaces(Assets::generateUrl($asset));
         $mimeType = $asset->getMimeType();
+
+        if (!$imageTransform instanceof ImageTransform) {
+            throw new InvalidValueException('Image transform must be an instance of ' . ImageTransform::class);
+        }
 
         if ($mimeType === 'image/gif' && !Craft::$app->getConfig()->getGeneral()->transformGifs) {
             throw new NotSupportedException('GIF files shouldn’t be transformed.');
@@ -36,15 +40,13 @@ class ImageTransformer extends Component implements ImageTransformerInterface
             throw new NotSupportedException('SVG files shouldn’t be transformed.');
         }
 
-        if ($imageTransform instanceof ImageTransform) {
-            if ($asset->getHasFocalPoint() && !isset($imageTransform->gravity)) {
-                $imageTransform->gravity = $asset->getFocalPoint();
-            }
-            $imageTransform->normalize();
+        if ($asset->getHasFocalPoint() && !isset($imageTransform->gravity)) {
+            $imageTransform->gravity = $asset->getFocalPoint();
         }
 
+        $query = Query::fromVariable($imageTransform->toOptions());
         $uri = Modifier::wrap(Uri::new($assetUrl))
-            ->mergeQuery(Query::fromVariable($imageTransform)->value())
+            ->mergeQuery($query)
             ->unwrap();
 
         return (string) $this->sign($uri);
