@@ -7,6 +7,7 @@ use Aws\Handler\Guzzle\GuzzleHandler;
 use Aws\S3\S3Client;
 use Craft;
 use craft\behaviors\EnvAttributeParserBehavior;
+use craft\cloud\Config;
 use craft\cloud\Plugin;
 use craft\cloud\StaticCache;
 use craft\cloud\StaticCacheTag;
@@ -105,7 +106,7 @@ abstract class Fs extends FlysystemFs
                 ->getUri();
         }
 
-        return Modifier::from(Plugin::getInstance()->getConfig()->cdnBaseUrl)
+        return Modifier::from(Config::create()->cdnBaseUrl)
             ->appendSegment($this->createBucketPath($path))
             ->getUri();
     }
@@ -245,7 +246,7 @@ abstract class Fs extends FlysystemFs
     protected function createBucketPrefix(): SegmentedPathInterface
     {
         // Note: ENVIRONMENT_ID may not be set when running cloud/build
-        return HierarchicalPath::fromRelative(Plugin::getInstance()->getConfig()->environmentId ?? '');
+        return HierarchicalPath::fromRelative(Config::create()->environmentId ?? '');
     }
 
     protected function createPath(string $path): SegmentedPathInterface

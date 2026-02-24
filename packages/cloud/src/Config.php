@@ -155,4 +155,21 @@ class Config extends BaseConfig
 
         return $rules;
     }
+
+    public static function create(array $config = []): static
+    {
+        $fileConfig = Craft::$app->getConfig()->getConfigFromFile('cloud');
+
+        $configObj = is_array($fileConfig)
+            ? Craft::createObject(['class' => Config::class] + $fileConfig)
+            : $fileConfig;
+
+        /** @var Config $configObj */
+        $configObj = Craft::configure(
+            $configObj,
+            $config + \craft\helpers\App::envConfig(Config::class, 'CRAFT_CLOUD_'),
+        );
+
+        return $configObj;
+    }
 }
