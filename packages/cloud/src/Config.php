@@ -164,7 +164,7 @@ class Config extends BaseConfig
             ? Craft::createObject(['class' => Config::class] + $fileConfig)
             : $fileConfig;
 
-        /** @var Config $configObj */
+        /** @var static $configObj */
         $configObj = Craft::configure(
             $configObj,
             $config + \craft\helpers\App::envConfig(Config::class, 'CRAFT_CLOUD_'),

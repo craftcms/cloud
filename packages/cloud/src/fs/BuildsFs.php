@@ -3,7 +3,6 @@
 namespace craft\cloud\fs;
 
 use craft\cloud\Config;
-use craft\cloud\Plugin;
 use League\Uri\Contracts\SegmentedPathInterface;
 
 abstract class BuildsFs extends Fs
