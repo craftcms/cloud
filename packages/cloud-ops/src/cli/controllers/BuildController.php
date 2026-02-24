@@ -25,7 +25,7 @@ class BuildController extends BaseController
     {
         $this->validateEdition($this->craftEdition);
 
-        return $this->run('/cloud-ops/asset-bundles/publish', [
+        return $this->mustRun('/cloud-ops/asset-bundles/publish', [
             'to' => $this->publishAssetBundlesTo,
         ]);
     }

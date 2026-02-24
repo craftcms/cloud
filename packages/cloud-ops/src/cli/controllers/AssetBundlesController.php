@@ -21,9 +21,8 @@ class AssetBundlesController extends BaseController
 
     public function init(): void
     {
-        $this->to = $this->to ?? Craft::$app->getConfig()->getGeneral()->resourceBasePath;
-
         parent::init();
+        $this->to = $this->to ?? Craft::$app->getConfig()->getGeneral()->resourceBasePath;
     }
 
     public function beforeAction($action): bool
