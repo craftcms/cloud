@@ -1,5 +1,37 @@
 # Release Notes for Craft Cloud ⛅️
 
+## 2026-01-30
+- Released version 1.84.5 of the Cloud API.
+  - Fixed a bug where environments with thousands of deployments could crash the deployments page.
+
+## 2025-12-11
+- Released version 1.27.0 of the Cloud Gateway Worker.
+  - Fixed some edge case redirect/rewrite issues.
+
+## 2025-12-05
+- Released version 1.26.0 of the Cloud Gateway Worker.
+  - Fixed several ESI issues.
+
+## 2025-11-17
+- Released version 1.75.0 of the Cloud API.
+  - Fixed a bug where scheduled commands might not run on some projects.
+
+## 2025-11-11
+- Released version 1.72.0 of the Cloud API.
+  - All projects now use the new HTTP Lambda infrastructure.
+
+## 2025-09-23
+- Released version 1.68.0 of the Cloud API.
+  - Added a new MySQL cluster for Europe.
+
+## 2025-09-11
+- Released version 1.66.6 of the Cloud API.
+  - Fixed a Postgres backup issue in the APAC region.
+
+## ## 2025-07-28
+- Released version 1.64.6 of the Cloud API.
+  - Added Postgres backups to the new backups infrastructure. 
+
 ## 2025-07-11
 - Redirect and rewrites are now generally available.
 
