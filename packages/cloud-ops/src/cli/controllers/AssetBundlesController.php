@@ -4,7 +4,6 @@ namespace craft\cloud\ops\cli\controllers;
 
 use Craft;
 use craft\cloud\ops\cli\AssetBundlePublisher;
-use craft\console\Controller;
 use craft\helpers\App;
 use craft\helpers\Json;
 use craft\web\assets\datepickeri18n\DatepickerI18nAsset;
@@ -15,7 +14,7 @@ use yii\console\Exception;
 use yii\console\ExitCode;
 use yii\web\AssetBundle;
 
-class AssetBundlesController extends Controller
+class AssetBundlesController extends BaseController
 {
     public bool $quiet = false;
     public ?string $to = null;

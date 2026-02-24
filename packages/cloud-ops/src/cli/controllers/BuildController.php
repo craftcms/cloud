@@ -4,14 +4,11 @@ namespace craft\cloud\ops\cli\controllers;
 
 use Composer\Semver\Semver;
 use Craft;
-use craft\console\Controller;
 use craft\helpers\App;
 use yii\console\Exception;
 
-class BuildController extends Controller
+class BuildController extends BaseController
 {
-    use RunningTimeTrait;
-
     public $defaultAction = 'build';
     public ?string $publishAssetBundlesTo = null;
     public string $craftEdition = '';

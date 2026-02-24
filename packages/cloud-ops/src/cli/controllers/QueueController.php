@@ -4,12 +4,11 @@ namespace craft\cloud\ops\cli\controllers;
 
 use Craft;
 use craft\cloud\ops\queue\TestJob;
-use craft\console\Controller;
 use craft\queue\Queue;
 use yii\console\ExitCode;
 use yii\queue\ExecEvent;
 
-class QueueController extends Controller
+class QueueController extends BaseController
 {
     /**
      * The number of jobs to push to the queue

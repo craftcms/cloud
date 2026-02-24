@@ -3,12 +3,10 @@
 namespace craft\cloud\ops\cli\controllers;
 
 use Craft;
-use craft\console\Controller;
 use craft\events\CancelableEvent;
-use yii\console\Exception;
 use yii\console\ExitCode;
 
-class UpController extends Controller
+class UpController extends BaseController
 {
     public const EVENT_BEFORE_UP = 'beforeUp';
     public const EVENT_AFTER_UP = 'afterUp';
@@ -38,15 +36,6 @@ class UpController extends Controller
         }
 
         return ExitCode::OK;
-    }
-
-    private function mustRun(string $route): void
-    {
-        $exitCode = $this->run($route);
-
-        if ($exitCode !== ExitCode::OK) {
-            throw new Exception("Exit code \"$exitCode\" returned from \"{$route}\"");
-        }
     }
 
     private function purgeStaticCache(): void
