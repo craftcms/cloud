@@ -17,6 +17,10 @@ class Module extends \yii\base\Module implements BootstrapInterface
     {
         self::setInstance($this);
 
+        if (!$app instanceof ConsoleApplication && !$app instanceof WebApplication) {
+            return;
+        }
+
         $app->getPlugins()->on(Plugins::EVENT_AFTER_LOAD_PLUGINS, function() use ($app) {
             $cloudModule = $app->getModule('cloud');
 
@@ -31,7 +35,7 @@ class Module extends \yii\base\Module implements BootstrapInterface
                 : 'craft\\cloud\\controllers';
         });
 
-        if (self::isCraftCloud() && ($app instanceof ConsoleApplication || $app instanceof WebApplication)) {
+        if (self::isCraftCloud()) {
             $this->bootstrapCloud($app);
         }
     }
