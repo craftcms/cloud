@@ -6,28 +6,67 @@ use Craft;
 use craft\console\Application as ConsoleApplication;
 use craft\helpers\App;
 use craft\helpers\ConfigHelper;
+use craft\services\Plugins;
 use craft\web\Application as WebApplication;
 use Illuminate\Support\Collection;
 use yii\base\BootstrapInterface;
+use yii\helpers\Inflector;
 
 class Module extends \yii\base\Module implements BootstrapInterface
 {
     public function bootstrap($app): void
     {
-        if (!$this->id) {
-            $this->id = 'cloud-ops';
-        }
-
         self::setInstance($this);
 
-        $this->controllerNamespace = $app->getRequest()->getIsConsoleRequest()
-            ? 'craft\\cloud\\ops\\cli\\controllers'
-            : null;
+        $app->getPlugins()->on(Plugins::EVENT_AFTER_LOAD_PLUGINS, function() use ($app) {
+            $cloudModule = $app->getModule('cloud');
 
-        $app->setModule($this->id, $this);
+            if ($cloudModule === null) {
+                Craft::debug('Cloud module was not found; skipping cloud-ops controller map injection.', __METHOD__);
+                return;
+            }
+
+            $this->injectCloudControllerMap($app, $cloudModule);
+        });
 
         if (self::isCraftCloud() && ($app instanceof ConsoleApplication || $app instanceof WebApplication)) {
             $this->bootstrapCloud($app);
+        }
+    }
+
+    protected function injectCloudControllerMap(ConsoleApplication|WebApplication $app, \yii\base\Module $cloudModule): void
+    {
+        $isConsoleRequest = $app->getRequest()->getIsConsoleRequest();
+        $controllerDirectory = $isConsoleRequest ? 'cli/controllers' : 'controllers';
+        $controllerNamespace = $isConsoleRequest
+            ? 'craft\\cloud\\ops\\cli\\controllers\\'
+            : 'craft\\cloud\\ops\\controllers\\';
+        $controllerPath = $this->getBasePath() . DIRECTORY_SEPARATOR . $controllerDirectory;
+
+        if (!is_dir($controllerPath)) {
+            return;
+        }
+
+        foreach (glob($controllerPath . DIRECTORY_SEPARATOR . '*.php') ?: [] as $controllerFile) {
+            $className = pathinfo($controllerFile, PATHINFO_FILENAME);
+            $controllerClass = $controllerNamespace . $className;
+
+            if (!str_ends_with($className, 'Controller') || !class_exists($controllerClass)) {
+                continue;
+            }
+
+            if (!is_subclass_of($controllerClass, \yii\base\Controller::class)) {
+                continue;
+            }
+
+            $reflectionClass = new \ReflectionClass($controllerClass);
+
+            if ($reflectionClass->isAbstract()) {
+                continue;
+            }
+
+            $controllerId = Inflector::camel2id(substr($className, 0, -10));
+            $cloudModule->controllerMap[$controllerId] = $controllerClass;
         }
     }
 
