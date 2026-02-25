@@ -6,13 +6,13 @@ use Closure;
 use Craft;
 use craft\cache\DbCache;
 use craft\cachecascade\CascadeCache;
+use craft\cloud\fs\StorageFs;
+use craft\cloud\fs\TmpFs;
+use craft\cloud\web\AssetManager;
 use craft\db\Table;
 use craft\helpers\App;
 use yii\caching\ArrayCache;
 use yii\redis\Cache as RedisCache;
-use craft\cloud\web\AssetManager;
-use craft\cloud\fs\TmpFs;
-use craft\cloud\fs\StorageFs;
 
 class AppConfig
 {
