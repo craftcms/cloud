@@ -1,6 +1,6 @@
 <?php
 
-namespace craft\cloud\queue;
+namespace craft\cloud\ops\queue;
 
 use craft\helpers\Console;
 use craft\i18n\Translation;

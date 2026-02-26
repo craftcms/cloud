@@ -1,6 +1,6 @@
 <?php
 
-namespace craft\cloud\cli;
+namespace craft\cloud\ops\cli;
 
 use Craft;
 use craft\helpers\Console;

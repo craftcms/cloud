@@ -1,6 +1,6 @@
 <?php
 
-namespace craft\cloud;
+namespace craft\cloud\ops;
 
 use Craft;
 use League\Uri\Components\HierarchicalPath;

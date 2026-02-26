@@ -1,10 +1,10 @@
 <?php
 
-namespace craft\cloud\web;
+namespace craft\cloud\ops\web;
 
 use Craft;
-use craft\cloud\fs\CpResourcesFs;
-use craft\cloud\Helper;
+use craft\cloud\ops\fs\CpResourcesFs;
+use craft\cloud\ops\Helper;
 use craft\helpers\FileHelper;
 use craft\helpers\StringHelper;
 use League\Uri\Components\HierarchicalPath;

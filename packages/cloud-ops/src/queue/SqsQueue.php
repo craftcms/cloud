@@ -1,6 +1,6 @@
 <?php
 
-namespace craft\cloud\queue;
+namespace craft\cloud\ops\queue;
 
 use Craft;
 

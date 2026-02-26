@@ -1,9 +1,10 @@
 <?php
 
-namespace craft\cloud;
+namespace craft\cloud\ops;
 
 use Craft;
 use craft\base\ElementInterface;
+use craft\cloud\Plugin;
 use craft\events\ElementEvent;
 use craft\events\InvalidateElementCachesEvent;
 use craft\events\RegisterCacheOptionsEvent;

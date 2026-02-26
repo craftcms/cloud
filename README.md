@@ -16,7 +16,6 @@ composer require craftcms/cloud
 
 Yii2 extension for Cloud infrastructure. Configures cache, queue, session, and other runtime components. Automatically installed as a dependency of `craftcms/cloud`.
 
-Uses [`codezero/composer-preload-files`](https://github.com/codezero-be/composer-preload-files) to ensure the `cloud-ops` autoload file (which defines `craft_modify_app_config()`) is loaded before any other package that might define the same function—including older versions of `craftcms/cloud`. This allows projects to safely migrate from the legacy single-package setup to the new split architecture without bootstrap conflicts.
 
 ## Releasing
 

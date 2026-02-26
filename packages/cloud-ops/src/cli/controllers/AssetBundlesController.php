@@ -1,9 +1,9 @@
 <?php
 
-namespace craft\cloud\cli\controllers;
+namespace craft\cloud\ops\cli\controllers;
 
 use Craft;
-use craft\cloud\cli\AssetBundlePublisher;
+use craft\cloud\ops\cli\AssetBundlePublisher;
 use craft\helpers\App;
 use craft\helpers\Json;
 use craft\web\assets\datepickeri18n\DatepickerI18nAsset;
@@ -77,7 +77,7 @@ class AssetBundlesController extends BaseController
                 /** @var AssetBundle $assetBundle */
                 $assetBundle = Craft::createObject($className);
 
-                $assetManagerClass = 'craft\\cloud\\web\\AssetManager';
+                $assetManagerClass = 'craft\\cloud\\ops\\web\\AssetManager';
                 $config = ['basePath' => $this->to] + App::assetManagerConfig();
 
                 if (class_exists($assetManagerClass)) {

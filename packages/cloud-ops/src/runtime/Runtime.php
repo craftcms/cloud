@@ -1,11 +1,11 @@
 <?php
 
-namespace craft\cloud\runtime;
+namespace craft\cloud\ops\runtime;
 
 use Bref\Bref;
 use Bref\FpmRuntime\FpmHandler;
 use Bref\Runtime\LambdaRuntime;
-use craft\cloud\runtime\event\EventHandler;
+use craft\cloud\ops\runtime\event\EventHandler;
 use RuntimeException;
 use Throwable;
 

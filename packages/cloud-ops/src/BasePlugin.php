@@ -1,16 +1,16 @@
 <?php
 
-namespace craft\cloud;
+namespace craft\cloud\ops;
 
 use Craft;
 use craft\base\Event;
 use craft\base\Model;
 use craft\base\Plugin as CraftPlugin;
-use craft\cloud\fs\AssetsFs;
-use craft\cloud\imagetransforms\ImageTransformer;
-use craft\cloud\twig\TwigExtension;
-use craft\cloud\web\assets\uploader\UploaderAsset;
-use craft\cloud\web\ResponseEventHandler;
+use craft\cloud\ops\fs\AssetsFs;
+use craft\cloud\ops\imagetransforms\ImageTransformer;
+use craft\cloud\ops\twig\TwigExtension;
+use craft\cloud\ops\web\assets\uploader\UploaderAsset;
+use craft\cloud\ops\web\ResponseEventHandler;
 use craft\elements\Asset;
 use craft\events\DefineRulesEvent;
 use craft\events\GenerateTransformEvent;
@@ -109,7 +109,7 @@ abstract class BasePlugin extends CraftPlugin
         ]);
 
         // Replace ImageTransform with cloud ImageTransform via DI
-        Craft::$container->set(ImageTransform::class, \craft\cloud\imagetransforms\ImageTransform::class);
+        Craft::$container->set(ImageTransform::class, \craft\cloud\ops\imagetransforms\ImageTransform::class);
     }
 
     /**

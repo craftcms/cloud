@@ -1,14 +1,14 @@
 <?php
 
-namespace craft\cloud;
+namespace craft\cloud\ops;
 
 use Closure;
 use Craft;
 use craft\cache\DbCache;
 use craft\cachecascade\CascadeCache;
-use craft\cloud\fs\StorageFs;
-use craft\cloud\fs\TmpFs;
-use craft\cloud\web\AssetManager;
+use craft\cloud\ops\fs\StorageFs;
+use craft\cloud\ops\fs\TmpFs;
+use craft\cloud\ops\web\AssetManager;
 use craft\db\Table;
 use craft\helpers\App;
 use yii\caching\ArrayCache;

@@ -1,6 +1,6 @@
 <?php
 
-namespace craft\cloud\cli\controllers;
+namespace craft\cloud\ops\cli\controllers;
 
 use Composer\Semver\Semver;
 use Craft;

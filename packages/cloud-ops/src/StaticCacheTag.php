@@ -1,6 +1,8 @@
 <?php
 
-namespace craft\cloud;
+namespace craft\cloud\ops;
+
+use craft\cloud\Plugin;
 
 class StaticCacheTag implements \Stringable, \JsonSerializable
 {

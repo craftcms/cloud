@@ -1,9 +1,10 @@
 <?php
 
-namespace craft\cloud;
+namespace craft\cloud\ops;
 
 use Craft;
-use craft\cloud\fs\BuildArtifactsFs;
+use craft\cloud\ops\fs\BuildArtifactsFs;
+use craft\cloud\Plugin;
 use craft\helpers\App;
 use GuzzleHttp\Psr7\Request;
 use HttpSignatures\Context;
