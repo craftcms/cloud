@@ -21,25 +21,29 @@ class Module extends \yii\base\Module implements BootstrapInterface
             return;
         }
 
+        $isConsole = $app->getRequest()->getIsConsoleRequest();
+        $this->controllerNamespace = $isConsole
+            ? 'craft\\cloud\\ops\\cli\\controllers'
+            : 'craft\\cloud\\ops\\controllers';
+
+        // Register as 'cloud' immediately, so controllers can be found
+        // even if the craftcms/cloud plugin isn't installed/enabled.
+        $this->id = 'cloud';
+        $app->setModule('cloud', $this);
+
+        // Override controllers from craftcms/cloud:^1 || ^2
         $app->getPlugins()->on(Plugins::EVENT_AFTER_LOAD_PLUGINS, function() use ($app) {
-            $cloudModule = $app->getModule('cloud');
+            $cloudPlugin = $app->getPlugins()->getPlugin('cloud');
 
-            if ($cloudModule === null) {
-                Craft::debug('Cloud module was not found; skipping cloud controller namespace override.', __METHOD__);
-                return;
+            if ($cloudPlugin !== null) {
+                $cloudPlugin->controllerNamespace = $this->controllerNamespace;
             }
-
-            $isConsole = $app->getRequest()->getIsConsoleRequest();
-            $cloudModule->controllerNamespace = $isConsole
-                ? 'craft\\cloud\\ops\\cli\\controllers'
-                : 'craft\\cloud\\ops\\controllers';
         });
 
         if (self::isCraftCloud()) {
             $this->bootstrapCloud($app);
         }
     }
-
 
     public static function isCraftCloud(): bool
     {
