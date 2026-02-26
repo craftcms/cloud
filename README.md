@@ -16,11 +16,9 @@ composer require craftcms/cloud
 
 Yii2 extension for Cloud infrastructure. Configures cache, queue, session, and other runtime components. Automatically installed as a dependency of `craftcms/cloud`.
 
-Uses [`craftcms/cloud-composer`](packages/cloud-composer) to ensure the `cloud-ops` autoload file (which defines `craft_modify_app_config()`) is loaded before any other package that might define the same function—including older versions of `craftcms/cloud`. This allows projects to safely migrate from the legacy single-package setup to the new split architecture without bootstrap conflicts.
-
 ### [`craftcms/cloud-composer`](packages/cloud-composer)
 
-Composer plugin that ensures the `cloud-ops` autoload file (which defines `craft_modify_app_config()`) is loaded before any other package. Automatically installed as a dependency of `craftcms/cloud-ops`.
+Composer plugin that ensures `craft_modify_app_config()` is loaded before any other autoload file. Owns the `preload.php` that defines this function, and injects it as the first entry in Composer's autoload files at install/dump time. Automatically installed as a dependency of `craftcms/cloud-ops`.
 
 ## Releasing
 

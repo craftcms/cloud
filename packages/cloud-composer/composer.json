@@ -16,7 +16,8 @@
     }
   },
   "extra": {
-    "class": "craft\\cloud\\composer\\PreloadPlugin",
+    "class": "craft\\cloud\\composer\\ComposerPlugin",
+    "plugin-optional": true,
     "branch-alias": {
       "dev-main": "1.x-dev"
     }
