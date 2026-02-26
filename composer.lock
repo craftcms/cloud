@@ -4,7 +4,7 @@
         "Read more about it at https://getcomposer.org/doc/01-basic-usage.md#installing-dependencies",
         "This file is @generated automatically"
     ],
-    "content-hash": "9447935dcfc930999c022cb10e2d1f1c",
+    "content-hash": "8ea5dc2db4e533804aaac7f715684f83",
     "packages": [
         {
             "name": "99designs/http-signatures",
@@ -120,16 +120,16 @@
         },
         {
             "name": "aws/aws-sdk-php",
-            "version": "3.370.0",
+            "version": "3.371.1",
             "source": {
                 "type": "git",
                 "url": "https://github.com/aws/aws-sdk-php.git",
-                "reference": "3cfb2c787c43efa546ba3b6b596956cbef5cdd53"
+                "reference": "26cd04f9f47ca0d66baa59303f70bff5a5d48706"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/aws/aws-sdk-php/zipball/3cfb2c787c43efa546ba3b6b596956cbef5cdd53",
-                "reference": "3cfb2c787c43efa546ba3b6b596956cbef5cdd53",
+                "url": "https://api.github.com/repos/aws/aws-sdk-php/zipball/26cd04f9f47ca0d66baa59303f70bff5a5d48706",
+                "reference": "26cd04f9f47ca0d66baa59303f70bff5a5d48706",
                 "shasum": ""
             },
             "require": {
@@ -211,9 +211,9 @@
             "support": {
                 "forum": "https://github.com/aws/aws-sdk-php/discussions",
                 "issues": "https://github.com/aws/aws-sdk-php/issues",
-                "source": "https://github.com/aws/aws-sdk-php/tree/3.370.0"
+                "source": "https://github.com/aws/aws-sdk-php/tree/3.371.1"
             },
-            "time": "2026-02-20T19:09:33+00:00"
+            "time": "2026-02-25T19:05:28+00:00"
         },
         {
             "name": "bacon/bacon-qr-code",
@@ -602,63 +602,6 @@
             "time": "2018-03-26T11:24:36+00:00"
         },
         {
-            "name": "codezero/composer-preload-files",
-            "version": "1.0.2",
-            "source": {
-                "type": "git",
-                "url": "https://github.com/codezero-be/composer-preload-files.git",
-                "reference": "83246aa68c08ed7c2b1dbcb451b4faf65aa658d9"
-            },
-            "dist": {
-                "type": "zip",
-                "url": "https://api.github.com/repos/codezero-be/composer-preload-files/zipball/83246aa68c08ed7c2b1dbcb451b4faf65aa658d9",
-                "reference": "83246aa68c08ed7c2b1dbcb451b4faf65aa658d9",
-                "shasum": ""
-            },
-            "require": {
-                "composer-plugin-api": "^2.0",
-                "php": ">= 7.0"
-            },
-            "require-dev": {
-                "composer/composer": "^2.0"
-            },
-            "type": "composer-plugin",
-            "extra": {
-                "class": "CodeZero\\ComposerPreloadFiles\\Plugin"
-            },
-            "autoload": {
-                "psr-4": {
-                    "CodeZero\\ComposerPreloadFiles\\": "src"
-                }
-            },
-            "notification-url": "https://packagist.org/downloads/",
-            "license": [
-                "MIT"
-            ],
-            "authors": [
-                {
-                    "name": "Ivan Vermeyen",
-                    "email": "ivan@codezero.be"
-                }
-            ],
-            "description": "Composer plugin to autoload files before vendor files.",
-            "keywords": [
-                "autoload",
-                "composer",
-                "files",
-                "helpers",
-                "include",
-                "load",
-                "plugin",
-                "require"
-            ],
-            "support": {
-                "issues": "https://github.com/codezero-be/composer-preload-files/issues",
-                "source": "https://github.com/codezero-be/composer-preload-files/tree/1.0.2"
-            },
-            "time": "2023-05-24T15:46:41+00:00"
-        },
-        {
             "name": "commerceguys/addressing",
             "version": "v2.2.5",
             "source": {
@@ -918,19 +861,55 @@
             }
         },
         {
+            "name": "craftcms/cloud-composer",
+            "version": "dev-main",
+            "dist": {
+                "type": "path",
+                "url": "packages/cloud-composer",
+                "reference": "afa1f7e57911f481dd5b3615e8e5ea11f210d308"
+            },
+            "require": {
+                "composer-plugin-api": "^2.0",
+                "php": "^8.2"
+            },
+            "require-dev": {
+                "composer/composer": "^2.0"
+            },
+            "type": "composer-plugin",
+            "extra": {
+                "class": "craft\\cloud\\composer\\PreloadPlugin",
+                "branch-alias": {
+                    "dev-main": "1.x-dev"
+                }
+            },
+            "autoload": {
+                "psr-4": {
+                    "craft\\cloud\\composer\\": "src/"
+                }
+            },
+            "license": [
+                "proprietary"
+            ],
+            "description": "Composer plugin for Craft Cloud autoload management",
+            "transport-options": {
+                "symlink": true,
+                "relative": true
+            }
+        },
+        {
             "name": "craftcms/cloud-ops",
             "version": "dev-main",
             "dist": {
                 "type": "path",
                 "url": "packages/cloud-ops",
-                "reference": "053073f1a269abcb5ed43ecfd7ccd37ecf297b3a"
+                "reference": "f74805be36ef9658b93183de89ca012f2eee6518"
             },
             "require": {
                 "99designs/http-signatures": "^4.0",
                 "aws/aws-sdk-php": "^3.342.6",
                 "bref/bref": "^2.0",
                 "bref/extra-php-extensions": "^1.0",
-                "codezero/composer-preload-files": "^1.0",
+                "craftcms/cloud-composer": "^1.0",
                 "craftcms/cms": "^4.6 || ^5.0",
                 "craftcms/flysystem": "^1 || ^2",
                 "craftcms/yii2-cache-cascade": "^1.0",
@@ -948,16 +927,15 @@
                 "branch-alias": {
                     "dev-main": "1.x-dev"
                 },
-                "bootstrap": "craft\\cloud\\ops\\Module",
-                "preload-files": [
-                    "preload.php"
-                ]
+                "bootstrap": "craft\\cloud\\Module"
             },
             "autoload": {
                 "psr-4": {
-                    "craft\\cloud\\ops\\": "src/",
-                    "craft\\cloud\\": "src/cloud/"
-                }
+                    "craft\\cloud\\": "src/"
+                },
+                "files": [
+                    "preload.php"
+                ]
             },
             "license": [
                 "proprietary"
@@ -970,16 +948,16 @@
         },
         {
             "name": "craftcms/cms",
-            "version": "5.9.12",
+            "version": "5.9.14",
             "source": {
                 "type": "git",
                 "url": "https://github.com/craftcms/cms.git",
-                "reference": "b38439ac3815a0a56c9f4cca34db5ddb1ce15dca"
+                "reference": "13c50dd550fabe74fe5317aeca090d286f1c7556"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/craftcms/cms/zipball/b38439ac3815a0a56c9f4cca34db5ddb1ce15dca",
-                "reference": "b38439ac3815a0a56c9f4cca34db5ddb1ce15dca",
+                "url": "https://api.github.com/repos/craftcms/cms/zipball/13c50dd550fabe74fe5317aeca090d286f1c7556",
+                "reference": "13c50dd550fabe74fe5317aeca090d286f1c7556",
                 "shasum": ""
             },
             "require": {
@@ -1096,7 +1074,7 @@
                 "rss": "https://github.com/craftcms/cms/releases.atom",
                 "source": "https://github.com/craftcms/cms"
             },
-            "time": "2026-02-18T21:29:03+00:00"
+            "time": "2026-02-25T21:48:05+00:00"
         },
         {
             "name": "craftcms/flysystem",
@@ -2670,16 +2648,16 @@
         },
         {
             "name": "league/flysystem",
-            "version": "3.31.0",
+            "version": "3.32.0",
             "source": {
                 "type": "git",
                 "url": "https://github.com/thephpleague/flysystem.git",
-                "reference": "1717e0b3642b0df65ecb0cc89cdd99fa840672ff"
+                "reference": "254b1595b16b22dbddaaef9ed6ca9fdac4956725"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/thephpleague/flysystem/zipball/1717e0b3642b0df65ecb0cc89cdd99fa840672ff",
-                "reference": "1717e0b3642b0df65ecb0cc89cdd99fa840672ff",
+                "url": "https://api.github.com/repos/thephpleague/flysystem/zipball/254b1595b16b22dbddaaef9ed6ca9fdac4956725",
+                "reference": "254b1595b16b22dbddaaef9ed6ca9fdac4956725",
                 "shasum": ""
             },
             "require": {
@@ -2747,22 +2725,22 @@
             ],
             "support": {
                 "issues": "https://github.com/thephpleague/flysystem/issues",
-                "source": "https://github.com/thephpleague/flysystem/tree/3.31.0"
+                "source": "https://github.com/thephpleague/flysystem/tree/3.32.0"
             },
-            "time": "2026-01-23T15:38:47+00:00"
+            "time": "2026-02-25T17:01:41+00:00"
         },
         {
             "name": "league/flysystem-aws-s3-v3",
-            "version": "3.31.0",
+            "version": "3.32.0",
             "source": {
                 "type": "git",
                 "url": "https://github.com/thephpleague/flysystem-aws-s3-v3.git",
-                "reference": "e36a2bc60b06332c92e4435047797ded352b446f"
+                "reference": "a1979df7c9784d334ea6df356aed3d18ac6673d0"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/thephpleague/flysystem-aws-s3-v3/zipball/e36a2bc60b06332c92e4435047797ded352b446f",
-                "reference": "e36a2bc60b06332c92e4435047797ded352b446f",
+                "url": "https://api.github.com/repos/thephpleague/flysystem-aws-s3-v3/zipball/a1979df7c9784d334ea6df356aed3d18ac6673d0",
+                "reference": "a1979df7c9784d334ea6df356aed3d18ac6673d0",
                 "shasum": ""
             },
             "require": {
@@ -2802,9 +2780,9 @@
                 "storage"
             ],
             "support": {
-                "source": "https://github.com/thephpleague/flysystem-aws-s3-v3/tree/3.31.0"
+                "source": "https://github.com/thephpleague/flysystem-aws-s3-v3/tree/3.32.0"
             },
-            "time": "2026-01-23T15:30:45+00:00"
+            "time": "2026-02-25T16:46:44+00:00"
         },
         {
             "name": "league/flysystem-local",
@@ -4682,16 +4660,16 @@
         },
         {
             "name": "predis/predis",
-            "version": "v3.4.0",
+            "version": "v3.4.1",
             "source": {
                 "type": "git",
                 "url": "https://github.com/predis/predis.git",
-                "reference": "1183f5732e6b10efd33f64984a96726eaecb59aa"
+                "reference": "0850f2f36ee179f0ff96c92c750e1366c6cd754c"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/predis/predis/zipball/1183f5732e6b10efd33f64984a96726eaecb59aa",
-                "reference": "1183f5732e6b10efd33f64984a96726eaecb59aa",
+                "url": "https://api.github.com/repos/predis/predis/zipball/0850f2f36ee179f0ff96c92c750e1366c6cd754c",
+                "reference": "0850f2f36ee179f0ff96c92c750e1366c6cd754c",
                 "shasum": ""
             },
             "require": {
@@ -4733,7 +4711,7 @@
             ],
             "support": {
                 "issues": "https://github.com/predis/predis/issues",
-                "source": "https://github.com/predis/predis/tree/v3.4.0"
+                "source": "https://github.com/predis/predis/tree/v3.4.1"
             },
             "funding": [
                 {
@@ -4741,7 +4719,7 @@
                     "type": "github"
                 }
             ],
-            "time": "2026-02-11T17:30:28+00:00"
+            "time": "2026-02-23T19:51:21+00:00"
         },
         {
             "name": "psr/clock",

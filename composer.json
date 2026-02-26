@@ -8,6 +8,13 @@
   "repositories": [
     {
       "type": "path",
+      "url": "packages/cloud-composer",
+      "options": {
+        "symlink": true
+      }
+    },
+    {
+      "type": "path",
       "url": "packages/cloud-ops",
       "options": {
         "symlink": true
@@ -44,7 +51,7 @@
     "allow-plugins": {
       "yiisoft/yii2-composer": true,
       "craftcms/plugin-installer": true,
-      "codezero/composer-preload-files": true
+      "craftcms/cloud-composer": true
     }
   }
 }
