@@ -1,11 +1,11 @@
 <?php
 
-namespace craft\cloud\ops\bref\craft;
+namespace craft\cloud\bref\craft;
 
 use Bref\Context\Context;
-use craft\cloud\ops\AppConfig;
-use craft\cloud\ops\queue\SqsQueue;
-use craft\cloud\ops\runtime\event\EventHandler;
+use craft\cloud\AppConfig;
+use craft\cloud\queue\SqsQueue;
+use craft\cloud\runtime\event\EventHandler;
 use Symfony\Component\Process\Process;
 
 final class CraftCliEntrypoint
@@ -49,7 +49,7 @@ final class CraftCliEntrypoint
     {
         $environment = $this->invocationContext($context);
 
-        return $this->command("cloud-ops/queue/exec $jobId", $environment, self::LAMBDA_EXECUTION_LIMIT);
+        return $this->command("cloud/queue/exec $jobId", $environment, self::LAMBDA_EXECUTION_LIMIT);
     }
 
     private function invocationContext(Context $context): array

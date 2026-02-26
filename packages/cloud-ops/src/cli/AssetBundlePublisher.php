@@ -1,6 +1,6 @@
 <?php
 
-namespace craft\cloud\ops\cli;
+namespace craft\cloud\cli;
 
 use Craft;
 use craft\helpers\Console;
@@ -83,7 +83,7 @@ class AssetBundlePublisher extends BaseObject
                 $args = Collection::make([
                     PHP_BINARY,
                     Craft::$app->getRequest()->getScriptFile(),
-                    'cloud-ops/asset-bundles/publish-bundle',
+                    'cloud/asset-bundles/publish-bundle',
                     $className,
                 ])->when($this->to, function(Collection $args) {
                     return $args->push('--to')->push($this->to);

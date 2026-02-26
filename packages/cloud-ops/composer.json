@@ -23,15 +23,14 @@
   },
   "autoload": {
     "psr-4": {
-      "craft\\cloud\\ops\\": "src/",
-      "craft\\cloud\\": "src/cloud/"
+      "craft\\cloud\\": "src/"
     }
   },
   "extra": {
     "branch-alias": {
       "dev-main": "1.x-dev"
     },
-    "bootstrap": "craft\\cloud\\ops\\Module",
+    "bootstrap": "craft\\cloud\\Module",
     "preload-files": [
       "preload.php"
     ]

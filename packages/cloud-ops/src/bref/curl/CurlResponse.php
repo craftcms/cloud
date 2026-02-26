@@ -1,6 +1,6 @@
 <?php
 
-namespace craft\cloud\ops\bref\curl;
+namespace craft\cloud\bref\curl;
 
 final class CurlResponse
 {

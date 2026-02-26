@@ -1,6 +1,6 @@
 <?php
 
-namespace craft\cloud\ops\queue;
+namespace craft\cloud\queue;
 
 use craft\queue\ReleasableQueueInterface as CraftReleasableQueueInterface;
 

@@ -1,5 +1,5 @@
 const {getConfigs} = require('@craftcms/webpack');
 
 module.exports = getConfigs(
-  'packages/cloud-ops/src/cloud/web/assets/*/webpack.config.js',
+  'packages/cloud-ops/src/web/assets/*/webpack.config.js',
 );

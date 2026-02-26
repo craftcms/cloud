@@ -2,4 +2,4 @@
 
 require __DIR__ . '/../../../../../autoload.php';
 
-return new \craft\cloud\ops\bref\handlers\JobSqsHandler();
+return new \craft\cloud\bref\handlers\JobSqsHandler();

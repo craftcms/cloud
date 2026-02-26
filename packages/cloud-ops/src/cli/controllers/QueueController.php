@@ -1,9 +1,9 @@
 <?php
 
-namespace craft\cloud\ops\cli\controllers;
+namespace craft\cloud\cli\controllers;
 
 use Craft;
-use craft\cloud\ops\queue\TestJob;
+use craft\cloud\queue\TestJob;
 use craft\queue\Queue;
 use yii\console\ExitCode;
 use yii\queue\ExecEvent;

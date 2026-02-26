@@ -1,6 +1,6 @@
 <?php
 
-namespace craft\cloud\ops;
+namespace craft\cloud;
 
 use Closure;
 use Craft;

@@ -1,6 +1,6 @@
 <?php
 
-namespace craft\cloud\ops;
+namespace craft\cloud;
 
 use Craft;
 use craft\console\Application as ConsoleApplication;
@@ -25,7 +25,7 @@ class Module extends \yii\base\Module implements BootstrapInterface
             $cloudModule = $app->getModule('cloud');
 
             if ($cloudModule === null) {
-                Craft::debug('Cloud module was not found; skipping cloud-ops controller namespace override.', __METHOD__);
+                Craft::debug('Cloud module was not found; skipping cloud controller namespace override.', __METHOD__);
                 return;
             }
 
@@ -78,9 +78,9 @@ class Module extends \yii\base\Module implements BootstrapInterface
     {
         $app->getLog()->targets[] = Craft::createObject([
             'class' => \craft\log\MonologTarget::class,
-            'name' => 'cloud-ops',
+            'name' => 'cloud',
             'level' => App::devMode() ? \Psr\Log\LogLevel::INFO : \Psr\Log\LogLevel::WARNING,
-            'categories' => ['craft\cloud\ops\*'],
+            'categories' => ['craft\cloud\*'],
         ]);
     }
 
