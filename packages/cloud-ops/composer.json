@@ -12,7 +12,6 @@
     "yiisoft/yii2-redis": "^2.0",
     "yiisoft/yii2-queue": "^2.3.7",
     "aws/aws-sdk-php": "^3.342.6",
-    "craftcms/cloud-composer": "^1.0",
     "craftcms/flysystem": "^1 || ^2",
     "league/flysystem-aws-s3-v3": "^3.15",
     "league/uri": "^7",
@@ -24,7 +23,10 @@
   "autoload": {
     "psr-4": {
       "craft\\cloud\\": "src/"
-    }
+    },
+    "files": [
+      "preload.php"
+    ]
   },
   "extra": {
     "branch-alias": {
@@ -34,8 +36,7 @@
   },
   "config": {
     "allow-plugins": {
-      "yiisoft/yii2-composer": true,
-      "craftcms/cloud-composer": true
+      "yiisoft/yii2-composer": true
     }
   }
 }

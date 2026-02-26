@@ -4,7 +4,7 @@
         "Read more about it at https://getcomposer.org/doc/01-basic-usage.md#installing-dependencies",
         "This file is @generated automatically"
     ],
-    "content-hash": "8ea5dc2db4e533804aaac7f715684f83",
+    "content-hash": "9447935dcfc930999c022cb10e2d1f1c",
     "packages": [
         {
             "name": "99designs/http-signatures",
@@ -861,56 +861,18 @@
             }
         },
         {
-            "name": "craftcms/cloud-composer",
-            "version": "dev-main",
-            "dist": {
-                "type": "path",
-                "url": "packages/cloud-composer",
-                "reference": "73372d1518952b8e281403f7d0d6700c6f705a2d"
-            },
-            "require": {
-                "composer-plugin-api": "^2.0",
-                "php": "^8.2"
-            },
-            "require-dev": {
-                "composer/composer": "^2.0"
-            },
-            "type": "composer-plugin",
-            "extra": {
-                "class": "craft\\cloud\\composer\\ComposerPlugin",
-                "plugin-optional": true,
-                "branch-alias": {
-                    "dev-main": "1.x-dev"
-                }
-            },
-            "autoload": {
-                "psr-4": {
-                    "craft\\cloud\\composer\\": "src/"
-                }
-            },
-            "license": [
-                "proprietary"
-            ],
-            "description": "Composer plugin for Craft Cloud autoload management",
-            "transport-options": {
-                "symlink": true,
-                "relative": true
-            }
-        },
-        {
             "name": "craftcms/cloud-ops",
             "version": "dev-main",
             "dist": {
                 "type": "path",
                 "url": "packages/cloud-ops",
-                "reference": "31689ca2db58215cdccb1325e12a6bea49c3aa7a"
+                "reference": "4171a798fcd7eaed300d9071c2840ee87114c717"
             },
             "require": {
                 "99designs/http-signatures": "^4.0",
                 "aws/aws-sdk-php": "^3.342.6",
                 "bref/bref": "^2.0",
                 "bref/extra-php-extensions": "^1.0",
-                "craftcms/cloud-composer": "^1.0",
                 "craftcms/cms": "^4.6 || ^5.0",
                 "craftcms/flysystem": "^1 || ^2",
                 "craftcms/yii2-cache-cascade": "^1.0",
@@ -933,7 +895,10 @@
             "autoload": {
                 "psr-4": {
                     "craft\\cloud\\": "src/"
-                }
+                },
+                "files": [
+                    "preload.php"
+                ]
             },
             "license": [
                 "proprietary"

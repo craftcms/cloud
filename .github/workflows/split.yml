@@ -7,7 +7,6 @@ on:
     tags:
       - 'cloud/[0-9]*'
       - 'cloud-ops/[0-9]*'
-      - 'cloud-composer/[0-9]*'
   workflow_dispatch:
 
 jobs:
@@ -29,9 +28,6 @@ jobs:
           - name: cloud-plugin
             path: packages/cloud
             prefix: cloud/
-          - name: cloud-composer
-            path: packages/cloud-composer
-            prefix: cloud-composer/
           - name: cloud-ops
             path: packages/cloud-ops
             prefix: cloud-ops/
