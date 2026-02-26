@@ -1,6 +1,6 @@
 <?php
 
-namespace craft\cloud\ops\runtime\event;
+namespace craft\cloud\runtime\event;
 
 use Bref\Context\Context;
 use Bref\Event\Sqs\SqsEvent;
@@ -35,13 +35,13 @@ class SqsHandler extends \Bref\Event\Sqs\SqsHandler
         try {
             // TODO: bootstrap Craft and process the job directly, so we can get real exceptions.
             (new CliHandler())->handle([
-                'command' => "cloud-ops/queue/exec {$jobId}",
+                'command' => "cloud/queue/exec {$jobId}",
             ], $context, true);
         } catch (Throwable $e) {
             echo $e->getMessage();
 
             (new CliHandler())->handle([
-                'command' => "cloud-ops/queue/fail {$jobId} --message={$e->getMessage()}",
+                'command' => "cloud/queue/fail {$jobId} --message={$e->getMessage()}",
             ], $context, true);
 
             // Ensure record is marked as failed, regardless of the `ReportBatchItemFailures` setting.

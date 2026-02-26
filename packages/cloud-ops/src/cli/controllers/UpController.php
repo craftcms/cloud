@@ -1,6 +1,6 @@
 <?php
 
-namespace craft\cloud\ops\cli\controllers;
+namespace craft\cloud\cli\controllers;
 
 use Craft;
 use craft\events\CancelableEvent;

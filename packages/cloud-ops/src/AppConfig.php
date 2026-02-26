@@ -1,11 +1,14 @@
 <?php
 
-namespace craft\cloud\ops;
+namespace craft\cloud;
 
 use Closure;
 use Craft;
 use craft\cache\DbCache;
 use craft\cachecascade\CascadeCache;
+use craft\cloud\fs\StorageFs;
+use craft\cloud\fs\TmpFs;
+use craft\cloud\web\AssetManager;
 use craft\db\Table;
 use craft\helpers\App;
 use yii\caching\ArrayCache;
@@ -139,12 +142,7 @@ class AppConfig
     {
         return function() {
             $config = App::assetManagerConfig();
-            $assetManagerClass = 'craft\\cloud\\web\\AssetManager';
-
-            if (class_exists($assetManagerClass)) {
-                $config['class'] = $assetManagerClass;
-            }
-
+            $config['class'] = AssetManager::class;
             return Craft::createObject($config);
         };
     }
@@ -153,19 +151,13 @@ class AppConfig
     {
         $definitions = [];
 
-        $tmpFsClass = 'craft\\cloud\\fs\\TmpFs';
-        if (class_exists($tmpFsClass)) {
-            $definitions[\craft\fs\Temp::class] = $tmpFsClass;
-        }
+        $definitions[\craft\fs\Temp::class] = TmpFs::class;
 
-        $storageFsClass = 'craft\\cloud\\fs\\StorageFs';
-        if (class_exists($storageFsClass)) {
-            $definitions[\craft\debug\Module::class] = [
-                'class' => \craft\debug\Module::class,
-                'fs' => Craft::createObject($storageFsClass),
-                'dataPath' => 'debug',
-            ];
-        }
+        $definitions[\craft\debug\Module::class] = [
+            'class' => \craft\debug\Module::class,
+            'fs' => new StorageFs(),
+            'dataPath' => 'debug',
+        ];
 
         $definitions[\craft\log\MonologTarget::class] = function($container, $params, $config) {
             return new \craft\log\MonologTarget(['logContext' => false] + $config);

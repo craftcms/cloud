@@ -1,11 +1,12 @@
 <?php
 
-namespace craft\cloud\ops;
+namespace craft\cloud;
 
 use Craft;
 use craft\console\Application as ConsoleApplication;
 use craft\helpers\App;
 use craft\helpers\ConfigHelper;
+use craft\services\Plugins;
 use craft\web\Application as WebApplication;
 use Illuminate\Support\Collection;
 use yii\base\BootstrapInterface;
@@ -14,22 +15,31 @@ class Module extends \yii\base\Module implements BootstrapInterface
 {
     public function bootstrap($app): void
     {
-        if (!$this->id) {
-            $this->id = 'cloud-ops';
-        }
-
         self::setInstance($this);
 
-        $this->controllerNamespace = $app->getRequest()->getIsConsoleRequest()
-            ? 'craft\\cloud\\ops\\cli\\controllers'
-            : null;
+        if (!$app instanceof ConsoleApplication && !$app instanceof WebApplication) {
+            return;
+        }
 
-        $app->setModule($this->id, $this);
+        $app->getPlugins()->on(Plugins::EVENT_AFTER_LOAD_PLUGINS, function() use ($app) {
+            $cloudModule = $app->getModule('cloud');
 
-        if (self::isCraftCloud() && ($app instanceof ConsoleApplication || $app instanceof WebApplication)) {
+            if ($cloudModule === null) {
+                Craft::debug('Cloud module was not found; skipping cloud controller namespace override.', __METHOD__);
+                return;
+            }
+
+            $isConsole = $app->getRequest()->getIsConsoleRequest();
+            $cloudModule->controllerNamespace = $isConsole
+                ? 'craft\\cloud\\cli\\controllers'
+                : 'craft\\cloud\\controllers';
+        });
+
+        if (self::isCraftCloud()) {
             $this->bootstrapCloud($app);
         }
     }
+
 
     public static function isCraftCloud(): bool
     {
@@ -68,9 +78,9 @@ class Module extends \yii\base\Module implements BootstrapInterface
     {
         $app->getLog()->targets[] = Craft::createObject([
             'class' => \craft\log\MonologTarget::class,
-            'name' => 'cloud-ops',
+            'name' => 'cloud',
             'level' => App::devMode() ? \Psr\Log\LogLevel::INFO : \Psr\Log\LogLevel::WARNING,
-            'categories' => ['craft\cloud\ops\*'],
+            'categories' => ['craft\cloud\*'],
         ]);
     }
 

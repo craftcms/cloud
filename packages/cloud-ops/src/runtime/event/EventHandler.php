@@ -1,6 +1,6 @@
 <?php
 
-namespace craft\cloud\ops\runtime\event;
+namespace craft\cloud\runtime\event;
 
 use Bref\Context\Context;
 use Bref\Event\Handler;

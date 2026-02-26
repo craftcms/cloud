@@ -884,19 +884,12 @@
             "dist": {
                 "type": "path",
                 "url": "packages/cloud",
-                "reference": "e7d66b1dae9ed65e23e48f8f2fabcc0735da90a7"
+                "reference": "df4887a605f9d6a9567620d1b2c1fc535a5b87ee"
             },
             "require": {
-                "99designs/http-signatures": "^4.0",
                 "craftcms/cloud-ops": "^1.0",
                 "craftcms/cms": "^4.6 || ^5.0",
-                "craftcms/flysystem": "^1 || ^2",
-                "league/flysystem-aws-s3-v3": "^3.15",
-                "league/uri": "^7",
-                "league/uri-components": "^7",
-                "phlak/semver": "^4.1",
-                "php": "^8.2",
-                "symfony/process": "^6 || ^7"
+                "php": "^8.2"
             },
             "type": "craft-plugin",
             "extra": {
@@ -930,16 +923,23 @@
             "dist": {
                 "type": "path",
                 "url": "packages/cloud-ops",
-                "reference": "a13e6fb3adb6ad076c9bb95da19dc2d02d17b145"
+                "reference": "053073f1a269abcb5ed43ecfd7ccd37ecf297b3a"
             },
             "require": {
+                "99designs/http-signatures": "^4.0",
                 "aws/aws-sdk-php": "^3.342.6",
                 "bref/bref": "^2.0",
                 "bref/extra-php-extensions": "^1.0",
                 "codezero/composer-preload-files": "^1.0",
                 "craftcms/cms": "^4.6 || ^5.0",
+                "craftcms/flysystem": "^1 || ^2",
                 "craftcms/yii2-cache-cascade": "^1.0",
+                "league/flysystem-aws-s3-v3": "^3.15",
+                "league/uri": "^7",
+                "league/uri-components": "^7",
+                "phlak/semver": "^4.1",
                 "php": "^8.2",
+                "symfony/process": "^6 || ^7",
                 "yiisoft/yii2-queue": "^2.3.7",
                 "yiisoft/yii2-redis": "^2.0"
             },
@@ -955,7 +955,8 @@
             },
             "autoload": {
                 "psr-4": {
-                    "craft\\cloud\\ops\\": "src/"
+                    "craft\\cloud\\ops\\": "src/",
+                    "craft\\cloud\\": "src/cloud/"
                 }
             },
             "license": [

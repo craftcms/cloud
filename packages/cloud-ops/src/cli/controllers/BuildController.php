@@ -1,6 +1,6 @@
 <?php
 
-namespace craft\cloud\ops\cli\controllers;
+namespace craft\cloud\cli\controllers;
 
 use Composer\Semver\Semver;
 use Craft;
@@ -25,7 +25,7 @@ class BuildController extends BaseController
     {
         $this->validateEdition($this->craftEdition);
 
-        return $this->run('/cloud-ops/asset-bundles/publish', [
+        return $this->run('/cloud/asset-bundles/publish', [
             'to' => $this->publishAssetBundlesTo,
         ]);
     }

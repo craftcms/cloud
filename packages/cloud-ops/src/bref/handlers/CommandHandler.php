@@ -1,10 +1,10 @@
 <?php
 
-namespace craft\cloud\ops\bref\handlers;
+namespace craft\cloud\bref\handlers;
 
 use Bref\Context\Context;
 use Bref\Event\Handler;
-use craft\cloud\ops\bref\craft\CraftCliEntrypoint;
+use craft\cloud\bref\craft\CraftCliEntrypoint;
 use InvalidArgumentException;
 
 /**
