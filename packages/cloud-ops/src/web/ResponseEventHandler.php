@@ -1,10 +1,10 @@
 <?php
 
-namespace craft\cloud\web;
+namespace craft\cloud\ops\web;
 
 use Craft;
-use craft\cloud\fs\TmpFs;
-use craft\cloud\HeaderEnum;
+use craft\cloud\ops\fs\TmpFs;
+use craft\cloud\ops\HeaderEnum;
 use craft\cloud\Plugin;
 use craft\helpers\StringHelper;
 use craft\web\Response;

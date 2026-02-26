@@ -866,7 +866,7 @@
             "dist": {
                 "type": "path",
                 "url": "packages/cloud-ops",
-                "reference": "4171a798fcd7eaed300d9071c2840ee87114c717"
+                "reference": "cf2dea9f21acd6e9454c5332f08cb9b49bc2c4ca"
             },
             "require": {
                 "99designs/http-signatures": "^4.0",
@@ -890,14 +890,14 @@
                 "branch-alias": {
                     "dev-main": "1.x-dev"
                 },
-                "bootstrap": "craft\\cloud\\Module"
+                "bootstrap": "craft\\cloud\\ops\\Module"
             },
             "autoload": {
                 "psr-4": {
-                    "craft\\cloud\\": "src/"
+                    "craft\\cloud\\ops\\": "src/"
                 },
                 "files": [
-                    "preload.php"
+                    "autoload.php"
                 ]
             },
             "license": [

@@ -1,6 +1,6 @@
 <?php
 
-namespace craft\cloud\imagetransforms;
+namespace craft\cloud\ops\imagetransforms;
 
 use Craft;
 use Illuminate\Support\Collection;

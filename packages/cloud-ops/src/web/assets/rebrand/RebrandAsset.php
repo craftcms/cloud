@@ -1,6 +1,6 @@
 <?php
 
-namespace craft\cloud\web\assets\rebrand;
+namespace craft\cloud\ops\web\assets\rebrand;
 
 use Craft;
 

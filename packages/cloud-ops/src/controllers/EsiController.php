@@ -1,6 +1,6 @@
 <?php
 
-namespace craft\cloud\controllers;
+namespace craft\cloud\ops\controllers;
 
 use Craft;
 use craft\cloud\Plugin;

@@ -1,6 +1,6 @@
 <?php
 
-namespace craft\cloud\fs;
+namespace craft\cloud\ops\fs;
 
 use craft\cloud\Plugin;
 use League\Uri\Contracts\SegmentedPathInterface;

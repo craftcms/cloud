@@ -1,9 +1,9 @@
 <?php
 
-namespace craft\cloud\twig;
+namespace craft\cloud\ops\twig;
 
 use Craft;
-use craft\cloud\Helper;
+use craft\cloud\ops\Helper;
 use Twig\Extension\AbstractExtension;
 use Twig\Extension\GlobalsInterface;
 use Twig\TwigFunction;

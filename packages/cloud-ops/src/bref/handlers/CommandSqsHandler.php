@@ -1,12 +1,12 @@
 <?php
 
-namespace craft\cloud\bref\handlers;
+namespace craft\cloud\ops\bref\handlers;
 
 use Bref\Context\Context;
 use Bref\Event\Sqs\SqsEvent;
 use Bref\Event\Sqs\SqsHandler;
-use craft\cloud\bref\craft\CraftCliEntrypoint;
-use craft\cloud\bref\curl\CurlClient;
+use craft\cloud\ops\bref\craft\CraftCliEntrypoint;
+use craft\cloud\ops\bref\curl\CurlClient;
 use RuntimeException;
 use Throwable;
 

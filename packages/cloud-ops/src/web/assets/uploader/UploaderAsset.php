@@ -1,6 +1,6 @@
 <?php
 
-namespace craft\cloud\web\assets\uploader;
+namespace craft\cloud\ops\web\assets\uploader;
 
 use Craft;
 use craft\cloud\Plugin;

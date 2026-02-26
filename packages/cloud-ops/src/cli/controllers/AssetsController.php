@@ -1,8 +1,8 @@
 <?php
 
-namespace craft\cloud\cli\controllers;
+namespace craft\cloud\ops\cli\controllers;
 
-use craft\cloud\fs\Fs;
+use craft\cloud\ops\fs\Fs;
 use craft\console\Controller;
 use craft\elements\Asset;
 use craft\helpers\FileHelper;

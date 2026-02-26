@@ -1,8 +1,8 @@
 <?php
 
-namespace craft\cloud\fs;
+namespace craft\cloud\ops\fs;
 
-use craft\cloud\Config;
+use craft\cloud\ops\Config;
 use League\Uri\Contracts\SegmentedPathInterface;
 
 abstract class BuildsFs extends Fs

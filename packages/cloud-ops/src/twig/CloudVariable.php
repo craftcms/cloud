@@ -5,9 +5,9 @@
  * @license https://craftcms.github.io/license/
  */
 
-namespace craft\cloud\twig;
+namespace craft\cloud\ops\twig;
 
-use craft\cloud\Helper;
+use craft\cloud\ops\Helper;
 use craft\cloud\Plugin;
 use craft\helpers\Template;
 use Twig\Markup;

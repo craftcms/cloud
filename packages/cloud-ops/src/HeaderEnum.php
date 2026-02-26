@@ -1,6 +1,6 @@
 <?php
 
-namespace craft\cloud;
+namespace craft\cloud\ops;
 
 enum HeaderEnum: string
 {

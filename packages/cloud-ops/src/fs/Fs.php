@@ -1,16 +1,16 @@
 <?php
 
-namespace craft\cloud\fs;
+namespace craft\cloud\ops\fs;
 
 use Aws\Credentials\Credentials;
 use Aws\Handler\Guzzle\GuzzleHandler;
 use Aws\S3\S3Client;
 use Craft;
 use craft\behaviors\EnvAttributeParserBehavior;
-use craft\cloud\Config;
+use craft\cloud\ops\Config;
+use craft\cloud\ops\StaticCache;
+use craft\cloud\ops\StaticCacheTag;
 use craft\cloud\Plugin;
-use craft\cloud\StaticCache;
-use craft\cloud\StaticCacheTag;
 use craft\errors\FsException;
 use craft\flysystem\base\FlysystemFs;
 use craft\fs\Local;

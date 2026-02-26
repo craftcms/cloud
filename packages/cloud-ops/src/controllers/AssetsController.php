@@ -1,9 +1,9 @@
 <?php
 
-namespace craft\cloud\controllers;
+namespace craft\cloud\ops\controllers;
 
 use Craft;
-use craft\cloud\fs\Fs;
+use craft\cloud\ops\fs\Fs;
 use craft\controllers\AssetsControllerTrait;
 use craft\elements\Asset;
 use craft\elements\conditions\ElementCondition;

@@ -1,6 +1,6 @@
 <?php
 
-namespace craft\cloud;
+namespace craft\cloud\ops;
 
 use Craft;
 use craft\console\Application as ConsoleApplication;
@@ -31,8 +31,8 @@ class Module extends \yii\base\Module implements BootstrapInterface
 
             $isConsole = $app->getRequest()->getIsConsoleRequest();
             $cloudModule->controllerNamespace = $isConsole
-                ? 'craft\\cloud\\cli\\controllers'
-                : 'craft\\cloud\\controllers';
+                ? 'craft\\cloud\\ops\\cli\\controllers'
+                : 'craft\\cloud\\ops\\controllers';
         });
 
         if (self::isCraftCloud()) {
