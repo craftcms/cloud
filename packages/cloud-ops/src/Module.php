@@ -5,6 +5,11 @@ namespace craft\cloud\ops;
 use Craft;
 use craft\base\Event;
 use craft\base\Model;
+use craft\cloud\ops\fs\AssetsFs;
+use craft\cloud\ops\imagetransforms\ImageTransformer;
+use craft\cloud\ops\twig\TwigExtension;
+use craft\cloud\ops\web\assets\uploader\UploaderAsset;
+use craft\cloud\ops\web\ResponseEventHandler;
 use craft\console\Application as ConsoleApplication;
 use craft\elements\Asset;
 use craft\events\DefineRulesEvent;
@@ -17,13 +22,8 @@ use craft\models\ImageTransform;
 use craft\services\Fs as FsService;
 use craft\services\ImageTransforms;
 use craft\services\Plugins;
-use craft\web\assets\uploader\UploaderAsset;
 use craft\web\Application as WebApplication;
 use craft\web\View;
-use craft\cloud\ops\fs\AssetsFs;
-use craft\cloud\ops\imagetransforms\ImageTransformer;
-use craft\cloud\ops\twig\TwigExtension;
-use craft\cloud\ops\web\ResponseEventHandler;
 use Illuminate\Support\Collection;
 use yii\base\BootstrapInterface;
 use yii\base\InvalidConfigException;
@@ -120,7 +120,7 @@ class Module extends \yii\base\Module implements BootstrapInterface
         $this->registerComponents();
         $this->registerEventHandlers();
         $this->registerTwigExtension();
-        $this->setAliases();
+        $this->setRuntimeAliases();
 
         if (self::isCraftCloud()) {
             $this->initCloud();
@@ -223,7 +223,7 @@ class Module extends \yii\base\Module implements BootstrapInterface
         Craft::$app->getView()->registerTwigExtension(new TwigExtension());
     }
 
-    protected function setAliases(): void
+    protected function setRuntimeAliases(): void
     {
         Craft::setAlias('@artifactBaseUrl', Helper::artifactUrl());
     }
