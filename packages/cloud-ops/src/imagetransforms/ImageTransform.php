@@ -74,7 +74,7 @@ class ImageTransform extends \craft\models\ImageTransform
      */
     public string|array|null $gravity = null;
 
-    public ?int $height;
+    public ?int $height = null;
 
     /**
      * @var 'keep'|'copyright'|'none'|null
@@ -106,7 +106,7 @@ class ImageTransform extends \craft\models\ImageTransform
      */
     public null|string|array $trim = null;
 
-    public ?int $width;
+    public ?int $width = null;
 
     public ?float $zoom = null;
 
