@@ -51,7 +51,7 @@ class Module extends \yii\base\Module implements BootstrapInterface
         $this->id = 'cloud';
         $app->setModule('cloud', $this);
 
-        $this->initializeRuntime();
+        // $this->initializeRuntime();
 
         // Override controllers from any loaded plugin that owns the `cloud` handle.
         $app->getPlugins()->on(Plugins::EVENT_AFTER_LOAD_PLUGINS, function() use ($app) {
