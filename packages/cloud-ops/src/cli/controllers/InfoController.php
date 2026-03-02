@@ -3,7 +3,7 @@
 namespace craft\cloud\ops\cli\controllers;
 
 use Craft;
-use craft\cloud\Plugin;
+use craft\cloud\ops\Module;
 use craft\console\Controller;
 use yii\console\ExitCode;
 
@@ -11,8 +11,8 @@ class InfoController extends Controller
 {
     public function actionIndex(): int
     {
-        $packageName = 'craftcms/cloud';
-        $packageVersion = \Composer\InstalledVersions::getVersion($packageName);
+        $packageName = 'craftcms/cloud-ops';
+        $packageVersion = \Composer\InstalledVersions::getPrettyVersion($packageName) ?? 'unknown';
 
         $this->table([
             'Extension',
@@ -23,8 +23,8 @@ class InfoController extends Controller
             [
                 "$packageName:$packageVersion",
                 Craft::$app->id,
-                Plugin::getInstance()->getConfig()->environmentId,
-                Plugin::getInstance()->getConfig()->buildId,
+                Module::instance()->getConfig()->environmentId,
+                Module::instance()->getConfig()->buildId,
             ],
         ]);
         return ExitCode::OK;

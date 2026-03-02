@@ -2,8 +2,8 @@
 
 namespace craft\cloud;
 
-use craft\cloud\ops\BasePlugin;
+use craft\base\Plugin as CraftPlugin;
 
-class Plugin extends BasePlugin
+class Plugin extends CraftPlugin
 {
 }

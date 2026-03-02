@@ -4,7 +4,6 @@ namespace craft\cloud\ops;
 
 use Craft;
 use craft\cloud\ops\fs\BuildArtifactsFs;
-use craft\cloud\Plugin;
 use craft\helpers\App;
 use GuzzleHttp\Psr7\Request;
 use HttpSignatures\Context;
@@ -33,12 +32,12 @@ class Helper
         $headers = Collection::make($headers)
             ->put(HeaderEnum::REQUEST_TYPE->value, 'api');
 
-        if (Plugin::getInstance()->getConfig()->getDevMode()) {
+        if (Module::instance()->getConfig()->getDevMode()) {
             $headers->put(HeaderEnum::DEV_MODE->value, '1');
         }
 
         $url = Craft::$app->getRequest()->getIsConsoleRequest()
-            ? Plugin::getInstance()->getConfig()->getPreviewDomainUrl()
+            ? Module::instance()->getConfig()->getPreviewDomainUrl()
             : Craft::$app->getRequest()->getHostInfo();
 
         if (!$url) {
@@ -63,7 +62,7 @@ class Helper
 
         return new Context([
             'keys' => [
-                'hmac' => Plugin::getInstance()->getConfig()->signingKey,
+                'hmac' => Module::instance()->getConfig()->signingKey,
             ],
             'algorithm' => 'hmac-sha256',
             'headers' => $headers->all(),

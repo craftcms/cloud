@@ -3,7 +3,7 @@
 namespace craft\cloud\ops\fs;
 
 use craft\cloud\ops\Helper;
-use craft\cloud\Plugin;
+use craft\cloud\ops\Module;
 use League\Uri\Contracts\SegmentedPathInterface;
 
 class BuildArtifactsFs extends BuildsFs
@@ -16,7 +16,7 @@ class BuildArtifactsFs extends BuildsFs
     {
         parent::init();
         $this->useLocalFs = !Helper::isCraftCloud();
-        $this->baseUrl = Plugin::getInstance()->getConfig()->artifactBaseUrl;
+        $this->baseUrl = Module::instance()->getConfig()->artifactBaseUrl;
 
         // Allow local override via config/env
         if ($this->baseUrl) {

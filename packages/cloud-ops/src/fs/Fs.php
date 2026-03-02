@@ -10,7 +10,7 @@ use craft\behaviors\EnvAttributeParserBehavior;
 use craft\cloud\ops\Config;
 use craft\cloud\ops\StaticCache;
 use craft\cloud\ops\StaticCacheTag;
-use craft\cloud\Plugin;
+use craft\cloud\ops\Module;
 use craft\errors\FsException;
 use craft\flysystem\base\FlysystemFs;
 use craft\fs\Local;
@@ -195,12 +195,12 @@ abstract class Fs extends FlysystemFs
     protected function invalidateCdnPath(string $path): bool
     {
         try {
-            $prefix = StaticCache::CDN_PREFIX . Plugin::getInstance()->getConfig()->environmentId . ':';
+            $prefix = StaticCache::CDN_PREFIX . Module::instance()->getConfig()->environmentId . ':';
             $tag = StaticCacheTag::create($this->createBucketPath($path)->toString())
                 ->minify(false)
                 ->withPrefix($prefix);
 
-            Plugin::getInstance()->getStaticCache()->purgeTags($tag);
+            Module::instance()->getStaticCache()->purgeTags($tag);
 
             return true;
         } catch (\Throwable $e) {
@@ -264,17 +264,17 @@ abstract class Fs extends FlysystemFs
 
     public function getBucketName(): ?string
     {
-        return Plugin::getInstance()->getConfig()->projectId;
+        return Module::instance()->getConfig()->projectId;
     }
 
     public function createCredentials(): ?Credentials
     {
-        $key = Plugin::getInstance()->getConfig()->accessKey;
+        $key = Module::instance()->getConfig()->accessKey;
 
         return $key ? new Credentials(
             $key,
-            Plugin::getInstance()->getConfig()->accessSecret,
-            Plugin::getInstance()->getConfig()->accessToken,
+            Module::instance()->getConfig()->accessSecret,
+            Module::instance()->getConfig()->accessToken,
         ) : null;
     }
 
@@ -282,12 +282,12 @@ abstract class Fs extends FlysystemFs
     {
         $config = array_merge(
             [
-                'region' => Plugin::getInstance()->getConfig()->getRegion(),
+                'region' => Module::instance()->getConfig()->getRegion(),
                 'version' => 'latest',
                 'http_handler' => new GuzzleHandler(Craft::createGuzzleClient()),
                 'credentials' => $this->createCredentials(),
             ],
-            Plugin::getInstance()->getConfig()->getS3ClientOptions(),
+            Module::instance()->getConfig()->getS3ClientOptions(),
             $config
         );
 
