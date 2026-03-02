@@ -2,7 +2,7 @@
 
 namespace craft\cloud\ops\cli\controllers;
 
-use craft\cloud\Plugin;
+use craft\cloud\ops\Module;
 use craft\console\Controller;
 use yii\console\ExitCode;
 
@@ -11,7 +11,7 @@ class StaticCacheController extends Controller
     public function actionPurgePrefixes(string ...$prefixes): int
     {
         $this->do('Purging prefixes', function() use ($prefixes) {
-            Plugin::getInstance()->getStaticCache()->purgeUrlPrefixes(...$prefixes);
+            Module::instance()->getStaticCache()->purgeUrlPrefixes(...$prefixes);
         });
 
         return ExitCode::OK;
@@ -20,7 +20,7 @@ class StaticCacheController extends Controller
     public function actionPurgeTags(string ...$tags): int
     {
         $this->do('Purging tags', function() use ($tags) {
-            Plugin::getInstance()->getStaticCache()->purgeTags(...$tags);
+            Module::instance()->getStaticCache()->purgeTags(...$tags);
         });
 
         return ExitCode::OK;

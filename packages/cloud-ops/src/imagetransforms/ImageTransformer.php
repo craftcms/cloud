@@ -5,7 +5,7 @@ namespace craft\cloud\ops\imagetransforms;
 use Craft;
 use craft\base\Component;
 use craft\base\imagetransforms\ImageTransformerInterface;
-use craft\cloud\Plugin;
+use craft\cloud\ops\Module;
 use craft\elements\Asset;
 use craft\helpers\Assets;
 use craft\helpers\Html;
@@ -67,7 +67,7 @@ class ImageTransformer extends Component implements ImageTransformerInterface
         $hash = hash_hmac(
             'sha256',
             $data,
-            Plugin::getInstance()->getConfig()->signingKey,
+            Module::instance()->getConfig()->signingKey,
             true,
         );
 

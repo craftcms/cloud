@@ -3,7 +3,7 @@
 namespace craft\cloud\ops\controllers;
 
 use Craft;
-use craft\cloud\Plugin;
+use craft\cloud\ops\Module;
 use yii\web\Response;
 
 class EsiController extends \craft\web\Controller
@@ -16,7 +16,7 @@ class EsiController extends \craft\web\Controller
             return false;
         }
 
-        return Plugin::getInstance()
+        return Module::instance()
             ->getUrlSigner()
             ->verify(Craft::$app->getRequest()->getAbsoluteUrl());
     }

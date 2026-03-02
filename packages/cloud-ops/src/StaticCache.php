@@ -4,7 +4,6 @@ namespace craft\cloud\ops;
 
 use Craft;
 use craft\base\ElementInterface;
-use craft\cloud\Plugin;
 use craft\events\ElementEvent;
 use craft\events\InvalidateElementCachesEvent;
 use craft\events\RegisterCacheOptionsEvent;
@@ -185,12 +184,12 @@ class StaticCache extends \yii\base\Component
 
     public function purgeGateway(): void
     {
-        $this->tagsToPurge->push(Plugin::getInstance()->getConfig()->environmentId);
+        $this->tagsToPurge->push(Module::instance()->getConfig()->environmentId);
     }
 
     public function purgeCdn(): void
     {
-        $this->tagsToPurge->push(self::CDN_PREFIX . Plugin::getInstance()->getConfig()->environmentId);
+        $this->tagsToPurge->push(self::CDN_PREFIX . Module::instance()->getConfig()->environmentId);
     }
 
     private function purgeElementUri(ElementInterface $element): void
@@ -205,13 +204,13 @@ class StaticCache extends \yii\base\Component
             ? '/'
             : Path::new($uri)->withLeadingSlash()->withoutTrailingSlash();
 
-        $environmentId = Plugin::getInstance()->getConfig()->environmentId;
+        $environmentId = Module::instance()->getConfig()->environmentId;
         $this->tagsToPurge->prepend("$environmentId:$uri");
     }
 
     private function addCacheHeadersToWebResponse(): void
     {
-        $this->cacheDuration = $this->cacheDuration ?? Plugin::getInstance()->getConfig()->staticCacheDuration;
+        $this->cacheDuration = $this->cacheDuration ?? Module::instance()->getConfig()->staticCacheDuration;
         $headers = Craft::$app->getResponse()->getHeaders();
 
         $cacheControlDirectives = Collection::make($headers->get(
@@ -221,7 +220,7 @@ class StaticCache extends \yii\base\Component
 
         // Copy cache-control directives to the cdn-cache-control header
         // @see https://developers.cloudflare.com/cache/concepts/cdn-cache-control/#header-precedence
-        $swrDuration = Plugin::getInstance()->getConfig()->staticCacheStaleWhileRevalidateDuration;
+        $swrDuration = Module::instance()->getConfig()->staticCacheStaleWhileRevalidateDuration;
         $cdnCacheControlDirectives = $cacheControlDirectives->isEmpty()
             ? Collection::make([
                 'public',

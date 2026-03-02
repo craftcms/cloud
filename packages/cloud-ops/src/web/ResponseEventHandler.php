@@ -5,7 +5,7 @@ namespace craft\cloud\ops\web;
 use Craft;
 use craft\cloud\ops\fs\TmpFs;
 use craft\cloud\ops\HeaderEnum;
-use craft\cloud\Plugin;
+use craft\cloud\ops\Module;
 use craft\helpers\StringHelper;
 use craft\web\Response;
 use Illuminate\Support\Collection;
@@ -40,13 +40,13 @@ class ResponseEventHandler
 
     private function afterPrepare(Event $event): void
     {
-        if (Plugin::getInstance()->getConfig()->getDevMode()) {
+        if (Module::instance()->getConfig()->getDevMode()) {
             $this->addDevModeHeader();
         }
 
         $this->normalizeHeaders();
 
-        if (Plugin::getInstance()->getConfig()->gzipResponse) {
+        if (Module::instance()->getConfig()->gzipResponse) {
             $this->gzipResponse();
         }
 

@@ -3,6 +3,7 @@
 namespace craft\cloud\ops\cli\controllers;
 
 use Craft;
+use craft\cloud\ops\Module;
 use craft\events\CancelableEvent;
 use yii\console\ExitCode;
 
@@ -40,9 +41,6 @@ class UpController extends BaseController
 
     private function purgeStaticCache(): void
     {
-        $plugin = Craft::$app->getPlugins()->getPlugin('cloud');
-        if ($plugin && method_exists($plugin, 'getStaticCache')) {
-            $plugin->getStaticCache()->purgeGateway();
-        }
+        Module::instance()->getStaticCache()->purgeGateway();
     }
 }

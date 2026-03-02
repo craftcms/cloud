@@ -3,7 +3,7 @@
 namespace craft\cloud\ops\web\assets\uploader;
 
 use Craft;
-use craft\cloud\Plugin;
+use craft\cloud\ops\Module;
 use craft\helpers\ConfigHelper;
 use craft\web\AssetBundle;
 use craft\web\assets\cp\CpAsset;
@@ -27,7 +27,7 @@ class UploaderAsset extends AssetBundle
 
     public function registerAssetFiles($view): void
     {
-        if (!Plugin::getInstance()->getConfig()->useAssetCdn) {
+        if (!Module::instance()->getConfig()->useAssetCdn) {
             return;
         }
 

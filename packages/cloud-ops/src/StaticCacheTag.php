@@ -2,8 +2,6 @@
 
 namespace craft\cloud\ops;
 
-use craft\cloud\Plugin;
-
 class StaticCacheTag implements \Stringable, \JsonSerializable
 {
     public readonly string $originalValue;
@@ -41,7 +39,7 @@ class StaticCacheTag implements \Stringable, \JsonSerializable
         if ($clone->value && $clone->minify) {
             return self::create($clone->value)
                 ->hash()
-                ->withPrefix(Plugin::getInstance()->getConfig()->getShortEnvironmentId())
+                ->withPrefix(Module::instance()->getConfig()->getShortEnvironmentId())
                 ->value;
         }
 
