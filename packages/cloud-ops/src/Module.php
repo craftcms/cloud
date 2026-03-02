@@ -120,7 +120,6 @@ class Module extends \yii\base\Module implements BootstrapInterface
         $this->registerComponents();
         $this->registerEventHandlers();
         $this->registerTwigExtension();
-        $this->setRuntimeAliases();
 
         if (self::isCraftCloud()) {
             $this->initCloud();
@@ -221,11 +220,6 @@ class Module extends \yii\base\Module implements BootstrapInterface
     protected function registerTwigExtension(): void
     {
         Craft::$app->getView()->registerTwigExtension(new TwigExtension());
-    }
-
-    protected function setRuntimeAliases(): void
-    {
-        Craft::setAlias('@artifactBaseUrl', Helper::artifactUrl());
     }
 
     protected function initCloud(): void
