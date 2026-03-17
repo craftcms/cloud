@@ -1,5 +1,15 @@
 # Release Notes for Craft Cloud ⛅️
 
+## 2026-03-17
+- Released version 1.90.4 of the Cloud API.
+  - Fixed a bug where you could (unintentionally) create a project handle with > 25 characters.
+  - Fixed a bug where some Sandbox projects could not deploy.
+
+## 2026-03-04
+- Released version 1.90.2 of the Cloud API.
+  - Increased MySQL’s `sort_buffer_size` value for all existing and new clusters.
+  - Added support for Node 24.
+
 ## 2026-01-30
 - Released version 1.84.5 of the Cloud API.
   - Fixed a bug where environments with thousands of deployments could crash the deployments page.
@@ -33,7 +43,7 @@
   - Added Postgres backups to the new backups infrastructure. 
 
 ## 2025-07-11
-- Redirect and rewrites are now generally available.
+- Redirects and rewrites are now generally available.
 
 ## 2025-06-23
 - Released version 1.63.0 of the Cloud API.
