@@ -4,8 +4,9 @@ namespace craft\cloud;
 
 use Craft;
 use craft\cache\DbCache;
-use craft\cloud\fs\TmpFs;
+use craft\cachecascade\CascadeCache;
 use craft\cloud\Helper as CloudHelper;
+use craft\cloud\fs\TmpFs;
 use craft\cloud\queue\SqsQueue;
 use craft\cloud\runtime\event\CliHandler;
 use craft\cloud\web\AssetManager;
@@ -15,7 +16,8 @@ use craft\fs\Temp;
 use craft\helpers\App;
 use craft\log\MonologTarget;
 use craft\queue\Queue as CraftQueue;
-use yii\redis\Cache;
+use yii\caching\ArrayCache;
+use yii\redis\Cache as RedisCache;
 use yii\web\DbSession;
 
 class AppConfig
@@ -64,31 +66,46 @@ class AppConfig
     private function getCache(): \Closure
     {
         return function() {
-            $redisUrl = App::env('CRAFT_CLOUD_REDIS_URL');
             $defaultDuration = Craft::$app->getConfig()->getGeneral()->cacheDuration;
+            $valkey = $this->resolveValkeyEndpoint();
+            $primaryCache = $valkey ? [
+                'class' => RedisCache::class,
+                'defaultDuration' => $defaultDuration,
+                'redis' => [
+                    'class' => Redis::class,
+                    'url' => $valkey,
+                    'database' => 0,
+                ],
+            ] : [
+                'class' => DbCache::class,
+                'cacheTable' => Table::CACHE,
+                'defaultDuration' => $defaultDuration,
+            ];
 
-            if ($redisUrl) {
-                return Craft::createObject([
-                    'class' => Cache::class,
-                    'defaultDuration' => $defaultDuration,
-                    'redis' => [
-                        'class' => Redis::class,
-                        'url' => $redisUrl,
-                        'database' => 0,
-                    ],
-                ]);
-            }
-
-            if ($this->tableExists(Table::CACHE)) {
-                return Craft::createObject([
-                    'class' => DbCache::class,
-                    'cacheTable' => Table::CACHE,
-                    'defaultDuration' => $defaultDuration,
-                ]);
-            }
-
-            return Craft::createObject(App::cacheConfig());
+            return Craft::createObject([
+                'class' => CascadeCache::class,
+                'caches' => [
+                    $primaryCache,
+                    ['class' => ArrayCache::class],
+                ],
+            ]);
         };
+    }
+
+    private function resolveValkeyEndpoint(): ?string
+    {
+        $srv = App::env('CRAFT_CLOUD_CACHE_SRV');
+
+        if ($srv) {
+            $record = dns_get_record($srv, DNS_SRV);
+
+            if (!empty($record)) {
+                return 'redis://' . $record[0]['target'] . ':' . $record[0]['port'];
+            }
+        }
+
+        // TODO: drop deprecated fallback once migration is complete
+        return App::env('CRAFT_CLOUD_REDIS_URL');
     }
 
     private function getQueue(): \Closure
