@@ -16,7 +16,8 @@
     "phlak/semver": "^4.1",
     "99designs/http-signatures": "^4.0",
     "symfony/process": "^6",
-    "aws/aws-sdk-php": "^3.342.6"
+    "aws/aws-sdk-php": "^3.342.6",
+    "craftcms/yii2-cache-cascade": "^1.2"
   },
   "require-dev": {
     "craftcms/ecs": "dev-main",
