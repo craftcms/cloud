@@ -99,9 +99,11 @@ class AppConfig
         if ($srv) {
             $record = dns_get_record($srv, DNS_SRV);
 
-            if (!empty($record)) {
+            if (is_array($record) && isset($record[0]['target'], $record[0]['port'])) {
                 return 'redis://' . $record[0]['target'] . ':' . $record[0]['port'];
             }
+
+            Craft::error("Unable to fetch DNS records: $srv", __METHOD__);
         }
 
         // TODO: drop deprecated fallback once migration is complete
