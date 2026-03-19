@@ -26,7 +26,8 @@ class ImageTransformer extends Component implements ImageTransformerInterface
 
     public function getTransformUrl(Asset $asset, \craft\models\ImageTransform $imageTransform, bool $immediately): string
     {
-        $assetUrl = Html::encodeSpaces(Assets::generateUrl($asset));
+        $fs = $asset->getVolume()->getTransformFs();
+        $assetUrl = Html::encodeSpaces(Assets::generateUrl($fs, $asset));
         $mimeType = $asset->getMimeType();
 
         if (!$imageTransform instanceof ImageTransform) {
