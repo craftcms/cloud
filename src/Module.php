@@ -6,6 +6,7 @@ use Craft;
 use craft\base\Event;
 use craft\base\Model;
 use craft\cloud\fs\AssetsFs;
+use craft\cloud\imagetransforms\ImageTransformer;
 use craft\cloud\twig\TwigExtension;
 use craft\cloud\web\assets\uploader\UploaderAsset;
 use craft\cloud\web\ResponseEventHandler;

@@ -15,6 +15,7 @@ use craft\debug\Module as DebugModule;
 use craft\fs\Temp;
 use craft\helpers\App;
 use craft\log\MonologTarget;
+use craft\models\ImageTransform;
 use craft\queue\Queue as CraftQueue;
 use yii\caching\ArrayCache;
 use yii\redis\Cache as RedisCache;
@@ -158,6 +159,8 @@ class AppConfig
     {
         return [
             Temp::class => TmpFs::class,
+
+            ImageTransform::class => \craft\cloud\imagetransforms\ImageTransform::class,
 
             MonologTarget::class => function($container, $params, $config) {
                 return new MonologTarget([
