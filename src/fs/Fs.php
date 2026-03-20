@@ -23,6 +23,7 @@ use Illuminate\Support\Collection;
 use League\Flysystem\AwsS3V3\AwsS3V3Adapter;
 use League\Flysystem\FilesystemException;
 use League\Flysystem\UnableToCopyFile;
+use League\Flysystem\UnableToMoveFile;
 use League\Flysystem\Visibility;
 use League\Uri\Components\HierarchicalPath;
 use League\Uri\Contracts\SegmentedPathInterface;
@@ -346,11 +347,15 @@ abstract class Fs extends FlysystemFs
             return;
         }
 
-        parent::copyFile(
-            $path,
-            $newPath,
-            $this->addFileMetadataToConfig($config),
-        );
+        try {
+            $this->filesystem()->copy(
+                $path,
+                $newPath,
+                $this->addFileMetadataToConfig($config),
+            );
+        } catch (FilesystemException|UnableToCopyFile $exception) {
+            throw new FsException($exception->getMessage(), 0, $exception);
+        }
     }
 
     /**
@@ -363,11 +368,17 @@ abstract class Fs extends FlysystemFs
             return;
         }
 
-        parent::renameFile(
-            $path,
-            $newPath,
-            $this->addFileMetadataToConfig($config),
-        );
+        try {
+            $this->filesystem()->move(
+                $path,
+                $newPath,
+                $this->addFileMetadataToConfig($config),
+            );
+        } catch (FilesystemException|UnableToMoveFile $exception) {
+            throw new FsException($exception->getMessage(), 0, $exception);
+        }
+
+        $this->invalidateCdnPath($path);
     }
 
     /**
