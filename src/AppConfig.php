@@ -44,7 +44,10 @@ class AppConfig
         $config['components']['cache'] = $this->getCache();
         $config['components']['queue'] = $this->getQueue();
         $config['components']['assetManager'] = $this->getAssetManager();
-        $config['container']['definitions'] = $this->getDefinitions();
+        $config['container']['definitions'] = array_merge(
+            $config['container']['definitions'] ?? [],
+            $this->getDefinitions()
+        );
 
         return $config;
     }
