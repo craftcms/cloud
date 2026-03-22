@@ -169,11 +169,9 @@ class ImageTransform extends \craft\models\ImageTransform
             return $this->fit;
         }
 
-        // Cloudflare doesn't have an exact match to `stretch`.
-        // `cover` is close, but will crop instead of stretching.
         return match ($this->mode) {
             'fit' => $this->upscale ? 'contain' : 'scale-down',
-            'stretch' => 'cover',
+            'stretch' => 'squeeze',
             'letterbox' => 'pad',
             default => $this->upscale ? 'cover' : 'crop',
         };

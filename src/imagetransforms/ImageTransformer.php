@@ -44,6 +44,8 @@ class ImageTransformer extends Component implements ImageTransformerInterface
             throw new NotSupportedException('SVG files shouldn’t be transformed.');
         }
 
+        // ImageTransform DI will not work on Craft 4, so we convert the object.
+        // @see https://github.com/craftcms/cms/pull/15646
         if (!$imageTransform instanceof ImageTransform) {
             $imageTransform = Craft::createObject(ImageTransform::class, [$imageTransform->toArray()]);
         }
