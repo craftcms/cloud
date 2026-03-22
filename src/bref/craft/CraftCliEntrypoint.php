@@ -3,9 +3,6 @@
 namespace craft\cloud\bref\craft;
 
 use Bref\Context\Context;
-use craft\cloud\AppConfig;
-use craft\cloud\queue\SqsQueue;
-use craft\cloud\runtime\event\EventHandler;
 use Symfony\Component\Process\Process;
 
 final class CraftCliEntrypoint
@@ -17,7 +14,7 @@ final class CraftCliEntrypoint
      * - @see EventHandler::MAX_SECONDS, EventHandler::MAX_HTTP_SECONDS
      * - @see SqsQueue::ttr(), AppConfig::getQueue()
      */
-    private const LAMBDA_EXECUTION_LIMIT = 890;
+    public const MAX_SECONDS = 900 - 10;
 
     private function command(string $command, array $environment, int $timeout): array
     {
@@ -42,14 +39,14 @@ final class CraftCliEntrypoint
     {
         $environment = $this->invocationContext($context);
 
-        return $this->command($command, $environment, self::LAMBDA_EXECUTION_LIMIT);
+        return $this->command($command, $environment, self::MAX_SECONDS);
     }
 
     public function craftJob(string $jobId, Context $context): array
     {
         $environment = $this->invocationContext($context);
 
-        return $this->command("cloud/queue/exec $jobId", $environment, self::LAMBDA_EXECUTION_LIMIT);
+        return $this->command("cloud/queue/exec $jobId", $environment, self::MAX_SECONDS);
     }
 
     private function invocationContext(Context $context): array

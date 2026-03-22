@@ -5,11 +5,11 @@ namespace craft\cloud;
 use Craft;
 use craft\cache\DbCache;
 use craft\cachecascade\CascadeCache;
+use craft\cloud\bref\craft\CraftCliEntrypoint;
 use craft\cloud\fs\TmpFs;
 use craft\cloud\Helper as CloudHelper;
 use craft\cloud\imagetransforms\ImageTransform;
 use craft\cloud\queue\SqsQueue;
-use craft\cloud\runtime\event\CliHandler;
 use craft\cloud\web\AssetManager;
 use craft\db\Table;
 use craft\debug\Module as DebugModule;
@@ -120,10 +120,10 @@ class AppConfig
         return function() {
             return Craft::createObject([
                 'class' => CraftQueue::class,
-                'ttr' => CliHandler::MAX_EXECUTION_SECONDS,
+                'ttr' => CraftCliEntrypoint::MAX_SECONDS,
                 'proxyQueue' => Module::getInstance()->getConfig()->useQueue ? [
                     'class' => SqsQueue::class,
-                    'ttr' => CliHandler::MAX_EXECUTION_SECONDS,
+                    'ttr' => CraftCliEntrypoint::MAX_SECONDS,
                     'url' => Module::getInstance()->getConfig()->sqsUrl,
                     'region' => Module::getInstance()->getConfig()->getRegion(),
                 ] : null,
