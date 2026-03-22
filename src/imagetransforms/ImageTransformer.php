@@ -13,7 +13,6 @@ use League\Uri\Components\Query;
 use League\Uri\Contracts\UriInterface;
 use League\Uri\Modifier;
 use League\Uri\Uri;
-use yii\base\InvalidValueException;
 use yii\base\NotSupportedException;
 
 /**
@@ -26,7 +25,6 @@ class ImageTransformer extends Component implements ImageTransformerInterface
 
     public function getTransformUrl(Asset $asset, \craft\models\ImageTransform $imageTransform, bool $immediately): string
     {
-
         if (version_compare(Craft::$app->version, '5.0', '>=')) {
             $assetUrl = Html::encodeSpaces(Assets::generateUrl($asset));
         } else {
@@ -35,7 +33,7 @@ class ImageTransformer extends Component implements ImageTransformerInterface
             $assetUrl = Html::encodeSpaces(Assets::generateUrl($fs, $asset));
         }
 
-            $mimeType = $asset->getMimeType();
+        $mimeType = $asset->getMimeType();
 
         if ($mimeType === 'image/gif' && !Craft::$app->getConfig()->getGeneral()->transformGifs) {
             throw new NotSupportedException('GIF files shouldn’t be transformed.');
