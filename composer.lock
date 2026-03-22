@@ -4,7 +4,7 @@
         "Read more about it at https://getcomposer.org/doc/01-basic-usage.md#installing-dependencies",
         "This file is @generated automatically"
     ],
-    "content-hash": "5f49f0fe1cf995bf5986e94c91ccf203",
+    "content-hash": "a35e3980539e212acbd50b09a321afe7",
     "packages": [
         {
             "name": "99designs/http-signatures",
@@ -120,16 +120,16 @@
         },
         {
             "name": "aws/aws-sdk-php",
-            "version": "3.373.5",
+            "version": "3.373.7",
             "source": {
                 "type": "git",
                 "url": "https://github.com/aws/aws-sdk-php.git",
-                "reference": "978964f417f3617a6ced691110af6fc5d496fb4e"
+                "reference": "4402bd10f913e66b7271f44466be8d5ba6c9146e"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/aws/aws-sdk-php/zipball/978964f417f3617a6ced691110af6fc5d496fb4e",
-                "reference": "978964f417f3617a6ced691110af6fc5d496fb4e",
+                "url": "https://api.github.com/repos/aws/aws-sdk-php/zipball/4402bd10f913e66b7271f44466be8d5ba6c9146e",
+                "reference": "4402bd10f913e66b7271f44466be8d5ba6c9146e",
                 "shasum": ""
             },
             "require": {
@@ -211,9 +211,9 @@
             "support": {
                 "forum": "https://github.com/aws/aws-sdk-php/discussions",
                 "issues": "https://github.com/aws/aws-sdk-php/issues",
-                "source": "https://github.com/aws/aws-sdk-php/tree/3.373.5"
+                "source": "https://github.com/aws/aws-sdk-php/tree/3.373.7"
             },
-            "time": "2026-03-18T18:22:37+00:00"
+            "time": "2026-03-20T18:14:19+00:00"
         },
         {
             "name": "bacon/bacon-qr-code",
@@ -271,16 +271,16 @@
         },
         {
             "name": "bref/bref",
-            "version": "2.4.18",
+            "version": "3.0.1",
             "source": {
                 "type": "git",
                 "url": "https://github.com/brefphp/bref.git",
-                "reference": "5746d907d830a535cdb16a83a515eb7361e8ca74"
+                "reference": "5d7233a4c2206fa5ebb44acb8a46d69794283b62"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/brefphp/bref/zipball/5746d907d830a535cdb16a83a515eb7361e8ca74",
-                "reference": "5746d907d830a535cdb16a83a515eb7361e8ca74",
+                "url": "https://api.github.com/repos/brefphp/bref/zipball/5d7233a4c2206fa5ebb44acb8a46d69794283b62",
+                "reference": "5d7233a4c2206fa5ebb44acb8a46d69794283b62",
                 "shasum": ""
             },
             "require": {
@@ -289,28 +289,27 @@
                 "ext-json": "*",
                 "hollodotme/fast-cgi-client": "^3.0.1",
                 "nyholm/psr7": "^1.4.1",
-                "php": ">=8.0",
+                "php": ">=8.2",
                 "psr/container": "^1.0|^2.0",
                 "psr/http-message": "^1.0|^2.0",
                 "psr/http-server-handler": "^1.0",
                 "riverline/multipart-parser": "^2.1.2",
-                "symfony/process": "^4.4|^5.0|^6.0|^7.0|^8.0"
+                "symfony/process": "^6.4|^7.0|^8.0"
             },
             "require-dev": {
                 "async-aws/core": "^1.0",
-                "async-aws/lambda": "^1.0",
+                "async-aws/lambda": "^2.0",
                 "aws/aws-sdk-php": "^3.172",
                 "bref/secrets-loader": "^1.0",
-                "dms/phpunit-arraysubset-asserts": "^0.4",
+                "dms/phpunit-arraysubset-asserts": "^0.5",
                 "doctrine/coding-standard": "^8.0",
                 "guzzlehttp/guzzle": "^7.5",
-                "phpstan/phpstan": "^1.10.26",
-                "phpunit/phpunit": "^9.6.10",
-                "symfony/console": "^4.4|^5.0|^6.0|^7.0|^8.0",
-                "symfony/yaml": "^4.4|^5.0|^6.0|^7.0|^8.0"
+                "phpstan/phpstan": "^2",
+                "phpunit/phpunit": "^10.1",
+                "symfony/console": "^6.4|^7.0|^8.0",
+                "symfony/yaml": "^6.4|^7.0|^8.0"
             },
             "bin": [
-                "bref",
                 "src/bref-local"
             ],
             "type": "project",
@@ -334,11 +333,11 @@
             ],
             "support": {
                 "issues": "https://github.com/brefphp/bref/issues",
-                "source": "https://github.com/brefphp/bref/tree/2.4.18"
+                "source": "https://github.com/brefphp/bref/tree/3.0.1"
             },
             "funding": [
                 {
-                    "url": "https://bref.sh/#enterprise",
+                    "url": "https://bref.sh/support",
                     "type": "custom"
                 },
                 {
@@ -346,29 +345,29 @@
                     "type": "github"
                 }
             ],
-            "time": "2026-02-13T18:29:49+00:00"
+            "time": "2026-03-03T12:19:19+00:00"
         },
         {
             "name": "bref/extra-php-extensions",
-            "version": "1.8.6",
+            "version": "3.0.6",
             "source": {
                 "type": "git",
                 "url": "https://github.com/brefphp/extra-php-extensions.git",
-                "reference": "3dfebd6ffd76ae866a4c844fef1d093f1c445646"
+                "reference": "47e0071640668efb4d8f696f5da508c3f25268fe"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/brefphp/extra-php-extensions/zipball/3dfebd6ffd76ae866a4c844fef1d093f1c445646",
-                "reference": "3dfebd6ffd76ae866a4c844fef1d093f1c445646",
+                "url": "https://api.github.com/repos/brefphp/extra-php-extensions/zipball/47e0071640668efb4d8f696f5da508c3f25268fe",
+                "reference": "47e0071640668efb4d8f696f5da508c3f25268fe",
                 "shasum": ""
             },
             "conflict": {
-                "bref/bref": "<2.1.15"
+                "bref/bref": "<3.0.0"
             },
             "require-dev": {
                 "async-aws/core": "^1.7",
                 "async-aws/lambda": "^1.1",
-                "bref/logger": "^1.0",
+                "bref/logger": "^2.0",
                 "mnapoli/silly": "^1.7",
                 "mnapoli/silly-php-di": "^1.2",
                 "php-di/php-di": "^6.3",
@@ -390,7 +389,7 @@
             "description": "Extra PHP extensions for your lambda application.",
             "support": {
                 "issues": "https://github.com/brefphp/extra-php-extensions/issues",
-                "source": "https://github.com/brefphp/extra-php-extensions/tree/1.8.6"
+                "source": "https://github.com/brefphp/extra-php-extensions/tree/3.0.6"
             },
             "funding": [
                 {
@@ -406,7 +405,7 @@
                     "type": "github"
                 }
             ],
-            "time": "2025-08-11T10:21:20+00:00"
+            "time": "2026-03-17T14:41:05+00:00"
         },
         {
             "name": "brick/math",

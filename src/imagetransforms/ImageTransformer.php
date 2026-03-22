@@ -31,6 +31,7 @@ class ImageTransformer extends Component implements ImageTransformerInterface
             $assetUrl = Html::encodeSpaces(Assets::generateUrl($asset));
         } else {
             $fs = $asset->getVolume()->getTransformFs();
+            /** @phpstan-ignore argument.type (Craft 4 compatibility) */
             $assetUrl = Html::encodeSpaces(Assets::generateUrl($fs, $asset));
         }
 
