@@ -38,7 +38,7 @@
 - Released version 1.66.6 of the Cloud API.
   - Fixed a Postgres backup issue in the APAC region.
 
-## ## 2025-07-28
+## 2025-07-28
 - Released version 1.64.6 of the Cloud API.
   - Added Postgres backups to the new backups infrastructure. 
 

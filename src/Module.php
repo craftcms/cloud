@@ -33,6 +33,16 @@ use yii\base\NotSupportedException;
  */
 class Module extends \yii\base\Module implements \yii\base\BootstrapInterface
 {
+    /**
+     * PHP `max_execution_time` (seconds) for HTTP requests on Cloud.
+     */
+    private const MAX_EXECUTION_SECONDS_WEB = 60;
+
+    /**
+     * PHP `max_execution_time` (seconds) for CLI on Cloud.
+     */
+    private const MAX_EXECUTION_SECONDS_CLI = 900 - 10;
+
     private Config $_config;
 
     /**
@@ -253,11 +263,10 @@ class Module extends \yii\base\Module implements \yii\base\BootstrapInterface
 
     private function getMaxExecutionSeconds(): int
     {
-        if (!Craft::$app->getRequest()->getIsConsoleRequest()) {
-            return 60;
+        if (Craft::$app->getRequest()->getIsConsoleRequest()) {
+            return self::MAX_EXECUTION_SECONDS_CLI;
         }
 
-        // Include a buffer so PHP's limit is always hit before Lambda's
-        return 900 - 3;
+        return self::MAX_EXECUTION_SECONDS_WEB;
     }
 }
