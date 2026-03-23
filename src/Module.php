@@ -33,13 +33,14 @@ use yii\base\NotSupportedException;
  */
 class Module extends \yii\base\Module implements \yii\base\BootstrapInterface
 {
-    /**
-     * PHP `max_execution_time` (seconds) for HTTP requests on Cloud.
+    /*
+     * Backup insurance limit; gateway limit may be shorter.
      */
     private const MAX_EXECUTION_SECONDS_WEB = 60;
 
     /**
-     * PHP `max_execution_time` (seconds) for CLI on Cloud.
+     * Include buffer so PHP times out before Lambda.
+     * @see \craft\cloud\bref\craft\CraftCliEntrypoint::PROCESS_TIMEOUT_SECONDS
      */
     private const MAX_EXECUTION_SECONDS_CLI = 900 - 10;
 
