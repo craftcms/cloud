@@ -1,7 +1,7 @@
 # Release Notes for Craft Cloud ⛅️
 
 ## 2026-03-23
-- Released version 3.0.0 of the `craftcms/cloud` extension.
+- Released version 3.0.0 of the `craftcms/cloud` package.
   - Added support for both Craft 4 and Craft 5.
   - Any [Cloudflare image transform options](https://developers.cloudflare.com/images/transform-images/transform-via-workers/#fetch-options) can now be passed when creating image transforms.
 
