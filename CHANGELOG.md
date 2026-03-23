@@ -1,6 +1,11 @@
 # Release Notes for Craft Cloud ⛅️
 
 ## 2026-03-17
+- Released version 3.0.0 of the `craftcms/cloud` extension.
+  - Added support for both Craft 4 and Craft 5.
+  - Any [Cloudflare image transform options](https://developers.cloudflare.com/images/transform-images/transform-via-workers/#fetch-options) can now be passed when creating image transforms.
+
+## 2026-03-17
 - Released version 1.90.4 of the Cloud API.
   - Fixed a bug where you could (unintentionally) create a project handle with > 25 characters.
   - Fixed a bug where some Sandbox projects could not deploy.
