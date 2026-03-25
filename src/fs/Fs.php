@@ -93,22 +93,22 @@ abstract class Fs extends FlysystemFs
     public function createUrl(string $path = ''): UriInterface
     {
         if ($this->useLocalFs) {
-            return Modifier::from($this->getLocalFs()->getRootUrl() ?? '/')
+            return Modifier::wrap($this->getLocalFs()->getRootUrl() ?? '/')
                 ->appendSegment($this->createPath($path))
-                ->getUri();
+                ->unwrap();
         }
 
         $baseUrl = App::parseEnv($this->baseUrl);
 
         if ($baseUrl) {
-            return Modifier::from($baseUrl)
+            return Modifier::wrap($baseUrl)
                 ->appendSegment($this->createPath($path))
-                ->getUri();
+                ->unwrap();
         }
 
-        return Modifier::from(Module::getInstance()->getConfig()->cdnBaseUrl)
+        return Modifier::wrap(Module::getInstance()->getConfig()->cdnBaseUrl)
             ->appendSegment($this->createBucketPath($path))
-            ->getUri();
+            ->unwrap();
     }
 
     /**

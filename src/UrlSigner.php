@@ -19,14 +19,14 @@ class UrlSigner
         $data = $this->getSigningData($url);
         $signature = hash_hmac('sha256', $data, $this->signingKey);
 
-        return Modifier::from($url)->appendQueryParameters([
+        return Modifier::wrap($url)->appendQueryParameters([
             $this->signatureParameter => $signature,
         ]);
     }
 
     private function getSigningData(string $url): string
     {
-        return Modifier::from($url)
+        return Modifier::wrap($url)
             ->removeQueryParameters($this->signatureParameter)
             ->sortQuery();
     }
