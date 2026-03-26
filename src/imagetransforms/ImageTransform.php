@@ -110,32 +110,23 @@ class ImageTransform extends \craft\models\ImageTransform
 
     public ?float $zoom = null;
 
-    /**
-     * @inheritdoc
-     */
-    public function fields(): array
-    {
-        $this->normalize();
-        return parent::fields();
-    }
-
-    public function normalize(): static
-    {
-        $this->format = $this->computeFormat();
-        $this->fit = $this->computeFit();
-        $this->background = $this->computeBackground();
-        $this->gravity = $this->computeGravity();
-        return $this;
-    }
-
     public function toOptions(): array
     {
         $reflection = new \ReflectionClass($this);
-        $this->normalize();
 
-        return Collection::make($reflection->getProperties(\ReflectionProperty::IS_PUBLIC))
+        $options = Collection::make($reflection->getProperties(\ReflectionProperty::IS_PUBLIC))
             ->filter(fn($property) => $property->getDeclaringClass()->getName() === self::class)
             ->mapWithKeys(fn($property) => [$property->getName() => $property->getValue($this)])
+            ->all();
+
+        // Compute derived Cloudflare values from Craft's base transform settings,
+        // without mutating the model (so the same instance can be safely reused).
+        $options['format'] = $this->computeFormat();
+        $options['fit'] = $this->computeFit();
+        $options['background'] = $this->computeBackground();
+        $options['gravity'] ??= $this->computeGravity();
+
+        return Collection::make($options)
             ->filter(fn($value) => $value !== null)
             ->all();
     }

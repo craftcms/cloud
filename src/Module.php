@@ -6,6 +6,7 @@ use Craft;
 use craft\base\Event;
 use craft\base\Model;
 use craft\cloud\fs\AssetsFs;
+use craft\cloud\imagetransforms\ImageTransform;
 use craft\cloud\imagetransforms\ImageTransformer;
 use craft\cloud\twig\TwigExtension;
 use craft\cloud\web\assets\uploader\UploaderAsset;
@@ -19,6 +20,7 @@ use craft\events\RegisterTemplateRootsEvent;
 use craft\helpers\App;
 use craft\helpers\ConfigHelper;
 use craft\log\MonologTarget;
+use craft\models\ImageTransform as CraftImageTransform;
 use craft\services\Fs as FsService;
 use craft\services\ImageTransforms;
 use craft\web\Application as WebApplication;
@@ -82,6 +84,10 @@ class Module extends \yii\base\Module implements \yii\base\BootstrapInterface
                 useEsi: Helper::isCraftCloud(),
             ),
         ]);
+
+        // Replace ImageTransform with cloud ImageTransform via DI
+        // We do this here and not in AppConfig, because non-Cloud envs need it to support non-standard transform props
+        Craft::$container->set(CraftImageTransform::class, ImageTransform::class);
 
         if (Helper::isCraftCloud()) {
             $this->bootstrapCloud($app);
