@@ -4,7 +4,7 @@
         "Read more about it at https://getcomposer.org/doc/01-basic-usage.md#installing-dependencies",
         "This file is @generated automatically"
     ],
-    "content-hash": "5f49f0fe1cf995bf5986e94c91ccf203",
+    "content-hash": "1fea903a1fe4794055846131b439fef2",
     "packages": [
         {
             "name": "99designs/http-signatures",
@@ -1102,16 +1102,16 @@
         },
         {
             "name": "craftcms/yii2-cache-cascade",
-            "version": "1.2.0",
+            "version": "1.2.1",
             "source": {
                 "type": "git",
                 "url": "https://github.com/craftcms/yii2-cache-cascade.git",
-                "reference": "09c6a5d5cf48e23336a39f7abf7f6f98d842de82"
+                "reference": "75be47c5af1804b49fa108f38bc74a35af91c107"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/craftcms/yii2-cache-cascade/zipball/09c6a5d5cf48e23336a39f7abf7f6f98d842de82",
-                "reference": "09c6a5d5cf48e23336a39f7abf7f6f98d842de82",
+                "url": "https://api.github.com/repos/craftcms/yii2-cache-cascade/zipball/75be47c5af1804b49fa108f38bc74a35af91c107",
+                "reference": "75be47c5af1804b49fa108f38bc74a35af91c107",
                 "shasum": ""
             },
             "require": {
@@ -1143,9 +1143,9 @@
             ],
             "support": {
                 "issues": "https://github.com/craftcms/yii2-cache-cascade/issues",
-                "source": "https://github.com/craftcms/yii2-cache-cascade/tree/1.2.0"
+                "source": "https://github.com/craftcms/yii2-cache-cascade/tree/1.2.1"
             },
-            "time": "2026-03-03T19:15:09+00:00"
+            "time": "2026-03-26T04:39:59+00:00"
         },
         {
             "name": "creocoder/yii2-nested-sets",
