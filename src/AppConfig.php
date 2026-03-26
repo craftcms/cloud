@@ -159,7 +159,6 @@ class AppConfig
     {
         return [
             Temp::class => TmpFs::class,
-            CraftImageTransform::class => ImageTransform::class,
             MonologTarget::class => function($container, $params, $config) {
                 return new MonologTarget([
                     'logContext' => false,
