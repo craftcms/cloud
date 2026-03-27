@@ -26,9 +26,9 @@ class UrlSigner
 
     private function getSigningData(string $url): string
     {
-        return Modifier::wrap($url)
+        return rtrim((string) Modifier::wrap($url)
             ->removeQueryParameters($this->signatureParameter)
-            ->sortQuery();
+            ->sortQuery(), '?');
     }
 
     public function verify(string $url): bool

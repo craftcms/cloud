@@ -8,6 +8,16 @@ services:
       MYSQL_DATABASE: ${CRAFT_DB_DATABASE}
       MYSQL_USER: ${CRAFT_DB_USER}
       MYSQL_PASSWORD: ${CRAFT_DB_PASSWORD}
+    healthcheck:
+      test:
+        [
+          'CMD-SHELL',
+          'mysqladmin ping -h 127.0.0.1 -u$$MYSQL_USER -p$$MYSQL_PASSWORD --silent',
+        ]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+      start_period: 10s
 #  postgres:
 #    image: postgres:15
 #    ports:
