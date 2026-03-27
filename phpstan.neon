@@ -3,14 +3,6 @@ includes:
 
 parameters:
     level: 5
+    reportUnmatchedIgnoredErrors: false
     paths:
         - src
-    ignoreErrors:
-        -
-            path: src/imagetransforms/ImageTransformer.php
-            identifier: argument.type
-            reportUnmatched: false
-        -
-            path: src/imagetransforms/ImageTransformer.php
-            identifier: arguments.count
-            reportUnmatched: false
