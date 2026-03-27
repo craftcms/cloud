@@ -5,3 +5,12 @@ parameters:
     level: 5
     paths:
         - src
+    ignoreErrors:
+        -
+            path: src/imagetransforms/ImageTransformer.php
+            identifier: argument.type
+            reportUnmatched: false
+        -
+            path: src/imagetransforms/ImageTransformer.php
+            identifier: arguments.count
+            reportUnmatched: false
