@@ -1,5 +1,10 @@
 # Release Notes for Craft Cloud ⛅️
 
+## 2026-03-27
+- Released version 3.0.4 of the `craftcms/cloud` package.
+  - Fixed a Craft 4 compatibility issue where generating asset upload URLs could fail because `craft\models\Volume::getSubpath()` is not available on Craft 4.
+  - Fixed the returned upload object key so it matches the presigned upload target path.
+
 ## 2026-03-23
 - Released version 3.0.0 of the `craftcms/cloud` package.
   - Added support for both Craft 4 and Craft 5.
