@@ -28,9 +28,15 @@
     "codeception/module-yii2": "^1.0"
   },
   "scripts": {
-    "check-cs": "ecs check --ansi",
-    "fix-cs": "ecs check --ansi --fix",
+    "cs:check": "ecs check --ansi",
+    "cs:fix": "ecs check --ansi --fix",
     "phpstan": "phpstan --memory-limit=1G",
+    "test:init": "@php -r \"file_exists('tests/.env') || copy('tests/.env.example', 'tests/.env');\"",
+    "test:up": [
+      "@test:init",
+      "docker compose --env-file tests/.env -f tests/docker-compose.yaml up -d --wait"
+    ],
+    "test:down": "docker compose --env-file tests/.env -f tests/docker-compose.yaml down",
     "test": "codecept run unit",
     "test:coverage": "codecept run unit --coverage"
   },

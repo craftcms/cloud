@@ -1,4 +1,4 @@
 {
-  "**/*.php": ["composer run fix-cs"],
+  "**/*.php": ["composer run cs:fix"],
   "*": "prettier --ignore-unknown --write"
 }

@@ -26,6 +26,31 @@ When you [deploy](https://craftcms.com/knowledge-base/cloud-deployment) a projec
 
 When setting up your project’s assets, use the provided **Craft Cloud** filesystem type. Read more about [managing assets in Cloud projects](https://craftcms.com/knowledge-base/cloud-assets).
 
+## Testing
+
+The Codeception `unit` suite on `3.x` boots Craft and expects a local test database.
+
+```bash
+composer test:init
+composer test:up
+composer test
+composer test:down
+```
+
+`composer test:init` will create `tests/.env` from `tests/.env.example` if it does not already exist. `composer test:up` uses that file when starting the MySQL service defined in `tests/docker-compose.yaml`.
+
+For local compatibility work on `3.x`, it can be helpful to keep your main checkout on the default/latest Craft 5 dependency set and use a separate Git worktree for Craft 4 so each checkout can keep its own `vendor/`, `composer.lock`, and `tests/.env` state.
+
+```bash
+git worktree add ../cloud-3x-craft4 3.x
+
+# In the Craft 4 worktree:
+composer update "craftcms/cms:^4.6" "craftcms/flysystem:^1.0" --with-all-dependencies --no-audit
+
+# In your main checkout:
+composer update "craftcms/cms:^5" "craftcms/flysystem:^2.0" --with-all-dependencies
+```
+
 ## Developer Features
 
 ### Template Helpers

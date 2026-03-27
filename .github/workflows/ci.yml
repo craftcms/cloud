@@ -3,8 +3,7 @@ on:
   workflow_dispatch:
   push:
     branches:
-      - 1.x
-      - 2.x
+      - 3.x
   pull_request:
 permissions:
   contents: read
@@ -18,4 +17,50 @@ jobs:
     with:
       node_version: '18'
       php_version: '8.3'
-      jobs: '["ecs", "phpstan", "prettier"]'
+      jobs: '["ecs", "prettier"]'
+
+  compatibility:
+    name: Compatibility (Craft ${{ matrix.craft }})
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - craft: '^4.6'
+            flysystem: '^1.0'
+          - craft: '^5'
+            flysystem: '^2.0'
+    services:
+      mysql:
+        image: mysql:8.0
+        ports:
+          - 33066:3306
+        env:
+          MYSQL_DATABASE: db
+          MYSQL_USER: db
+          MYSQL_PASSWORD: db
+          MYSQL_ROOT_PASSWORD: root
+        options: >-
+          --health-cmd="mysqladmin ping -h 127.0.0.1 -udb -pdb"
+          --health-interval=10s
+          --health-timeout=5s
+          --health-retries=10
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.3'
+          coverage: none
+
+      - name: Resolve dependencies
+        run: composer update "craftcms/cms:${{ matrix.craft }}" "craftcms/flysystem:${{ matrix.flysystem }}" --with-all-dependencies --no-interaction --no-progress --prefer-dist --no-audit
+
+      - name: Prepare test environment
+        run: composer test:init
+
+      - name: Run PHPStan
+        run: composer phpstan
+
+      - name: Run unit tests
+        run: composer test
