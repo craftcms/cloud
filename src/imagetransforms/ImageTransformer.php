@@ -26,11 +26,10 @@ class ImageTransformer extends Component implements ImageTransformerInterface
     public function getTransformUrl(Asset $asset, \craft\models\ImageTransform $imageTransform, bool $immediately): string
     {
         if (version_compare(Craft::$app->version, '5.0', '>=')) {
-            $assetUrl = Html::encodeSpaces(Assets::generateUrl($asset));
+            $assetUrl = Html::encodeSpaces(call_user_func([Assets::class, 'generateUrl'], $asset));
         } else {
             $fs = $asset->getVolume()->getTransformFs();
-            /** @phpstan-ignore argument.type (Craft 4 compatibility) */
-            $assetUrl = Html::encodeSpaces(Assets::generateUrl($fs, $asset));
+            $assetUrl = Html::encodeSpaces(call_user_func([Assets::class, 'generateUrl'], $fs, $asset));
         }
 
         $mimeType = $asset->getMimeType();
