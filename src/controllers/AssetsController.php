@@ -11,6 +11,7 @@ use craft\events\ReplaceAssetEvent;
 use craft\fields\Assets as AssetsField;
 use craft\helpers\Assets;
 use craft\helpers\Db;
+use craft\models\Volume;
 use craft\web\Controller;
 use DateTime;
 use yii\base\Event;
@@ -66,7 +67,7 @@ class AssetsController extends Controller
         }
 
         $volume = $folder->getVolume();
-        $pathInVolume = "{$volume->getSubpath()}{$folder->path}$filename";
+        $pathInVolume = sprintf('%s%s%s', $this->volumeSubpath($volume), $folder->path, $filename);
 
         /** @var Fs $fs */
         $fs = $folder->getVolume()->getFs();
@@ -81,7 +82,7 @@ class AssetsController extends Controller
             'targetFilename' => Assets::prepareAssetName($originalFilename),
             'filename' => $filename,
             'bucket' => $fs->getBucketName(),
-            'key' => $fs->createBucketPath($filename)->toString(),
+            'key' => $fs->createBucketPath($pathInVolume)->toString(),
             'folderId' => $folder->id,
         ]);
     }
@@ -389,5 +390,10 @@ class AssetsController extends Controller
         });
 
         return Craft::$app->getElements()->saveElement($asset);
+    }
+
+    private function volumeSubpath(Volume $volume): string
+    {
+        return method_exists($volume, 'getSubpath') ? $volume->getSubpath() : '';
     }
 }
