@@ -25,9 +25,11 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        craft:
-          - '^4.6'
-          - '^5'
+        include:
+          - craft: '^4.6'
+            flysystem: '^1.0'
+          - craft: '^5'
+            flysystem: '^2.0'
     services:
       mysql:
         image: mysql:8.0
@@ -52,7 +54,7 @@ jobs:
           coverage: none
 
       - name: Resolve dependencies
-        run: composer update "craftcms/cms:${{ matrix.craft }}" --with-all-dependencies --no-interaction --no-progress --prefer-dist
+        run: composer update "craftcms/cms:${{ matrix.craft }}" "craftcms/flysystem:${{ matrix.flysystem }}" --with-all-dependencies --no-interaction --no-progress --prefer-dist --no-audit
 
       - name: Prepare test environment
         run: composer test:init
