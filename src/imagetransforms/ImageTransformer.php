@@ -50,9 +50,7 @@ class ImageTransformer extends Component implements ImageTransformerInterface
             $imageTransform = Craft::createObject(ImageTransform::class, [$imageTransform->toArray()]);
         }
 
-        if ($asset->getHasFocalPoint() && !isset($imageTransform->gravity)) {
-            $imageTransform->gravity = $asset->getFocalPoint();
-        }
+        $this->applyAssetFocalPointGravity($asset, $imageTransform);
 
         $query = Query::fromVariable($imageTransform->toOptions());
         $uri = Modifier::wrap(Uri::new($assetUrl))
@@ -64,6 +62,20 @@ class ImageTransformer extends Component implements ImageTransformerInterface
 
     public function invalidateAssetTransforms(Asset $asset): void
     {
+    }
+
+    protected function applyAssetFocalPointGravity(Asset $asset, ImageTransform $imageTransform): void
+    {
+        if (!$asset->getHasFocalPoint() || isset($imageTransform->gravity) || $imageTransform->mode !== 'crop') {
+            return;
+        }
+
+        $focalPoint = $asset->getFocalPoint();
+        $imageTransform->gravity = [
+            'x' => $focalPoint['x'],
+            'y' => $focalPoint['y'],
+            'mode' => 'box-center',
+        ];
     }
 
     private function sign(UriInterface $uri): UriInterface
