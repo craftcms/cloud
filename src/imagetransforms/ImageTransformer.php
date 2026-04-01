@@ -70,11 +70,48 @@ class ImageTransformer extends Component implements ImageTransformerInterface
             return;
         }
 
+        $sourceWidth = $asset->getWidth();
+        $sourceHeight = $asset->getHeight();
+        $targetWidth = $imageTransform->width;
+        $targetHeight = $imageTransform->height;
+
+        if (!$sourceWidth || !$sourceHeight || !$targetWidth || !$targetHeight) {
+            $imageTransform->gravity = $asset->getFocalPoint();
+            return;
+        }
+
         $focalPoint = $asset->getFocalPoint();
+        $factor = min($sourceWidth / $targetWidth, $sourceHeight / $targetHeight);
+        $newWidth = round($sourceWidth / $factor);
+        $newHeight = round($sourceHeight / $factor);
+
+        $centerX = $newWidth * $focalPoint['x'];
+        $centerY = $newHeight * $focalPoint['y'];
+        $x1 = $centerX - $targetWidth / 2;
+        $y1 = $centerY - $targetHeight / 2;
+        $x2 = $x1 + $targetWidth;
+        $y2 = $y1 + $targetHeight;
+
+        if ($x1 < 0) {
+            $x2 -= $x1;
+            $x1 = 0;
+        }
+        if ($y1 < 0) {
+            $y2 -= $y1;
+            $y1 = 0;
+        }
+        if ($x2 > $newWidth) {
+            $x1 -= ($x2 - $newWidth);
+            $x2 = $newWidth;
+        }
+        if ($y2 > $newHeight) {
+            $y1 -= ($y2 - $newHeight);
+            $y2 = $newHeight;
+        }
+
         $imageTransform->gravity = [
-            'x' => $focalPoint['x'],
-            'y' => $focalPoint['y'],
-            'mode' => 'box-center',
+            'x' => $newWidth > $targetWidth ? $x1 / ($newWidth - $targetWidth) : $focalPoint['x'],
+            'y' => $newHeight > $targetHeight ? $y1 / ($newHeight - $targetHeight) : $focalPoint['y'],
         ];
     }
 

@@ -14,7 +14,7 @@ class ImageTransformTest extends Unit
      */
     protected $tester;
 
-    public function testCropModeWithExplicitGravityModePreservesItInOptions(): void
+    public function testCropModeWithExplicitGravityPreservesItInOptions(): void
     {
         $transform = new ImageTransform([
             'mode' => 'crop',
@@ -23,7 +23,6 @@ class ImageTransformTest extends Unit
             'gravity' => [
                 'x' => 0.57,
                 'y' => 0.7707,
-                'mode' => 'box-center',
             ],
         ]);
 
@@ -32,7 +31,6 @@ class ImageTransformTest extends Unit
             'gravity' => [
                 'x' => 0.57,
                 'y' => 0.7707,
-                'mode' => 'box-center',
             ],
             'height' => 750,
             'width' => 1200,
@@ -59,53 +57,58 @@ class ImageTransformTest extends Unit
         ], $transform->toOptions());
     }
 
-    public function testFocalPointCropUsesBoxCenteredGravity(): void
+    public function testCropModeMapsFocalPointToClampedCropOriginGravity(): void
     {
-        $asset = $this->makeAssetStub(true, ['x' => 0.57, 'y' => 0.7707]);
+        $asset = $this->makeAssetStub(3402, 4253, ['x' => 0.474, 'y' => 0.3064]);
         $transform = new ImageTransform([
             'mode' => 'crop',
+            'position' => 'top-center',
             'width' => 1200,
             'height' => 750,
-            'position' => 'top-center',
         ]);
 
         (new TestImageTransformer())->applyFocalPointGravity($asset, $transform);
 
-        $this->assertSame([
-            'x' => 0.57,
-            'y' => 0.7707,
-            'mode' => 'box-center',
-        ], $transform->gravity);
+        $this->assertEqualsWithDelta([
+            'x' => 0.474,
+            'y' => 0.1128,
+        ], $transform->gravity, 0.0001);
     }
 
-    private function makeAssetStub(bool $hasFocalPoint, array $focalPoint): Asset
+    private function makeAssetStub(int $width, int $height, array $focalPoint): Asset
     {
-        return new class($hasFocalPoint, $focalPoint) extends Asset {
-            public function __construct(private bool $hasFocalPoint, private array $focalPoint)
+        return new class($width, $height, $focalPoint) extends Asset {
+            public function __construct(private int $widthValue, private int $heightValue, private array $focalPointValue)
             {
                 parent::__construct();
             }
 
             public function getHasFocalPoint(): bool
             {
-                return $this->hasFocalPoint;
+                return true;
             }
 
             public function getFocalPoint(bool $asCss = false): array|string|null
             {
                 if ($asCss) {
-                    return ($this->focalPoint['x'] * 100) . '% ' . ($this->focalPoint['y'] * 100) . '%';
+                    return ($this->focalPointValue['x'] * 100) . '% ' . ($this->focalPointValue['y'] * 100) . '%';
                 }
 
-                return $this->focalPoint;
+                return $this->focalPointValue;
             }
 
-            public function getMimeType(mixed $transform = null): ?string
+            public function getWidth(array|string|\craft\models\ImageTransform $transform = null): ?int
             {
-                return 'image/jpeg';
+                return $this->widthValue;
+            }
+
+            public function getHeight(mixed $transform = null): ?int
+            {
+                return $this->heightValue;
             }
         };
     }
+
 }
 
 class TestImageTransformer extends ImageTransformer

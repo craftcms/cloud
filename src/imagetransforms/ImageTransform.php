@@ -70,7 +70,7 @@ class ImageTransform extends \craft\models\ImageTransform
     public ?float $gamma = null;
 
     /**
-     * @var 'auto'|'face'|'left'|'right'|'top'|'bottom'|array{x?: float, y?: float, mode?: 'remainder'|'box-center'}|null
+     * @var 'auto'|'face'|'left'|'right'|'top'|'bottom'|array{x?: float, y?: float}|null
      */
     public string|array|null $gravity = null;
 
