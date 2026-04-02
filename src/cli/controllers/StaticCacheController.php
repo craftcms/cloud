@@ -8,15 +8,6 @@ use yii\console\ExitCode;
 
 class StaticCacheController extends Controller
 {
-    public function actionPurgePrefixes(string ...$prefixes): int
-    {
-        $this->do('Purging prefixes', function() use ($prefixes) {
-            Module::getInstance()->getStaticCache()->purgeUrlPrefixes(...$prefixes);
-        });
-
-        return ExitCode::OK;
-    }
-
     public function actionPurgeTags(string ...$tags): int
     {
         $this->do('Purging tags', function() use ($tags) {

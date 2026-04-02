@@ -6,7 +6,6 @@ enum HeaderEnum: string
 {
     case CACHE_TAG = 'Cache-Tag';
     case CACHE_PURGE_TAG = 'Cache-Purge-Tag';
-    case CACHE_PURGE_PREFIX = 'Cache-Purge-Prefix';
     case CACHE_CONTROL = 'Cache-Control';
     case CDN_CACHE_CONTROL = 'CDN-Cache-Control';
     case SURROGATE_CONTROL = 'Surrogate-Control';
