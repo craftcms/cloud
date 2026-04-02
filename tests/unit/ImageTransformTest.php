@@ -57,9 +57,9 @@ class ImageTransformTest extends Unit
         ], $transform->toOptions());
     }
 
-    public function testCropModeMapsFocalPointToClampedCropOriginGravity(): void
+    public function testFocalPointGravityPassesThroughUnchanged(): void
     {
-        $asset = $this->makeAssetStub(3402, 4253, ['x' => 0.474, 'y' => 0.3064]);
+        $asset = $this->makeAssetStub(['x' => 0.474, 'y' => 0.3064]);
         $transform = new ImageTransform([
             'mode' => 'crop',
             'position' => 'top-center',
@@ -69,10 +69,10 @@ class ImageTransformTest extends Unit
 
         (new TestImageTransformer())->applyFocalPointGravity($asset, $transform);
 
-        $this->assertEqualsWithDelta([
+        $this->assertSame([
             'x' => 0.474,
-            'y' => 0.1128,
-        ], $transform->gravity, 0.0001);
+            'y' => 0.3064,
+        ], $transform->gravity);
     }
 
     public function testGetTransformUrlDoesNotLeakGravityBetweenAssets(): void
@@ -89,19 +89,20 @@ class ImageTransformTest extends Unit
 
         $transformer = new UrlTestImageTransformer();
 
-        $firstUrl = $transformer->getTransformUrl($firstAsset, $transform, true);
-        $secondUrl = $transformer->getTransformUrl($secondAsset, $transform, true);
+        $firstUrl = $transformer->buildTransformQuery($firstAsset, $transform);
+        $secondUrl = $transformer->buildTransformQuery($secondAsset, $transform);
 
         $this->assertStringContainsString('gravity%5Bx%5D=0.57', $firstUrl);
-        $this->assertStringContainsString('gravity%5By%5D=0.9999999999999992', $firstUrl);
+        $this->assertStringContainsString('gravity%5By%5D=0.7707', $firstUrl);
         $this->assertStringContainsString('gravity%5Bx%5D=0.4631', $secondUrl);
+        $this->assertStringContainsString('gravity%5By%5D=0.308', $secondUrl);
         $this->assertStringNotContainsString('gravity%5Bx%5D=0.57', $secondUrl);
     }
 
-    private function makeAssetStub(int $width, int $height, array $focalPoint): Asset
+    private function makeAssetStub(array $focalPoint): Asset
     {
-        return new class($width, $height, $focalPoint) extends Asset {
-            public function __construct(private int $widthValue, private int $heightValue, private array $focalPointValue)
+        return new class($focalPoint) extends Asset {
+            public function __construct(private array $focalPointValue)
             {
                 parent::__construct();
             }
@@ -118,16 +119,6 @@ class ImageTransformTest extends Unit
                 }
 
                 return $this->focalPointValue;
-            }
-
-            public function getWidth(array|string|\craft\models\ImageTransform $transform = null): ?int
-            {
-                return $this->widthValue;
-            }
-
-            public function getHeight(mixed $transform = null): ?int
-            {
-                return $this->heightValue;
             }
         };
     }
@@ -200,7 +191,7 @@ class TestImageTransformer extends ImageTransformer
 
 class UrlTestImageTransformer extends ImageTransformer
 {
-    public function getTransformUrl(Asset $asset, \craft\models\ImageTransform $imageTransform, bool $immediately): string
+    public function buildTransformQuery(Asset $asset, \craft\models\ImageTransform $imageTransform): string
     {
         $imageTransform = \Craft::createObject(ImageTransform::class, [$imageTransform->toArray()]);
         $this->applyAssetFocalPointGravity($asset, $imageTransform);
