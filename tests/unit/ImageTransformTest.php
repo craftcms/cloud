@@ -167,9 +167,9 @@ class ImageTransformTest extends Unit
                 return $this->filenameValue;
             }
 
-            public function getPath(): ?string
+            public function getPath(?string $filename = null): string
             {
-                return 'tests/' . $this->filenameValue;
+                return 'tests/' . ($filename ?? $this->filenameValue);
             }
 
             public function getMimeType(mixed $transform = null): ?string
