@@ -292,6 +292,24 @@ class StaticCache extends \yii\base\Component
         ]);
     }
 
+    public function purgeUrlPrefixes(string ...$urlPrefixes): void
+    {
+        $urlPrefixes = Collection::make($urlPrefixes)->filter()->unique();
+
+        if ($urlPrefixes->isEmpty()) {
+            return;
+        }
+
+        Craft::info(new PsrMessage('Purging URL prefixes', [
+            'urlPrefixes' => $urlPrefixes->all(),
+        ]), __METHOD__);
+
+        // TODO: make sure we don't go over max header size
+        Helper::makeGatewayApiRequest([
+            HeaderEnum::CACHE_PURGE_PREFIX->value => $urlPrefixes->implode(','),
+        ]);
+    }
+
     private function isCacheable(): bool
     {
         $response = Craft::$app->getResponse();
