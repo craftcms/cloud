@@ -1,5 +1,13 @@
 # Release Notes for Craft Cloud ⛅️
 
+## 2026-04-21
+- Released version 1.30.0 of the Cloud Gateway Worker.
+  - Fixed a bug where application-level HSTS headers could not be overwritten.
+
+## 2026-04-15
+- Released version 1.95.0 of the Cloud API.
+  - Fixed a bug where Craft Cloud’s Bitbucket integration was broken for new projects due to API changes on Bitbucket’s end.
+
 ## 2026-03-27
 - Released version 3.0.4 of the `craftcms/cloud` package.
   - Fixed a Craft 4 compatibility issue where generating asset upload URLs could fail because `craft\models\Volume::getSubpath()` is not available on Craft 4.
