@@ -45,9 +45,16 @@ class ImageTransformer extends Component implements ImageTransformerInterface
             throw new NotSupportedException('SVG files shouldn’t be transformed.');
         }
 
+        $behavior = $imageTransform->getBehavior('cloud');
+
+        if (!$behavior instanceof ImageTransformBehavior) {
+            throw new \RuntimeException('Cloud image transform behavior is not attached.');
+        }
+
         $gravity = $this->applyAssetFocalPointGravity($asset, $imageTransform);
 
-        $query = Query::fromVariable($this->behavior($imageTransform)->toOptions($gravity));
+        // @phpstan-ignore-next-line method.notFound
+        $query = Query::fromVariable($imageTransform->toOptions($gravity));
         $uri = Modifier::wrap(Uri::new($assetUrl))
             ->mergeQuery($query)
             ->unwrap();
@@ -61,24 +68,12 @@ class ImageTransformer extends Component implements ImageTransformerInterface
 
     protected function applyAssetFocalPointGravity(Asset $asset, ImageTransform $imageTransform): array|string|null
     {
-        $behavior = $this->behavior($imageTransform);
-
-        if (!$asset->getHasFocalPoint() || isset($behavior->gravity)) {
+        // @phpstan-ignore-next-line property.notFound
+        if (!$asset->getHasFocalPoint() || isset($imageTransform->gravity)) {
             return null;
         }
 
         return $asset->getFocalPoint();
-    }
-
-    private function behavior(ImageTransform $imageTransform): ImageTransformBehavior
-    {
-        $behavior = $imageTransform->getBehavior('cloud');
-
-        if (!$behavior instanceof ImageTransformBehavior) {
-            throw new \RuntimeException('Cloud image transform behavior is not attached.');
-        }
-
-        return $behavior;
     }
 
     private function sign(UriInterface $uri): UriInterface
