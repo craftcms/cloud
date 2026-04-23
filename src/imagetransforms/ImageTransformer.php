@@ -9,6 +9,7 @@ use craft\cloud\Module;
 use craft\elements\Asset;
 use craft\helpers\Assets;
 use craft\helpers\Html;
+use craft\models\ImageTransform;
 use League\Uri\Components\Query;
 use League\Uri\Contracts\UriInterface;
 use League\Uri\Modifier;
@@ -23,7 +24,7 @@ class ImageTransformer extends Component implements ImageTransformerInterface
     public const SUPPORTED_IMAGE_FORMATS = ['jpg', 'jpeg', 'gif', 'png', 'avif', 'webp'];
     private const SIGNING_PARAM = 's';
 
-    public function getTransformUrl(Asset $asset, \craft\models\ImageTransform $imageTransform, bool $immediately): string
+    public function getTransformUrl(Asset $asset, ImageTransform $imageTransform, bool $immediately): string
     {
         if (version_compare(Craft::$app->version, '5.0', '>=')) {
             // @phpstan-ignore argument.type, arguments.count (Craft 5 compatibility)
@@ -44,13 +45,9 @@ class ImageTransformer extends Component implements ImageTransformerInterface
             throw new NotSupportedException('SVG files shouldn’t be transformed.');
         }
 
-        // ImageTransform DI will not work on Craft 4, so we convert the object.
-        // @see https://github.com/craftcms/cms/pull/15646
-        $imageTransform = Craft::createObject(ImageTransform::class, [$imageTransform->toArray()]);
+        $gravity = $this->applyAssetFocalPointGravity($asset, $imageTransform);
 
-        $this->applyAssetFocalPointGravity($asset, $imageTransform);
-
-        $query = Query::fromVariable($imageTransform->toOptions());
+        $query = Query::fromVariable($this->behavior($imageTransform)->toOptions($gravity));
         $uri = Modifier::wrap(Uri::new($assetUrl))
             ->mergeQuery($query)
             ->unwrap();
@@ -62,13 +59,26 @@ class ImageTransformer extends Component implements ImageTransformerInterface
     {
     }
 
-    protected function applyAssetFocalPointGravity(Asset $asset, ImageTransform $imageTransform): void
+    protected function applyAssetFocalPointGravity(Asset $asset, ImageTransform $imageTransform): array|string|null
     {
-        if (!$asset->getHasFocalPoint() || isset($imageTransform->gravity)) {
-            return;
+        $behavior = $this->behavior($imageTransform);
+
+        if (!$asset->getHasFocalPoint() || isset($behavior->gravity)) {
+            return null;
         }
 
-        $imageTransform->gravity = $asset->getFocalPoint();
+        return $asset->getFocalPoint();
+    }
+
+    private function behavior(ImageTransform $imageTransform): ImageTransformBehavior
+    {
+        $behavior = $imageTransform->getBehavior('cloud');
+
+        if (!$behavior instanceof ImageTransformBehavior) {
+            throw new \RuntimeException('Cloud image transform behavior is not attached.');
+        }
+
+        return $behavior;
     }
 
     private function sign(UriInterface $uri): UriInterface

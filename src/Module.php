@@ -6,13 +6,14 @@ use Craft;
 use craft\base\Event;
 use craft\base\Model;
 use craft\cloud\fs\AssetsFs;
-use craft\cloud\imagetransforms\ImageTransform;
+use craft\cloud\imagetransforms\ImageTransformBehavior;
 use craft\cloud\imagetransforms\ImageTransformer;
 use craft\cloud\twig\TwigExtension;
 use craft\cloud\web\assets\uploader\UploaderAsset;
 use craft\cloud\web\ResponseEventHandler;
 use craft\console\Application as ConsoleApplication;
 use craft\elements\Asset;
+use craft\events\DefineBehaviorsEvent;
 use craft\events\DefineRulesEvent;
 use craft\events\GenerateTransformEvent;
 use craft\events\RegisterComponentTypesEvent;
@@ -84,10 +85,6 @@ class Module extends \yii\base\Module implements \yii\base\BootstrapInterface
                 useEsi: Helper::isCraftCloud(),
             ),
         ]);
-
-        // Replace ImageTransform with cloud ImageTransform via DI
-        // We do this here and not in AppConfig, because non-Cloud envs need it to support non-standard transform props
-        Craft::$container->set(CraftImageTransform::class, ImageTransform::class);
 
         if (Helper::isCraftCloud()) {
             $this->bootstrapCloud($app);
@@ -176,6 +173,14 @@ class Module extends \yii\base\Module implements \yii\base\BootstrapInterface
 
     protected function registerGlobalEventHandlers(): void
     {
+        Event::on(
+            CraftImageTransform::class,
+            Model::EVENT_DEFINE_BEHAVIORS,
+            static function(DefineBehaviorsEvent $event) {
+                $event->behaviors['cloud'] = ImageTransformBehavior::class;
+            }
+        );
+
         Event::on(
             ImageTransforms::class,
             ImageTransforms::EVENT_REGISTER_IMAGE_TRANSFORMERS,

@@ -3,13 +3,17 @@
 namespace craft\cloud\imagetransforms;
 
 use Craft;
+use craft\models\ImageTransform;
 use Illuminate\Support\Collection;
+use yii\base\Behavior;
 
 /**
  * @see https://developers.cloudflare.com/images/transform-images/transform-via-workers/#fetch-options
  * @see https://github.com/cloudflare/workerd/blob/main/types/defines/cf.d.ts
+ *
+ * @property ImageTransform $owner
  */
-class ImageTransform extends \craft\models\ImageTransform
+class ImageTransformBehavior extends Behavior
 {
     public ?bool $anim = null;
     public ?string $background = null;
@@ -60,11 +64,6 @@ class ImageTransform extends \craft\models\ImageTransform
     public ?string $flip = null;
 
     /**
-     * @var 'auto'|'avif'|'webp'|'jpeg'|'baseline-jpeg'|'json'|string|null
-     */
-    public ?string $format = null;
-
-    /**
      * @var float|null
      */
     public ?float $gamma = null;
@@ -73,8 +72,6 @@ class ImageTransform extends \craft\models\ImageTransform
      * @var 'auto'|'face'|'left'|'right'|'top'|'bottom'|array{x?: float, y?: float}|null
      */
     public string|array|null $gravity = null;
-
-    public ?int $height = null;
 
     /**
      * @var 'keep'|'copyright'|'none'|null
@@ -106,11 +103,9 @@ class ImageTransform extends \craft\models\ImageTransform
      */
     public null|string|array $trim = null;
 
-    public ?int $width = null;
-
     public ?float $zoom = null;
 
-    public function toOptions(): array
+    public function toOptions(array|string|null $gravity = null): array
     {
         $reflection = new \ReflectionClass($this);
 
@@ -124,35 +119,29 @@ class ImageTransform extends \craft\models\ImageTransform
         $options['format'] = $this->computeFormat();
         $options['fit'] = $this->computeFit();
         $options['background'] = $this->computeBackground();
-        $options['gravity'] ??= $this->computeGravity();
+        $options['gravity'] ??= $gravity ?? $this->computeGravity();
+        $options['height'] = $this->owner->height;
+        $options['width'] = $this->owner->width;
 
         return Collection::make($options)
             ->filter(fn($value) => $value !== null)
             ->all();
     }
 
-    /**
-     * Compute the Cloudflare format from the base format and interlace settings.
-     *
-     * @return string|null
-     */
     private function computeFormat(): ?string
     {
-        if ($this->format === 'jpg' && $this->interlace === 'none') {
+        if ($this->owner->format === 'jpg' && $this->owner->interlace === 'none') {
             return 'baseline-jpeg';
         }
 
-        return match ($this->format) {
+        return match ($this->owner->format) {
             'jpg' => 'jpeg',
-            default => $this->format,
+            default => $this->owner->format,
         };
     }
 
     /**
-     * Compute the Cloudflare fit mode from the base mode and upscale settings.
-     *
      * @see https://developers.cloudflare.com/images/transform-images/transform-via-url/#fit
-     * @return string
      */
     private function computeFit(): string
     {
@@ -160,33 +149,26 @@ class ImageTransform extends \craft\models\ImageTransform
             return $this->fit;
         }
 
-        return match ($this->mode) {
-            'fit' => $this->upscale ? 'contain' : 'scale-down',
+        return match ($this->owner->mode) {
+            'fit' => $this->owner->upscale ? 'contain' : 'scale-down',
             'stretch' => 'squeeze',
             'letterbox' => 'pad',
-            default => $this->upscale ? 'cover' : 'crop',
+            default => $this->owner->upscale ? 'cover' : 'crop',
         };
     }
 
-    /**
-     * Compute the Cloudflare background color from the base mode and fill settings.
-     *
-     * @return string|null
-     */
     private function computeBackground(): ?string
     {
         if ($this->background !== null) {
             return $this->background;
         }
 
-        return $this->mode === 'letterbox'
-            ? $this->fill ?? '#FFFFFF'
+        return $this->owner->mode === 'letterbox'
+            ? $this->owner->fill ?? '#FFFFFF'
             : null;
     }
 
     /**
-     * Compute the Cloudflare gravity from the base position setting.
-     *
      * @return array{x: float, y: float}|null|'face'
      */
     private function computeGravity(): array|null|string
@@ -195,12 +177,11 @@ class ImageTransform extends \craft\models\ImageTransform
             return $this->gravity;
         }
 
-        if ($this->position === 'center-center') {
+        if ($this->owner->position === 'center-center') {
             return null;
         }
 
-        // TODO: maybe just do this in Craft
-        $parts = explode('-', $this->position);
+        $parts = explode('-', $this->owner->position);
 
         try {
             $x = match ($parts[1] ?? null) {
@@ -214,7 +195,7 @@ class ImageTransform extends \craft\models\ImageTransform
                 'bottom' => 1,
             };
         } catch (\UnhandledMatchError $e) {
-            Craft::warning("Invalid position value: `{$this->position}`", __METHOD__);
+            Craft::warning("Invalid position value: `{$this->owner->position}`", __METHOD__);
             return null;
         }
 

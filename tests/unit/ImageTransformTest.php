@@ -3,16 +3,24 @@
 namespace craft\cloud\tests\unit;
 
 use Codeception\Test\Unit;
-use craft\cloud\imagetransforms\ImageTransform;
+use Craft;
+use craft\cloud\Module as CloudModule;
+use craft\cloud\imagetransforms\ImageTransformBehavior;
 use craft\cloud\imagetransforms\ImageTransformer;
 use craft\elements\Asset;
+use craft\models\ImageTransform;
 
 class ImageTransformTest extends Unit
 {
-    /**
-     * @var \UnitTester
-     */
-    protected $tester;
+    protected function _before(): void
+    {
+        parent::_before();
+
+        if (CloudModule::getInstance() === null) {
+            $module = new CloudModule('cloud');
+            $module->bootstrap(Craft::$app);
+        }
+    }
 
     public function testCropModeWithExplicitGravityPreservesItInOptions(): void
     {
@@ -34,7 +42,7 @@ class ImageTransformTest extends Unit
             ],
             'height' => 750,
             'width' => 1200,
-        ], $transform->toOptions());
+        ], $this->behavior($transform)->toOptions());
     }
 
     public function testCropModeWithoutGravityUsesPositionMapping(): void
@@ -54,7 +62,7 @@ class ImageTransformTest extends Unit
             ],
             'height' => 750,
             'width' => 1200,
-        ], $transform->toOptions());
+        ], $this->behavior($transform)->toOptions());
     }
 
     public function testFocalPointGravityPassesThroughUnchanged(): void
@@ -67,12 +75,28 @@ class ImageTransformTest extends Unit
             'height' => 750,
         ]);
 
-        (new TestImageTransformer())->applyFocalPointGravity($asset, $transform);
+        $gravity = (new TestImageTransformer())->applyFocalPointGravity($asset, $transform);
 
         $this->assertSame([
             'x' => 0.474,
             'y' => 0.3064,
-        ], $transform->gravity);
+        ], $gravity);
+        $this->assertNull($this->behavior($transform)->gravity);
+    }
+
+    public function testInlineCloudPropertyDoesNotBreakBaseTransform(): void
+    {
+        $transform = new ImageTransform([
+            'width' => 200,
+            'blur' => 5,
+        ]);
+
+        $this->assertSame(5, $this->behavior($transform)->blur);
+        $this->assertSame([
+            'blur' => 5,
+            'fit' => 'cover',
+            'width' => 200,
+        ], $this->behavior($transform)->toOptions());
     }
 
     public function testGetTransformUrlDoesNotLeakGravityBetweenAssets(): void
@@ -179,23 +203,34 @@ class ImageTransformTest extends Unit
         };
     }
 
+    private function behavior(ImageTransform $transform): ImageTransformBehavior
+    {
+        $behavior = $transform->getBehavior('cloud');
+
+        $this->assertInstanceOf(ImageTransformBehavior::class, $behavior);
+
+        return $behavior;
+    }
+
 }
 
 class TestImageTransformer extends ImageTransformer
 {
-    public function applyFocalPointGravity(Asset $asset, ImageTransform $imageTransform): void
+    public function applyFocalPointGravity(Asset $asset, ImageTransform $imageTransform): array|string|null
     {
-        $this->applyAssetFocalPointGravity($asset, $imageTransform);
+        return $this->applyAssetFocalPointGravity($asset, $imageTransform);
     }
 }
 
 class UrlTestImageTransformer extends ImageTransformer
 {
-    public function buildTransformQuery(Asset $asset, \craft\models\ImageTransform $imageTransform): string
+    public function buildTransformQuery(Asset $asset, ImageTransform $imageTransform): string
     {
-        $imageTransform = \Craft::createObject(ImageTransform::class, [$imageTransform->toArray()]);
-        $this->applyAssetFocalPointGravity($asset, $imageTransform);
+        $gravity = $this->applyAssetFocalPointGravity($asset, $imageTransform);
 
-        return (string) \League\Uri\Components\Query::fromVariable($imageTransform->toOptions());
+        /** @var ImageTransformBehavior $behavior */
+        $behavior = $imageTransform->getBehavior('cloud');
+
+        return (string) \League\Uri\Components\Query::fromVariable($behavior->toOptions($gravity));
     }
 }
