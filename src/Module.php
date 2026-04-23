@@ -97,7 +97,7 @@ class Module extends \yii\base\Module implements \yii\base\BootstrapInterface
                 Asset::class,
                 Asset::EVENT_BEFORE_GENERATE_TRANSFORM,
                 function(GenerateTransformEvent $event) {
-                    if (!$this->shouldOverrideTransformUrl($event)) {
+                    if (!$event->transform || !$event->asset?->fs instanceof AssetsFs) {
                         return;
                     }
 
@@ -217,15 +217,6 @@ class Module extends \yii\base\Module implements \yii\base\BootstrapInterface
                 $e->rules = $this->removeAttributeFromRules($e->rules, 'tempFilePath');
             }
         );
-    }
-
-    protected function shouldOverrideTransformUrl(GenerateTransformEvent $event): bool
-    {
-        if (!$event->transform || !$event->asset?->fs instanceof AssetsFs) {
-            return false;
-        }
-
-        return !Craft::$app->getRequest()->getIsActionRequest();
     }
 
     protected function validateConfig(): void
