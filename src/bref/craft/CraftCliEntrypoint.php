@@ -15,11 +15,12 @@ final class CraftCliEntrypoint
 
     private function command(string $command, array $environment, int $timeout): array
     {
-        $php = PHP_BINARY;
+        $shellCommand = '${:PHP_BINARY} /var/task/craft ' . $command;
 
-        $shellCommand = escapeshellcmd("$php /var/task/craft $command");
-
-        $process = Process::fromShellCommandline($shellCommand, null, $environment, null, self::PROCESS_TIMEOUT_SECONDS);
+        $process = Process::fromShellCommandline($shellCommand, null, [
+            ...$environment,
+            'PHP_BINARY' => PHP_BINARY,
+        ], null, $timeout);
 
         $process->run(function($type, $buffer): void {
             echo $buffer;

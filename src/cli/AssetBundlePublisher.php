@@ -87,7 +87,7 @@ class AssetBundlePublisher extends BaseObject
                     $className,
                 ])->when($this->to, function(Collection $args) {
                     return $args->push('--to')->push($this->to);
-                })->push('--quiet', '2>&1');
+                })->push('--quiet');
 
                 return new Process($args->all());
             }

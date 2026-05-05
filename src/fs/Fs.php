@@ -6,22 +6,25 @@ use Aws\Credentials\Credentials;
 use Aws\Handler\Guzzle\GuzzleHandler;
 use Aws\S3\S3Client;
 use Craft;
-use craft\behaviors\EnvAttributeParserBehavior;
+use craft\base\Fs as BaseFs;
 use craft\cloud\Module;
 use craft\cloud\StaticCache;
 use craft\cloud\StaticCacheTag;
 use craft\errors\FsException;
-use craft\flysystem\base\FlysystemFs;
-use craft\fs\Local;
 use craft\helpers\App;
 use craft\helpers\Assets;
 use craft\helpers\DateTimeHelper;
+use craft\models\FsListing;
 use DateTime;
 use DateTimeInterface;
 use Generator;
 use Illuminate\Support\Collection;
 use League\Flysystem\AwsS3V3\AwsS3V3Adapter;
+use League\Flysystem\Filesystem as Flysystem;
+use League\Flysystem\FilesystemAdapter;
 use League\Flysystem\FilesystemException;
+use League\Flysystem\Local\LocalFilesystemAdapter;
+use League\Flysystem\StorageAttributes;
 use League\Flysystem\UnableToCopyFile;
 use League\Flysystem\UnableToMoveFile;
 use League\Flysystem\Visibility;
@@ -35,12 +38,12 @@ use yii\base\InvalidConfigException;
 /**
  * @property-read ?string $settingsHtml
  */
-abstract class Fs extends FlysystemFs
+abstract class Fs extends BaseFs
 {
     protected static bool $showUrlSetting = false;
     protected ?string $expires = null;
-    protected ?Local $localFs = null;
     protected S3Client $client;
+    protected Flysystem $filesystem;
     public ?string $subpath = null;
     public ?string $localFsPath = null;
     public ?string $localFsUrl = null;
@@ -63,22 +66,6 @@ abstract class Fs extends FlysystemFs
         return $rules;
     }
 
-    protected function getLocalFs(): Local
-    {
-        $path = $this->localFsPath
-            ? $this->createPath('')->prepend($this->localFsPath)
-            : null;
-
-        $this->localFs = $this->localFs ?? Craft::createObject([
-            'class' => Local::class,
-            'hasUrls' => $this->hasUrls,
-            'path' => $path?->toString(),
-            'url' => $this->localFsUrl,
-        ]);
-
-        return $this->localFs;
-    }
-
     /**
      * This should never be null, as the Cloud resizer can render asset transforms for the CP,
      * even if `$hasUrls` is `false`.
@@ -93,8 +80,8 @@ abstract class Fs extends FlysystemFs
     public function createUrl(string $path = ''): UriInterface
     {
         if ($this->useLocalFs) {
-            return Modifier::wrap($this->getLocalFs()->getRootUrl() ?? '/')
-                ->appendSegment($this->createPath($path))
+            return Modifier::wrap($this->getLocalRootUrl())
+                ->appendSegment($path)
                 ->unwrap();
         }
 
@@ -116,29 +103,10 @@ abstract class Fs extends FlysystemFs
      */
     public function attributeLabels(): array
     {
-        return [
+        return array_merge(parent::attributeLabels(), [
             'localFsPath' => Craft::t('app', 'Base Path'),
             'localFsUrl' => Craft::t('app', 'Base URL'),
-        ];
-    }
-
-    /**
-     * @inheritdoc
-     */
-    public function behaviors(): array
-    {
-        $behaviors = parent::behaviors();
-        $behaviors['parser'] = [
-            'class' => EnvAttributeParserBehavior::class,
-            'attributes' => [
-                'subpath',
-                'baseUrl',
-                'localFsPath',
-                'localFsUrl',
-            ],
-        ];
-
-        return $behaviors;
+        ]);
     }
 
     /**
@@ -180,8 +148,12 @@ abstract class Fs extends FlysystemFs
     /**
      * @inheritDoc
      */
-    protected function createAdapter(): AwsS3V3Adapter
+    protected function createAdapter(): FilesystemAdapter
     {
+        if ($this->useLocalFs) {
+            return new LocalFilesystemAdapter($this->getLocalRootPath());
+        }
+
         return new AwsS3V3Adapter(
             client: $this->getClient(),
             bucket: $this->getBucketName(),
@@ -213,6 +185,10 @@ abstract class Fs extends FlysystemFs
      */
     protected function addFileMetadataToConfig(array $config): array
     {
+        if ($this->useLocalFs) {
+            return $config;
+        }
+
         if (!empty($this->getExpires()) && DateTimeHelper::isValidIntervalString($this->getExpires())) {
             $expires = new DateTime();
             $now = new DateTime();
@@ -229,7 +205,9 @@ abstract class Fs extends FlysystemFs
             ? Visibility::PUBLIC
             : Visibility::PRIVATE;
 
-        return parent::addFileMetadataToConfig($config);
+        $config['visibility'] ??= $this->visibility();
+
+        return $config;
     }
 
     /**
@@ -260,6 +238,22 @@ abstract class Fs extends FlysystemFs
     public function createBucketPath(string $path): SegmentedPathInterface
     {
         return $this->createBucketPrefix()->append($this->createPath($path));
+    }
+
+    protected function getLocalRootPath(): string
+    {
+        $basePath = Craft::getAlias(App::parseEnv($this->localFsPath) ?? $this->localFsPath ?? '');
+        $subpath = $this->createPath('')->toString();
+
+        return rtrim($basePath, '/') . ($subpath !== '' ? "/$subpath" : '');
+    }
+
+    protected function getLocalRootUrl(): string
+    {
+        $baseUrl = App::parseEnv($this->localFsUrl) ?? $this->localFsUrl ?? '/';
+        $subpath = $this->createPath('')->toString();
+
+        return rtrim($baseUrl, '/') . ($subpath !== '' ? "/$subpath" : '');
     }
 
     public function getBucketName(): ?string
@@ -312,6 +306,15 @@ abstract class Fs extends FlysystemFs
         return Visibility::PRIVATE;
     }
 
+    protected function filesystem(): Flysystem
+    {
+        if (!isset($this->filesystem)) {
+            $this->filesystem = new Flysystem($this->createAdapter());
+        }
+
+        return $this->filesystem;
+    }
+
     public function presignedUrl(string $command, string $path, DateTimeInterface $expiresAt, array $config = []): string
     {
         if ($this->useLocalFs) {
@@ -342,11 +345,6 @@ abstract class Fs extends FlysystemFs
      */
     public function copyFile(string $path, string $newPath, $config = []): void
     {
-        if ($this->useLocalFs) {
-            $this->getLocalFs()->copyFile($path, $newPath);
-            return;
-        }
-
         try {
             $this->filesystem()->copy(
                 $path,
@@ -363,11 +361,6 @@ abstract class Fs extends FlysystemFs
      */
     public function renameFile(string $path, string $newPath, $config = []): void
     {
-        if ($this->useLocalFs) {
-            $this->getLocalFs()->renameFile($path, $newPath);
-            return;
-        }
-
         try {
             $this->filesystem()->move(
                 $path,
@@ -378,7 +371,9 @@ abstract class Fs extends FlysystemFs
             throw new FsException($exception->getMessage(), 0, $exception);
         }
 
-        $this->invalidateCdnPath($path);
+        if (!$this->useLocalFs) {
+            $this->invalidateCdnPath($path);
+        }
     }
 
     /**
@@ -386,15 +381,11 @@ abstract class Fs extends FlysystemFs
      */
     public function createDirectory(string $path, array $config = []): void
     {
-        if ($this->useLocalFs) {
-            $this->getLocalFs()->createDirectory($path, $config);
-            return;
+        try {
+            $this->filesystem()->createDirectory($path, $this->addFileMetadataToConfig($config));
+        } catch (FilesystemException $exception) {
+            throw new FsException($exception->getMessage(), 0, $exception);
         }
-
-        parent::createDirectory(
-            $path,
-            $this->addFileMetadataToConfig($config),
-        );
     }
 
     /**
@@ -402,11 +393,27 @@ abstract class Fs extends FlysystemFs
      */
     public function getFileList(string $directory = '', bool $recursive = true): Generator
     {
-        if ($this->useLocalFs) {
-            return $this->getLocalFs()->getFileList($directory, $recursive);
-        }
+        foreach ($this->filesystem()->listContents(trim($directory, '/'), $recursive) as $item) {
+            if (!$item instanceof StorageAttributes) {
+                continue;
+            }
 
-        return parent::getFileList($directory, $recursive);
+            $uri = trim($item->path(), '/');
+
+            if ($uri === '') {
+                continue;
+            }
+
+            $dirname = pathinfo($uri, PATHINFO_DIRNAME);
+
+            yield new FsListing([
+                'dirname' => $dirname === '.' ? '' : $dirname,
+                'basename' => pathinfo($uri, PATHINFO_BASENAME),
+                'type' => $item->isDir() ? 'dir' : 'file',
+                'dateModified' => $item->lastModified(),
+                'fileSize' => $item->isFile() && method_exists($item, 'fileSize') ? $item->fileSize() : null,
+            ]);
+        }
     }
 
     /**
@@ -414,11 +421,11 @@ abstract class Fs extends FlysystemFs
      */
     public function getFileSize(string $uri): int
     {
-        if ($this->useLocalFs) {
-            return $this->getLocalFs()->getFileSize($uri);
+        try {
+            return $this->filesystem()->fileSize($uri);
+        } catch (FilesystemException $exception) {
+            throw new FsException($exception->getMessage(), 0, $exception);
         }
-
-        return parent::getFileSize($uri);
     }
 
     /**
@@ -426,11 +433,11 @@ abstract class Fs extends FlysystemFs
      */
     public function getDateModified(string $uri): int
     {
-        if ($this->useLocalFs) {
-            return $this->getLocalFs()->getDateModified($uri);
+        try {
+            return $this->filesystem()->lastModified($uri);
+        } catch (FilesystemException $exception) {
+            throw new FsException($exception->getMessage(), 0, $exception);
         }
-
-        return parent::getDateModified($uri);
     }
 
 
@@ -439,17 +446,15 @@ abstract class Fs extends FlysystemFs
      */
     public function write(string $path, string $contents, array $config = []): void
     {
-        if ($this->useLocalFs) {
-            $this->getLocalFs()->write($path, $contents, $config);
-            return;
+        if (!$this->useLocalFs) {
+            $this->invalidateCdnPath($path);
         }
 
-        $this->invalidateCdnPath($path);
-        parent::write(
-            $path,
-            $contents,
-            $this->addFileMetadataToConfig($config),
-        );
+        try {
+            $this->filesystem()->write($path, $contents, $this->addFileMetadataToConfig($config));
+        } catch (FilesystemException $exception) {
+            throw new FsException($exception->getMessage(), 0, $exception);
+        }
     }
 
     /**
@@ -457,11 +462,11 @@ abstract class Fs extends FlysystemFs
      */
     public function read(string $path): string
     {
-        if ($this->useLocalFs) {
-            return $this->getLocalFs()->read($path);
+        try {
+            return $this->filesystem()->read($path);
+        } catch (FilesystemException $exception) {
+            throw new FsException($exception->getMessage(), 0, $exception);
         }
-
-        return parent::read($path);
     }
 
     /**
@@ -469,17 +474,15 @@ abstract class Fs extends FlysystemFs
      */
     public function writeFileFromStream(string $path, $stream, array $config = []): void
     {
-        if ($this->useLocalFs) {
-            $this->getLocalFs()->writeFileFromStream($path, $stream, $config);
-            return;
+        if (!$this->useLocalFs) {
+            $this->invalidateCdnPath($path);
         }
 
-        $this->invalidateCdnPath($path);
-        parent::writeFileFromStream(
-            $path,
-            $stream,
-            $this->addFileMetadataToConfig($config),
-        );
+        try {
+            $this->filesystem()->writeStream($path, $stream, $this->addFileMetadataToConfig($config));
+        } catch (FilesystemException $exception) {
+            throw new FsException($exception->getMessage(), 0, $exception);
+        }
     }
 
     /**
@@ -487,11 +490,7 @@ abstract class Fs extends FlysystemFs
      */
     public function fileExists(string $path): bool
     {
-        if ($this->useLocalFs) {
-            return $this->getLocalFs()->fileExists($path);
-        }
-
-        return parent::fileExists($path);
+        return $this->filesystem()->fileExists($path);
     }
 
     /**
@@ -499,12 +498,11 @@ abstract class Fs extends FlysystemFs
      */
     public function deleteFile(string $path): void
     {
-        if ($this->useLocalFs) {
-            $this->getLocalFs()->deleteFile($path);
-            return;
+        try {
+            $this->filesystem()->delete($path);
+        } catch (FilesystemException $exception) {
+            throw new FsException($exception->getMessage(), 0, $exception);
         }
-
-        parent::deleteFile($path);
     }
 
     /**
@@ -512,11 +510,17 @@ abstract class Fs extends FlysystemFs
      */
     public function getFileStream(string $uriPath)
     {
-        if ($this->useLocalFs) {
-            return $this->getLocalFs()->getFileStream($uriPath);
+        try {
+            $stream = $this->filesystem()->readStream($uriPath);
+        } catch (FilesystemException $exception) {
+            throw new FsException($exception->getMessage(), 0, $exception);
         }
 
-        return parent::getFileStream($uriPath);
+        if (!is_resource($stream)) {
+            throw new FsException("Unable to open $uriPath.");
+        }
+
+        return $stream;
     }
 
     /**
@@ -524,11 +528,7 @@ abstract class Fs extends FlysystemFs
      */
     public function directoryExists(string $path): bool
     {
-        if ($this->useLocalFs) {
-            return $this->getLocalFs()->directoryExists($path);
-        }
-
-        return parent::directoryExists($path);
+        return $this->filesystem()->directoryExists(trim($path, '/'));
     }
 
     /**
@@ -536,12 +536,11 @@ abstract class Fs extends FlysystemFs
      */
     public function deleteDirectory(string $path): void
     {
-        if ($this->useLocalFs) {
-            $this->getLocalFs()->deleteDirectory($path);
-            return;
+        try {
+            $this->filesystem()->deleteDirectory(trim($path, '/'));
+        } catch (FilesystemException $exception) {
+            throw new FsException($exception->getMessage(), 0, $exception);
         }
-
-        parent::deleteDirectory($path);
     }
 
     public function replaceMetadata(string $path, array $config = []): void
@@ -559,6 +558,51 @@ abstract class Fs extends FlysystemFs
         } catch (FilesystemException|UnableToCopyFile $exception) {
             throw new FsException($exception->getMessage(), 0, $exception);
         }
+    }
+
+    public function renameDirectory(string $path, string $newName): void
+    {
+        $sourcePath = trim($path, '/');
+
+        if ($sourcePath === '' || !$this->directoryExists($sourcePath)) {
+            throw new FsException("No folder exists at path: $path");
+        }
+
+        $newName = trim($newName, '/');
+
+        if ($newName === '') {
+            throw new FsException('New directory name cannot be empty.');
+        }
+
+        $parentPath = pathinfo($sourcePath, PATHINFO_DIRNAME);
+        $targetPath = $parentPath === '.' ? $newName : "$parentPath/$newName";
+
+        if ($targetPath === $sourcePath) {
+            return;
+        }
+
+        $this->createDirectory($targetPath);
+
+        foreach ($this->filesystem()->listContents($sourcePath, true) as $item) {
+            if (!$item instanceof StorageAttributes || !$item->isFile()) {
+                continue;
+            }
+
+            $file = trim($item->path(), '/');
+            $this->renameFile($file, $this->swapPathPrefix($file, $sourcePath, $targetPath));
+        }
+
+        $this->deleteDirectory($sourcePath);
+    }
+
+    private function swapPathPrefix(string $path, string $sourcePath, string $targetPath): string
+    {
+        return preg_replace(
+            '/^' . preg_quote($sourcePath, '/') . '(?=\/|$)/',
+            $targetPath,
+            trim($path, '/'),
+            1,
+        ) ?? trim($path, '/');
     }
 
     /**
