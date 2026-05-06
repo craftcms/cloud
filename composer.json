@@ -14,7 +14,8 @@
     "craftcms/http-message-signatures": "1.x-dev",
     "symfony/process": "^7.4.5 || ^8.0.5",
     "aws/aws-sdk-php": "^3.342.6",
-    "craftcms/yii2-cache-cascade": "^1.2.1"
+    "craftcms/yii2-cache-cascade": "^1.2.1",
+    "bref/laravel-bridge": "^3.0"
   },
   "require-dev": {
     "craftcms/ecs": "dev-main",
