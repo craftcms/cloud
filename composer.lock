@@ -4,7 +4,7 @@
         "Read more about it at https://getcomposer.org/doc/01-basic-usage.md#installing-dependencies",
         "This file is @generated automatically"
     ],
-    "content-hash": "0298caeb76d8abe6f49af7f86f4793e0",
+    "content-hash": "f08173118d99ea6fa3d87e19557923de",
     "packages": [
         {
             "name": "aws/aws-crt-php",
@@ -14706,8 +14706,7 @@
         "craftcms/cms": 20,
         "craftcms/ecs": 20,
         "craftcms/http-message-signatures": 20,
-        "craftcms/phpstan": 20,
-        "craftcms/yii2-adapter": 20
+        "craftcms/phpstan": 20
     },
     "prefer-stable": true,
     "prefer-lowest": false,
