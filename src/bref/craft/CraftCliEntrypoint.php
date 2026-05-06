@@ -15,7 +15,7 @@ final class CraftCliEntrypoint
 
     private function command(string $command, array $environment, int $timeout): array
     {
-        $shellCommand = '${:PHP_BINARY} /var/task/craft ' . $command;
+        $shellCommand = '"${:PHP_BINARY}" /var/task/craft ' . $command;
 
         $process = Process::fromShellCommandline($shellCommand, null, [
             ...$environment,
