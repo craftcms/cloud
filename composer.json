@@ -14,7 +14,7 @@
     "yiisoft/yii2-redis": "^2.0",
     "yiisoft/yii2-queue": "^2.3.7",
     "phlak/semver": "^4.1",
-    "99designs/http-signatures": "^4.0",
+    "craftcms/http-message-signatures": "1.x-dev",
     "symfony/process": "^7.4.5 || ^8.0.5",
     "aws/aws-sdk-php": "^3.342.6",
     "craftcms/yii2-cache-cascade": "^1.2.1"

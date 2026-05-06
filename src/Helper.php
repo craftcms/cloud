@@ -6,8 +6,10 @@ use Craft;
 use craft\cloud\fs\BuildArtifactsFs;
 use craft\helpers\App;
 use GuzzleHttp\Psr7\Request;
-use HttpSignatures\Context;
+use HttpMessageSignatures\Algorithm\HmacSha256;
+use HttpMessageSignatures\Signer;
 use Illuminate\Support\Collection;
+use Psr\Http\Message\RequestInterface;
 use Psr\Http\Message\ResponseInterface;
 use yii\base\Exception;
 
@@ -44,28 +46,28 @@ class Helper
             throw new Exception('Gateway API requests require a URL.');
         }
 
-        $context = Helper::createSigningContext($headers->keys());
+        $signer = Helper::createSigner();
         $request = new Request(
             'HEAD',
             (string) $url,
             $headers->all(),
         );
 
-        return Craft::createGuzzleClient()->send(
-            $context->signer()->sign($request)
+        $signedRequest = $signer->sign(
+            $request,
+            $headers->keys()->all(),
+            ['keyid' => 'hmac'],
         );
+
+        if (!$signedRequest instanceof RequestInterface) {
+            throw new Exception('Signed Gateway API request must be a PSR-7 request.');
+        }
+
+        return Craft::createGuzzleClient()->send($signedRequest);
     }
 
-    private static function createSigningContext(iterable $headers = []): Context
+    private static function createSigner(): Signer
     {
-        $headers = Collection::make($headers);
-
-        return new Context([
-            'keys' => [
-                'hmac' => Module::getInstance()->getConfig()->signingKey,
-            ],
-            'algorithm' => 'hmac-sha256',
-            'headers' => $headers->all(),
-        ]);
+        return new Signer(new HmacSha256(Module::getInstance()->getConfig()->signingKey));
     }
 }
