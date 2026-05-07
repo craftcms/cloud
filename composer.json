@@ -1,59 +1,43 @@
 {
   "minimum-stability": "dev",
   "name": "craftcms/cloud",
-  "type": "yii2-extension",
+  "description": "Craft Cloud runtime integration for Craft CMS.",
+  "license": "proprietary",
+  "type": "library",
   "require": {
     "ext-curl": "*",
     "bref/bref": "^3",
     "bref/extra-php-extensions": "^3",
-    "craftcms/cms": "6.x-dev",
-    "league/flysystem-aws-s3-v3": "^3.15",
-    "league/uri": "^7.6",
-    "league/uri-components": "^7.6",
-    "phlak/semver": "^4.1",
-    "craftcms/http-message-signatures": "1.x-dev",
-    "symfony/process": "^7.4.5 || ^8.0.5",
+    "bref/laravel-bridge": "^3.0",
+    "craftcms/cms": "^6",
     "aws/aws-sdk-php": "^3.342.6",
-    "craftcms/yii2-cache-cascade": "^1.2.1",
-    "bref/laravel-bridge": "^3.0"
+    "symfony/process": "^7.4.5 || ^8.0.5"
   },
   "require-dev": {
     "craftcms/ecs": "dev-main",
-    "craftcms/phpstan": "dev-main",
-    "codeception/codeception": "^5.0",
-    "vlucas/phpdotenv": "^5.0",
-    "codeception/module-asserts": "~3.1.0",
-    "codeception/module-yii2": "^1.0"
+    "craftcms/phpstan": "dev-main"
   },
   "scripts": {
     "cs:check": "ecs check --ansi",
     "cs:fix": "ecs check --ansi --fix",
-    "phpstan": "phpstan --memory-limit=1G",
-    "test:init": "@php -r \"file_exists('tests/.env') || copy('tests/.env.example', 'tests/.env');\"",
-    "test:up": [
-      "@test:init",
-      "docker compose --env-file tests/.env -f tests/docker-compose.yaml up -d --wait"
-    ],
-    "test:down": "docker compose --env-file tests/.env -f tests/docker-compose.yaml down",
-    "test": "codecept run unit",
-    "test:coverage": "codecept run unit --coverage"
+    "phpstan": "phpstan --memory-limit=1G --debug"
   },
   "autoload": {
     "psr-4": {
       "craft\\cloud\\": "src/"
-    },
-    "files": [
-      "autoload.php"
-    ]
+    }
   },
   "prefer-stable": true,
   "config": {
     "allow-plugins": {
-      "yiisoft/yii2-composer": true,
       "craftcms/plugin-installer": true
     }
   },
   "extra": {
-    "bootstrap": "craft\\cloud\\Module"
+    "laravel": {
+      "providers": [
+        "craft\\cloud\\CloudServiceProvider"
+      ]
+    }
   }
 }

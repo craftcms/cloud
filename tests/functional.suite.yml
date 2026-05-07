@@ -1,5 +1,0 @@
-actor: FunctionalTester
-modules:
-  enabled:
-    - \Helper\Functional
-    - \craft\test\Craft

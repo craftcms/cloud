@@ -9,7 +9,6 @@ final class CraftCliEntrypoint
 {
     /**
      * Include buffer so process times out before PHP and Lambda.
-     * @see \craft\cloud\Module::MAX_EXECUTION_SECONDS_CLI
      */
     private const PROCESS_TIMEOUT_SECONDS = 900 - 5;
 

@@ -1,5 +1,0 @@
-actor: AcceptanceTester
-modules:
-  enabled:
-    - \Helper\Acceptance
-    - \craft\test\Craft
