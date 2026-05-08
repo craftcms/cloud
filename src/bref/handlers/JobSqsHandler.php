@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace craft\cloud\bref\handlers;
 
 use Bref\Context\Context;
@@ -27,7 +29,7 @@ final class JobSqsHandler extends SqsHandler
 
             $payload = json_decode($message, associative: true, flags: JSON_THROW_ON_ERROR);
 
-            $jobId = $payload['jobId'] ?? throw new RuntimeException("Job ID not found. Message: [$message]");
+            $jobId = $payload['jobId'] ?? throw new RuntimeException("Job ID not found. Message: [{$message}]");
 
             $this->entrypoint->craftJob($jobId, $context);
         }

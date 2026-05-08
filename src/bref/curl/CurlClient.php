@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace craft\cloud\bref\curl;
 
 final class CurlClient
@@ -12,16 +14,16 @@ final class CurlClient
 
         $ch = curl_init($url);
 
-        curl_setopt($ch, CURLOPT_POST, true);
+        curl_setopt($ch, CURLOPT_POST, value: true);
 
         curl_setopt($ch, CURLOPT_POSTFIELDS, $body);
 
-        curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+        curl_setopt($ch, CURLOPT_RETURNTRANSFER, value: true);
 
         curl_setopt($ch, CURLOPT_HTTPHEADER, [
             'Content-Type: application/json',
             'Content-Length: ' . strlen($body),
-            "User-Agent: Craft/Cloud/$project/$environment",
+            "User-Agent: Craft/Cloud/{$project}/{$environment}",
         ]);
 
         $responseBody = curl_exec($ch);

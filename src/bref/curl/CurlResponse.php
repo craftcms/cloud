@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace craft\cloud\bref\curl;
 
 final class CurlResponse
@@ -8,8 +10,7 @@ final class CurlResponse
         public readonly string|bool $body,
         public readonly int $statusCode,
         public readonly string $curlError,
-    ) {
-    }
+    ) {}
 
     public function successful(): bool
     {

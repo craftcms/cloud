@@ -1,5 +1,3 @@
-vendor
-.env
-tests/_output
-tests/.env
-tests/_support/_generated
+/vendor/
+/.env
+/.phpunit.cache/

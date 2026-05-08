@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace craft\cloud\bref\craft;
 
 use Bref\Context\Context;
@@ -16,12 +18,18 @@ final class CraftCliEntrypoint
     {
         $shellCommand = '"${:PHP_BINARY}" /var/task/craft ' . $command;
 
-        $process = Process::fromShellCommandline($shellCommand, null, [
-            ...$environment,
-            'PHP_BINARY' => PHP_BINARY,
-        ], null, $timeout);
+        $process = Process::fromShellCommandline(
+            $shellCommand,
+            null,
+            [
+                ...$environment,
+                'PHP_BINARY' => PHP_BINARY,
+            ],
+            null,
+            $timeout,
+        );
 
-        $process->run(function($type, $buffer): void {
+        $process->run(static function ($type, $buffer): void {
             echo $buffer;
         });
 
@@ -43,7 +51,7 @@ final class CraftCliEntrypoint
     {
         $environment = $this->invocationContext($context);
 
-        return $this->command("cloud/queue/exec $jobId", $environment, self::PROCESS_TIMEOUT_SECONDS);
+        return $this->command("cloud/queue/exec {$jobId}", $environment, self::PROCESS_TIMEOUT_SECONDS);
     }
 
     private function invocationContext(Context $context): array

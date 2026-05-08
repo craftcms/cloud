@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace craft\cloud\bref\handlers;
 
 use Bref\Context\Context;
@@ -17,7 +19,7 @@ final class CommandHandler implements Handler
      */
     public function handle(mixed $event, Context $context): array
     {
-        if (!isset($event['command'])) {
+        if (($event['command'] ?? null) === null) {
             throw new InvalidArgumentException('No command found.');
         }
 

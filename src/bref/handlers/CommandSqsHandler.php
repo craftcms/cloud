@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace craft\cloud\bref\handlers;
 
 use Bref\Context\Context;
@@ -29,7 +31,9 @@ final class CommandSqsHandler extends SqsHandler
 
             $payload = json_decode($message, associative: true, flags: JSON_THROW_ON_ERROR);
 
-            $callback = $payload['callback'] ?? throw new RuntimeException("Callback URL not found. Message: [$message]");
+            $callback = $payload['callback'] ?? throw new RuntimeException(
+                "Callback URL not found. Message: [{$message}]",
+            );
 
             $command = $payload['command'] ?? throw new RuntimeException('Command not found');
 
@@ -46,7 +50,7 @@ final class CommandSqsHandler extends SqsHandler
         } catch (Throwable $t) {
             return [
                 'exit_code' => 1,
-                'output' => "Error running command [$command]: " . $t->getMessage(),
+                'output' => "Error running command [{$command}]: " . $t->getMessage(),
             ];
         }
     }
@@ -55,16 +59,16 @@ final class CommandSqsHandler extends SqsHandler
     {
         $client = new CurlClient();
 
-        $body = json_encode($body);
+        $body = $this->encodeResult($body);
 
         $response = $client->post($url, $body);
 
         if ($response->curlError) {
             fwrite(STDERR, $body . "\n");
 
-            $body = json_encode([
+            $body = $this->encodeResult([
                 'exit_code' => 255,
-                'output' => "cURL request failed: $response->curlError",
+                'output' => "cURL request failed: {$response->curlError}",
             ]);
 
             $client->post($url, $body);
@@ -75,14 +79,19 @@ final class CommandSqsHandler extends SqsHandler
         if (!$response->successful()) {
             fwrite(STDERR, $body . "\n");
 
-            $body = json_encode([
+            $body = $this->encodeResult([
                 'exit_code' => 255,
-                'output' => "Failed to send command output: [$response->statusCode] [$response->body]",
+                'output' => "Failed to send command output: [{$response->statusCode}] [{$response->body}]",
             ]);
 
             $client->post($url, $body);
 
             return;
         }
+    }
+
+    private function encodeResult(array $body): string
+    {
+        return json_encode($body, JSON_INVALID_UTF8_SUBSTITUTE | JSON_THROW_ON_ERROR);
     }
 }

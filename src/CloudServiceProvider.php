@@ -6,16 +6,14 @@ namespace craft\cloud;
 
 use Illuminate\Support\Facades\Config;
 use Illuminate\Support\ServiceProvider;
-use Override;
 
 class CloudServiceProvider extends ServiceProvider
 {
-    private const CACHE_STORE = 'craft-cloud';
-    private const CACHE_REDIS_CONNECTION = 'craft-cloud-cache';
+    private const CACHE_FAILOVER_STORE = 'craft-cloud-failover';
     private const CACHE_REDIS_STORE = 'craft-cloud-redis';
-    private const QUEUE_CONNECTION = 'craft-cloud-sqs';
+    private const REDIS_CONNECTION = 'craft-cloud';
+    private const SQS_CONNECTION = 'craft-cloud-sqs';
 
-    #[Override]
     public function register(): void
     {
         if (!$this->isCraftCloud()) {
@@ -28,22 +26,18 @@ class CloudServiceProvider extends ServiceProvider
 
     private function configureQueue(): void
     {
-        $queueUrl = $this->env('CRAFT_CLOUD_SQS_URL');
+        $queueUrl = $_SERVER['CRAFT_CLOUD_SQS_URL'] ?? null;
 
         if (!$queueUrl) {
             return;
         }
 
-        Config::set('queue.default', self::QUEUE_CONNECTION);
-        Config::set("queue.connections." . self::QUEUE_CONNECTION, [
+        Config::set('queue.default', self::SQS_CONNECTION);
+        Config::set('queue.connections.' . self::SQS_CONNECTION, [
             'driver' => 'sqs',
-            'key' => $this->env('AWS_ACCESS_KEY_ID'),
-            'secret' => $this->env('AWS_SECRET_ACCESS_KEY'),
-            'token' => $this->env('AWS_SESSION_TOKEN'),
             'prefix' => '',
             'queue' => $queueUrl,
             'suffix' => '',
-            'region' => $this->env('AWS_DEFAULT_REGION') ?? $this->env('AWS_REGION') ?? 'us-east-1',
             'after_commit' => true,
         ]);
     }
@@ -51,15 +45,16 @@ class CloudServiceProvider extends ServiceProvider
     private function configureCache(): void
     {
         $stores = ['database', 'array'];
+        $redisUrl = $this->resolveRedisUrl();
 
-        if ($redisUrl = $this->resolveRedisUrl()) {
+        if ($redisUrl) {
             $this->configureRedisCache($redisUrl);
 
             array_unshift($stores, self::CACHE_REDIS_STORE);
         }
 
-        Config::set('cache.default', self::CACHE_STORE);
-        Config::set("cache.stores." . self::CACHE_STORE, [
+        Config::set('cache.default', self::CACHE_FAILOVER_STORE);
+        Config::set('cache.stores.' . self::CACHE_FAILOVER_STORE, [
             'driver' => 'failover',
             'stores' => $stores,
         ]);
@@ -67,46 +62,38 @@ class CloudServiceProvider extends ServiceProvider
 
     private function configureRedisCache(string $redisUrl): void
     {
-        Config::set("database.redis." . self::CACHE_REDIS_CONNECTION, [
+        Config::set('database.redis.' . self::REDIS_CONNECTION, [
             'url' => $redisUrl,
             'database' => 0,
         ]);
 
-        Config::set("cache.stores." . self::CACHE_REDIS_STORE, [
+        Config::set('cache.stores.' . self::CACHE_REDIS_STORE, [
             'driver' => 'redis',
-            'connection' => self::CACHE_REDIS_CONNECTION,
-            'lock_connection' => self::CACHE_REDIS_CONNECTION,
+            'connection' => self::REDIS_CONNECTION,
+            'lock_connection' => self::REDIS_CONNECTION,
         ]);
     }
 
     private function resolveRedisUrl(): ?string
     {
-        $srv = $this->env('CRAFT_CLOUD_CACHE_SRV');
+        $srv = $_SERVER['CRAFT_CLOUD_CACHE_SRV'] ?? null;
 
         if ($srv) {
             $records = dns_get_record($srv, DNS_SRV);
 
-            if (is_array($records) && isset($records[0]['target'], $records[0]['port'])) {
-                return "redis://{$records[0]['target']}:{$records[0]['port']}";
+            $target = is_array($records) ? $records[0]['target'] ?? null : null;
+            $port = is_array($records) ? $records[0]['port'] ?? null : null;
+
+            if ($target !== null && $port !== null) {
+                return 'redis://' . $target . ':' . $port;
             }
         }
 
-        return $this->env('CRAFT_CLOUD_REDIS_URL');
+        return null;
     }
 
     private function isCraftCloud(): bool
     {
-        return $this->env('CRAFT_CLOUD') !== null || $this->env('AWS_LAMBDA_RUNTIME_API') !== null;
-    }
-
-    private function env(string $key): ?string
-    {
-        $value = $_SERVER[$key] ?? $_ENV[$key] ?? getenv($key);
-
-        if ($value === false || $value === '') {
-            return null;
-        }
-
-        return (string) $value;
+        return ($_SERVER['CRAFT_CLOUD'] ?? null) !== null;
     }
 }

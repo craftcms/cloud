@@ -1,7 +1,7 @@
 {
   "minimum-stability": "dev",
   "name": "craftcms/cloud",
-  "description": "Craft Cloud runtime integration for Craft CMS.",
+  "description": "Run Craft CMS on Craft Cloud.",
   "license": "proprietary",
   "type": "library",
   "require": {
@@ -10,27 +10,38 @@
     "bref/extra-php-extensions": "^3",
     "bref/laravel-bridge": "^3.0",
     "craftcms/cms": "^6",
-    "aws/aws-sdk-php": "^3.342.6",
     "symfony/process": "^7.4.5 || ^8.0.5"
   },
   "require-dev": {
-    "craftcms/ecs": "dev-main",
-    "craftcms/phpstan": "dev-main"
+    "carthage-software/mago": "^1.1.0",
+    "pestphp/pest": "^4.0"
   },
   "scripts": {
-    "cs:check": "ecs check --ansi",
-    "cs:fix": "ecs check --ansi --fix",
-    "phpstan": "phpstan --memory-limit=1G --debug"
+    "lint": "mago lint --minimum-fail-level=warning && mago format --check",
+    "fix": "mago lint --fix --format-after-fix && mago format",
+    "test": [
+      "Composer\\Config::disableProcessTimeout",
+      "./vendor/bin/pest --compact"
+    ]
   },
   "autoload": {
     "psr-4": {
       "craft\\cloud\\": "src/"
     }
   },
+  "autoload-dev": {
+    "psr-4": {
+      "craft\\cloud\\tests\\": "tests/"
+    },
+    "files": [
+      "tests/Support/functions.php"
+    ]
+  },
   "prefer-stable": true,
   "config": {
     "allow-plugins": {
-      "craftcms/plugin-installer": true
+      "carthage-software/mago": true,
+      "pestphp/pest-plugin": true
     }
   },
   "extra": {
