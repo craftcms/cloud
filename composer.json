@@ -41,6 +41,7 @@
   "config": {
     "allow-plugins": {
       "carthage-software/mago": true,
+      "craftcms/plugin-installer": false,
       "pestphp/pest-plugin": true
     }
   },
