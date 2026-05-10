@@ -4,11 +4,17 @@
   "description": "Run Craft CMS on Craft Cloud.",
   "license": "proprietary",
   "type": "library",
+  "repositories": [
+    {
+      "type": "vcs",
+      "url": "https://github.com/timkelty/laravel-bridge"
+    }
+  ],
   "require": {
     "ext-curl": "*",
     "bref/bref": "^3",
     "bref/extra-php-extensions": "^3",
-    "bref/laravel-bridge": "^3.0",
+    "bref/laravel-bridge": "dev-bugfix/emergency-logger as 3.0.4",
     "craftcms/cms": "^6",
     "symfony/process": "^7.4.5 || ^8.0.5"
   },
