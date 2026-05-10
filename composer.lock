@@ -4,7 +4,7 @@
         "Read more about it at https://getcomposer.org/doc/01-basic-usage.md#installing-dependencies",
         "This file is @generated automatically"
     ],
-    "content-hash": "ac3769b93490f33743c2d11be91ed70f",
+    "content-hash": "462934480cca44ad718737688a1d3b24",
     "packages": [
         {
             "name": "aws/aws-crt-php",
@@ -351,16 +351,16 @@
         },
         {
             "name": "bref/laravel-bridge",
-            "version": "3.0.4",
+            "version": "dev-bugfix/emergency-logger",
             "source": {
                 "type": "git",
-                "url": "https://github.com/brefphp/laravel-bridge.git",
-                "reference": "30569eabb2a07bb0444898d31b2230ad6426a6cb"
+                "url": "https://github.com/timkelty/laravel-bridge.git",
+                "reference": "f8359d64c6fabdd14983c8082e1431e7455dd0ae"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/brefphp/laravel-bridge/zipball/30569eabb2a07bb0444898d31b2230ad6426a6cb",
-                "reference": "30569eabb2a07bb0444898d31b2230ad6426a6cb",
+                "url": "https://api.github.com/repos/timkelty/laravel-bridge/zipball/f8359d64c6fabdd14983c8082e1431e7455dd0ae",
+                "reference": "f8359d64c6fabdd14983c8082e1431e7455dd0ae",
                 "shasum": ""
             },
             "require": {
@@ -394,14 +394,18 @@
                 }
             },
             "autoload": {
-                "files": [
-                    "src/bref-init.php"
-                ],
                 "psr-4": {
                     "Bref\\LaravelBridge\\": "src"
+                },
+                "files": [
+                    "src/bref-init.php"
+                ]
+            },
+            "autoload-dev": {
+                "psr-4": {
+                    "Bref\\LaravelBridge\\Tests\\": "tests"
                 }
             },
-            "notification-url": "https://packagist.org/downloads/",
             "license": [
                 "MIT"
             ],
@@ -415,10 +419,9 @@
                 "serverless"
             ],
             "support": {
-                "issues": "https://github.com/brefphp/laravel-bridge/issues",
-                "source": "https://github.com/brefphp/laravel-bridge/tree/3.0.4"
+                "source": "https://github.com/timkelty/laravel-bridge/tree/bugfix/emergency-logger"
             },
-            "time": "2026-04-21T17:52:19+00:00"
+            "time": "2026-05-09T12:33:57+00:00"
         },
         {
             "name": "bref/laravel-health-check",
@@ -3321,16 +3324,16 @@
         },
         {
             "name": "laravel/wayfinder",
-            "version": "v0.1.17",
+            "version": "v0.1.18",
             "source": {
                 "type": "git",
                 "url": "https://github.com/laravel/wayfinder.git",
-                "reference": "6930cbf3052adef0047af20ca8566f7a4a406dba"
+                "reference": "29598f386cdeef2cf4144f32bdaefc7542ac38ce"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/laravel/wayfinder/zipball/6930cbf3052adef0047af20ca8566f7a4a406dba",
-                "reference": "6930cbf3052adef0047af20ca8566f7a4a406dba",
+                "url": "https://api.github.com/repos/laravel/wayfinder/zipball/29598f386cdeef2cf4144f32bdaefc7542ac38ce",
+                "reference": "29598f386cdeef2cf4144f32bdaefc7542ac38ce",
                 "shasum": ""
             },
             "require": {
@@ -3380,7 +3383,7 @@
                 "issues": "https://github.com/laravel/wayfinder/issues",
                 "source": "https://github.com/laravel/wayfinder"
             },
-            "time": "2026-05-05T20:16:56+00:00"
+            "time": "2026-05-08T14:41:03+00:00"
         },
         {
             "name": "league/commonmark",
@@ -13780,9 +13783,18 @@
             "time": "2025-12-08T11:19:18+00:00"
         }
     ],
-    "aliases": [],
+    "aliases": [
+        {
+            "package": "bref/laravel-bridge",
+            "version": "dev-bugfix/emergency-logger",
+            "alias": "3.0.4",
+            "alias_normalized": "3.0.4.0"
+        }
+    ],
     "minimum-stability": "dev",
-    "stability-flags": {},
+    "stability-flags": {
+        "bref/laravel-bridge": 20
+    },
     "prefer-stable": true,
     "prefer-lowest": false,
     "platform": {
