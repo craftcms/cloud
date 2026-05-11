@@ -57,6 +57,21 @@ abstract class TestCase extends BaseTestCase
             'database' => [
                 'redis' => [],
             ],
+            'logging' => [
+                'default' => 'stack',
+                'channels' => [
+                    'stack' => [
+                        'driver' => 'stack',
+                        'channels' => ['single'],
+                    ],
+                    'stderr' => [
+                        'driver' => 'monolog',
+                    ],
+                    'emergency' => [
+                        'path' => '/var/task/storage/logs/laravel.log',
+                    ],
+                ],
+            ],
             'queue' => [
                 'default' => 'sync',
                 'connections' => [

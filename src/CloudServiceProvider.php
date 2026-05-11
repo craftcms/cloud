@@ -22,6 +22,14 @@ class CloudServiceProvider extends ServiceProvider
 
         $this->configureQueue();
         $this->configureCache();
+        $this->configureLogging();
+    }
+
+    private function configureLogging(): void
+    {
+        // @see https://github.com/brefphp/laravel-bridge/pull/203 Use the Bref config if/when released.
+        Config::set('logging.default', 'stderr');
+        Config::set('logging.channels.emergency.path', 'php://stderr');
     }
 
     private function configureQueue(): void

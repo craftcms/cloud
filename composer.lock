@@ -4,7 +4,7 @@
         "Read more about it at https://getcomposer.org/doc/01-basic-usage.md#installing-dependencies",
         "This file is @generated automatically"
     ],
-    "content-hash": "462934480cca44ad718737688a1d3b24",
+    "content-hash": "ac3769b93490f33743c2d11be91ed70f",
     "packages": [
         {
             "name": "aws/aws-crt-php",
@@ -351,16 +351,16 @@
         },
         {
             "name": "bref/laravel-bridge",
-            "version": "dev-bugfix/emergency-logger",
+            "version": "3.0.4",
             "source": {
                 "type": "git",
-                "url": "https://github.com/timkelty/laravel-bridge.git",
-                "reference": "f8359d64c6fabdd14983c8082e1431e7455dd0ae"
+                "url": "https://github.com/brefphp/laravel-bridge.git",
+                "reference": "30569eabb2a07bb0444898d31b2230ad6426a6cb"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/timkelty/laravel-bridge/zipball/f8359d64c6fabdd14983c8082e1431e7455dd0ae",
-                "reference": "f8359d64c6fabdd14983c8082e1431e7455dd0ae",
+                "url": "https://api.github.com/repos/brefphp/laravel-bridge/zipball/30569eabb2a07bb0444898d31b2230ad6426a6cb",
+                "reference": "30569eabb2a07bb0444898d31b2230ad6426a6cb",
                 "shasum": ""
             },
             "require": {
@@ -394,18 +394,14 @@
                 }
             },
             "autoload": {
-                "psr-4": {
-                    "Bref\\LaravelBridge\\": "src"
-                },
                 "files": [
                     "src/bref-init.php"
-                ]
-            },
-            "autoload-dev": {
+                ],
                 "psr-4": {
-                    "Bref\\LaravelBridge\\Tests\\": "tests"
+                    "Bref\\LaravelBridge\\": "src"
                 }
             },
+            "notification-url": "https://packagist.org/downloads/",
             "license": [
                 "MIT"
             ],
@@ -419,9 +415,10 @@
                 "serverless"
             ],
             "support": {
-                "source": "https://github.com/timkelty/laravel-bridge/tree/bugfix/emergency-logger"
+                "issues": "https://github.com/brefphp/laravel-bridge/issues",
+                "source": "https://github.com/brefphp/laravel-bridge/tree/3.0.4"
             },
-            "time": "2026-05-09T12:33:57+00:00"
+            "time": "2026-04-21T17:52:19+00:00"
         },
         {
             "name": "bref/laravel-health-check",
@@ -13783,18 +13780,9 @@
             "time": "2025-12-08T11:19:18+00:00"
         }
     ],
-    "aliases": [
-        {
-            "package": "bref/laravel-bridge",
-            "version": "dev-bugfix/emergency-logger",
-            "alias": "3.0.4",
-            "alias_normalized": "3.0.4.0"
-        }
-    ],
+    "aliases": [],
     "minimum-stability": "dev",
-    "stability-flags": {
-        "bref/laravel-bridge": 20
-    },
+    "stability-flags": {},
     "prefer-stable": true,
     "prefer-lowest": false,
     "platform": {

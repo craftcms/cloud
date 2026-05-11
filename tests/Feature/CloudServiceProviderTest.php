@@ -11,10 +11,25 @@ it('does not configure cloud services outside Craft Cloud', function (): void {
         ->toBe('sync')
         ->and($this->config->get('cache.default'))
         ->toBe('array')
+        ->and($this->config->get('logging.default'))
+        ->toBe('stack')
+        ->and($this->config->get('logging.channels.emergency.path'))
+        ->toBe('/var/task/storage/logs/laravel.log')
         ->and($this->config->get('queue.connections.craft-cloud-sqs'))
         ->toBeNull()
         ->and($this->config->get('cache.stores.craft-cloud-failover'))
         ->toBeNull();
+});
+
+it('configures Laravel logging to use stderr on Craft Cloud', function (): void {
+    $this->server('CRAFT_CLOUD', '1');
+
+    $this->registerProvider();
+
+    expect($this->config->get('logging.default'))
+        ->toBe('stderr')
+        ->and($this->config->get('logging.channels.emergency.path'))
+        ->toBe('php://stderr');
 });
 
 it('configures the Craft Cloud SQS queue connection', function (): void {
