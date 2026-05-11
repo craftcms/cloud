@@ -16,9 +16,39 @@ class CloudServiceProvider extends ServiceProvider
 
     public function register(): void
     {
+        error_log('[craft-cloud] CloudServiceProvider register() called.');
+
         if (!$this->isCraftCloud()) {
+            error_log(
+                '[craft-cloud] Craft Cloud environment not detected; skipping service configuration. '
+                    . json_encode([
+                        'server_keys' => array_values(array_intersect(
+                            [
+                                'CRAFT_CLOUD',
+                                'CRAFT_CLOUD_PROJECT_ID',
+                                'CRAFT_CLOUD_ENVIRONMENT_ID',
+                            ],
+                            array_keys($_SERVER),
+                        )),
+                    ]),
+            );
+
             return;
         }
+
+        error_log(
+            '[craft-cloud] Craft Cloud environment detected; configuring services. '
+                . json_encode([
+                    'server_keys' => array_values(array_intersect(
+                        [
+                            'CRAFT_CLOUD',
+                            'CRAFT_CLOUD_PROJECT_ID',
+                            'CRAFT_CLOUD_ENVIRONMENT_ID',
+                        ],
+                        array_keys($_SERVER),
+                    )),
+                ]),
+        );
 
         $this->configureQueue();
         $this->configureCache();
@@ -27,9 +57,25 @@ class CloudServiceProvider extends ServiceProvider
 
     private function configureLogging(): void
     {
+        error_log(
+            '[craft-cloud] Configuring Laravel logging for Craft Cloud. '
+                . json_encode([
+                    'before_default' => Config::get('logging.default'),
+                    'before_emergency_path' => Config::get('logging.channels.emergency.path'),
+                ]),
+        );
+
         // @see https://github.com/brefphp/laravel-bridge/pull/203 Use the Bref config if/when released.
         Config::set('logging.default', 'stderr');
         Config::set('logging.channels.emergency.path', 'php://stderr');
+
+        error_log(
+            '[craft-cloud] Configured Laravel logging for Craft Cloud. '
+                . json_encode([
+                    'after_default' => Config::get('logging.default'),
+                    'after_emergency_path' => Config::get('logging.channels.emergency.path'),
+                ]),
+        );
     }
 
     private function configureQueue(): void
