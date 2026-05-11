@@ -148,6 +148,6 @@ class CloudServiceProvider extends ServiceProvider
 
     private function isCraftCloud(): bool
     {
-        return ($_SERVER['CRAFT_CLOUD'] ?? null) !== null;
+        return ($_SERVER['CRAFT_CLOUD'] ?? null) !== null || ($_SERVER['AWS_LAMBDA_RUNTIME_API'] ?? null) !== null;
     }
 }
