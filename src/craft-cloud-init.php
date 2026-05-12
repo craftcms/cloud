@@ -4,15 +4,6 @@ declare(strict_types=1);
 
 error_log('[craft-cloud] Composer autoload file loaded.');
 
-if (($_SERVER['CRAFT_CLOUD'] ?? null) !== null || ($_SERVER['AWS_LAMBDA_RUNTIME_API'] ?? null) !== null) {
-    $_SERVER['LOG_CHANNEL'] ??= 'stderr';
-    $_SERVER['LOG_STACK'] ??= 'stderr';
-    $_SERVER['LOG_STDERR_FORMATTER'] ??= 'default';
-    $_SERVER['LOG_EMERGENCY_PATH'] ??= 'php://stderr';
-
-    error_log('[craft-cloud] Configured early Laravel log defaults for Craft Cloud.');
-}
-
 $diagnosticKeys = [
     'AWS_LAMBDA_RUNTIME_API',
     'CRAFT_CLOUD',
