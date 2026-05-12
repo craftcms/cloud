@@ -27,7 +27,6 @@ class CloudServiceProvider extends ServiceProvider
 
     private function configureLogging(): void
     {
-        // @see https://github.com/brefphp/laravel-bridge/pull/203 Use the Bref config if/when released.
         Config::set('logging.default', 'stderr');
         Config::set('logging.channels.emergency.path', 'php://stderr');
     }
