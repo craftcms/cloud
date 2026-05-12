@@ -12,6 +12,7 @@ $diagnosticKeys = [
     'LOG_CHANNEL',
     'LOG_STACK',
     'LOG_STDERR_FORMATTER',
+    'LOG_EMERGENCY_PATH',
 ];
 
 $diagnostics = [];
