@@ -30,3 +30,25 @@ foreach ($diagnosticKeys as $key) {
 }
 
 error_log('[craft-cloud] Runtime diagnostics: ' . json_encode($diagnostics));
+
+$taskRoot = $_SERVER['LAMBDA_TASK_ROOT'] ?? $_SERVER['CRAFT_BASE_PATH'] ?? '/var/task';
+$loggingConfig = $taskRoot . '/config/logging.php';
+$cachedConfig = $taskRoot . '/bootstrap/cache/config.php';
+
+error_log(
+    '[craft-cloud] Config diagnostics: '
+        . json_encode([
+            'task_root' => $taskRoot,
+            'logging_config_exists' => is_file($loggingConfig),
+            'logging_config_has_emergency_env' => is_file($loggingConfig)
+                ? str_contains((string) file_get_contents($loggingConfig), 'LOG_EMERGENCY_PATH')
+                : null,
+            'cached_config_exists' => is_file($cachedConfig),
+            'cached_config_has_storage_logs' => is_file($cachedConfig)
+                ? str_contains((string) file_get_contents($cachedConfig), 'storage/logs')
+                : null,
+            'cached_config_has_php_stderr' => is_file($cachedConfig)
+                ? str_contains((string) file_get_contents($cachedConfig), 'php://stderr')
+                : null,
+        ]),
+);
