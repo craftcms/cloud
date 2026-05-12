@@ -13,6 +13,8 @@ $diagnosticKeys = [
     'LOG_STACK',
     'LOG_STDERR_FORMATTER',
     'LOG_EMERGENCY_PATH',
+    'CRAFT_STORAGE_PATH',
+    'LARAVEL_STORAGE_PATH',
 ];
 
 $diagnostics = [];
@@ -30,6 +32,31 @@ foreach ($diagnosticKeys as $key) {
 }
 
 error_log('[craft-cloud] Runtime diagnostics: ' . json_encode($diagnostics));
+
+$storagePaths = [
+    '/tmp',
+    '/tmp/storage',
+    '/tmp/craft-storage',
+    $_SERVER['CRAFT_STORAGE_PATH'] ?? null,
+    $_SERVER['LARAVEL_STORAGE_PATH'] ?? null,
+];
+
+$storageDiagnostics = [];
+
+foreach (array_values(array_unique(array_filter($storagePaths))) as $path) {
+    $storageDiagnostics[$path] = [
+        'exists' => file_exists($path),
+        'is_dir' => is_dir($path),
+        'is_file' => is_file($path),
+        'is_link' => is_link($path),
+        'is_writable' => is_writable($path),
+        'realpath' => realpath($path) !== false ? realpath($path) : null,
+        'parent_exists' => file_exists(dirname($path)),
+        'parent_is_writable' => is_writable(dirname($path)),
+    ];
+}
+
+error_log('[craft-cloud] Storage diagnostics: ' . json_encode($storageDiagnostics));
 
 $taskRoot = $_SERVER['LAMBDA_TASK_ROOT'] ?? $_SERVER['CRAFT_BASE_PATH'] ?? '/var/task';
 $loggingConfig = $taskRoot . '/config/logging.php';
