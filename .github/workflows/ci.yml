@@ -54,6 +54,8 @@ jobs:
           coverage: none
 
       - name: Resolve dependencies
+        env:
+          COMPOSER_NO_SECURITY_BLOCKING: ${{ matrix.craft == '^4.6' && '1' || '0' }}
         run: composer update "craftcms/cms:${{ matrix.craft }}" "craftcms/flysystem:${{ matrix.flysystem }}" --with-all-dependencies --no-interaction --no-progress --prefer-dist --no-audit
 
       - name: Prepare test environment
