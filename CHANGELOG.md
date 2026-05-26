@@ -1,5 +1,25 @@
 # Release Notes for Craft Cloud ⛅️
 
+## 2026-05-19
+- Added Sweden and the United Kingdom as two new regions.
+
+## 2026-05-15
+- Released version 1.100.0 of the Cloud API.
+  - The craft-cloud.yaml file is now validated against a [published JSON schema](https://api.craft.cloud/schemas/craft-cloud.schema.json).
+  - 
+
+## 2026-05-01
+- All Craft Cloud projects are now running [Bref 3](https://bref.sh/news/03-bref-3.0).
+- Added support for PHP 8.5.
+- Removed support for PHP 8.1.
+- Released version 1.30.0 of the Cloud Gateway Worker.
+  - We now retry AWS origin errors with an exponential backoff.
+  - It is easier to track Cloudflare Ray IDs in Orange 2 Orange scenarios.
+
+## 2026-04-23
+- Released version 3.1.0 of the `craftcms/cloud` package.
+  - Fixed a bug where image transform editing was broken in the control panel for some Craft Cloud projects.
+
 ## 2026-04-21
 - Released version 1.30.0 of the Cloud Gateway Worker.
   - Fixed a bug where application-level HSTS headers could not be overwritten.
