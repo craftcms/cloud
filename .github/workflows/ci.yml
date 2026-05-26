@@ -54,6 +54,10 @@ jobs:
           coverage: none
 
       - name: Resolve dependencies
+        env:
+          # Craft 4 currently resolves to Twig 3.19.x, which Composer 2.9 blocks by advisory,
+          # so disable security blocking for the Craft 4 compatibility matrix only.
+          COMPOSER_NO_SECURITY_BLOCKING: ${{ matrix.craft == '^4.6' && '1' || '0' }}
         run: composer update "craftcms/cms:${{ matrix.craft }}" "craftcms/flysystem:${{ matrix.flysystem }}" --with-all-dependencies --no-interaction --no-progress --prefer-dist --no-audit
 
       - name: Prepare test environment
