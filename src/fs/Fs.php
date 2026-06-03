@@ -559,25 +559,25 @@ abstract class Fs extends FlysystemFs
             return null;
         }
 
-        if (!$this->useLocalFs) {
-            $bucket = $this->getBucketName();
-
-            if ($bucket === null) {
-                return null;
-            }
-
-            $object = $this->getClient()->getObject([
-                'Bucket' => $bucket,
-                'Key' => $this->createBucketPath($uriPath)->toString(),
-                'Range' => "bytes=$start-$end",
-            ]);
-
-            return $this->stringStream((string)$object->get('Body'));
-        }
-
         $sourceStream = null;
 
         try {
+            if (!$this->useLocalFs) {
+                $bucket = $this->getBucketName();
+
+                if ($bucket === null) {
+                    return null;
+                }
+
+                $object = $this->getClient()->getObject([
+                    'Bucket' => $bucket,
+                    'Key' => $this->createBucketPath($uriPath)->toString(),
+                    'Range' => "bytes=$start-$end",
+                ]);
+
+                return $this->stringStream((string)$object->get('Body'));
+            }
+
             $sourceStream = $this->getFileStream($uriPath);
 
             if (fseek($sourceStream, $start) === -1) {
@@ -587,6 +587,8 @@ abstract class Fs extends FlysystemFs
             $data = stream_get_contents($sourceStream, $end - $start + 1);
 
             return is_string($data) ? $this->stringStream($data) : null;
+        } catch (Throwable) {
+            return null;
         } finally {
             if (is_resource($sourceStream)) {
                 fclose($sourceStream);
