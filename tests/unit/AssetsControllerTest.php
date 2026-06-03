@@ -68,14 +68,11 @@ class AssetsControllerTest extends Unit
 
     public function testNonImageUploadsUseNullDimensions(): void
     {
-        $controller = new DimensionTestAssetsController('cloud-assets', Craft::$app);
-        $controller->uploadedImageDimensions = [2139, 3020];
+        $fs = new HeaderTestFs();
+        $fs->header = 'not image data';
 
-        $this->assertSame([null, null], $controller->uploadedImageDimensionsForTest(
-            new Asset(),
-            'document.pdf',
-        ));
-        $this->assertSame(0, $controller->readCount);
+        $this->assertNull($fs->getImageDimensions('document.pdf'));
+        $this->assertSame(0, $fs->readCount);
     }
 
     public function testReplacementUploadsUseServerDimensionsForUploadedFile(): void
@@ -144,7 +141,7 @@ class DimensionTestAssetsController extends AssetsController
     {
         $asset->setFilename($filename);
 
-        return $this->uploadedImageDimensions($asset, $filename);
+        return $this->uploadedImageDimensions($asset);
     }
 
     public function uploadedAssetSizeForTest(Asset $asset, string $filename): int
@@ -163,6 +160,7 @@ class DimensionTestAssetsController extends AssetsController
 class HeaderTestFs extends Fs
 {
     public string $header;
+    public int $readCount = 0;
 
     public static function displayName(): string
     {
@@ -171,6 +169,8 @@ class HeaderTestFs extends Fs
 
     public function getFileStreamRange(string $uriPath, int $start, int $end)
     {
+        $this->readCount++;
+
         $stream = fopen('php://temp', 'r+');
 
         if ($stream === false) {

@@ -10,6 +10,7 @@ use craft\behaviors\EnvAttributeParserBehavior;
 use craft\cloud\Module;
 use craft\cloud\StaticCache;
 use craft\cloud\StaticCacheTag;
+use craft\elements\Asset;
 use craft\errors\FsException;
 use craft\flysystem\base\FlysystemFs;
 use craft\fs\Local;
@@ -524,6 +525,10 @@ abstract class Fs extends FlysystemFs
 
     public function getImageDimensions(string $uriPath): ?array
     {
+        if (Assets::getFileKindByExtension($uriPath) !== Asset::KIND_IMAGE) {
+            return null;
+        }
+
         $stream = $this->getFileStreamRange($uriPath, 0, self::IMAGE_DIMENSION_HEADER_BYTES - 1);
 
         if ($stream === null) {
