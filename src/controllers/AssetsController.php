@@ -167,7 +167,10 @@ class AssetsController extends Controller
         $asset->folderPath = is_string($folder->path) ? Fs::urlEncodePathSegments($folder->path) : $asset->folderPath;
 
         $asset->size = $this->uploadedAssetSize($asset, $filename);
-        [$asset->width, $asset->height] = $this->uploadedImageDimensions($asset);
+        $fs = $asset->getVolume()->getFs();
+        [$asset->width, $asset->height] = $fs instanceof Fs
+            ? $fs->getImageDimensions($asset->getPath()) ?? [null, null]
+            : [null, null];
 
         if (!$selectionCondition) {
             $asset->newFilename = $targetFilename;
@@ -349,7 +352,10 @@ class AssetsController extends Controller
         $asset->avoidFilenameConflicts = true;
         $asset->setScenario(Asset::SCENARIO_REPLACE);
         $asset->setFilename($filename);
-        [$asset->width, $asset->height] = $this->uploadedImageDimensions($asset);
+        $fs = $asset->getVolume()->getFs();
+        [$asset->width, $asset->height] = $fs instanceof Fs
+            ? $fs->getImageDimensions($asset->getPath()) ?? [null, null]
+            : [null, null];
         $asset->newFilename = $targetFilename;
 
         $saved = $this->saveAsset($asset);
@@ -401,21 +407,5 @@ class AssetsController extends Controller
         }
 
         return $size;
-    }
-
-    protected function uploadedImageDimensions(Asset $asset): array
-    {
-        return $this->readUploadedImageDimensions($asset) ?? [null, null];
-    }
-
-    protected function readUploadedImageDimensions(Asset $asset): ?array
-    {
-        $fs = $asset->getVolume()->getFs();
-
-        if (!$fs instanceof Fs) {
-            return null;
-        }
-
-        return $fs->getImageDimensions($asset->getPath());
     }
 }

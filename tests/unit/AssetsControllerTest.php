@@ -43,27 +43,13 @@ class AssetsControllerTest extends Unit
         $this->assertSame('volume-prefix/', $this->invokeVolumeSubpath($volume));
     }
 
-    public function testImageUploadsUseUploadedImageDimensions(): void
+    public function testImageDimensionsUseNullWhenUploadedImageDimensionsCannotBeRead(): void
     {
-        $controller = new DimensionTestAssetsController('cloud-assets', Craft::$app);
-        $controller->uploadedImageDimensions = [2139, 3020];
+        $fs = new HeaderTestFs();
+        $fs->header = 'not image data';
 
-        $this->assertSame([2139, 3020], $controller->uploadedImageDimensionsForTest(
-            new Asset(),
-            'upload.jpeg',
-        ));
-        $this->assertSame(1, $controller->readCount);
-    }
-
-    public function testImageUploadsUseNullDimensionsWhenUploadedImageDimensionsCannotBeRead(): void
-    {
-        $controller = new DimensionTestAssetsController('cloud-assets', Craft::$app);
-
-        $this->assertSame([null, null], $controller->uploadedImageDimensionsForTest(
-            new Asset(),
-            'upload.jpeg',
-        ));
-        $this->assertSame(1, $controller->readCount);
+        $this->assertNull($fs->getImageDimensions('upload.jpeg'));
+        $this->assertSame(1, $fs->readCount);
     }
 
     public function testNonImageUploadsUseNullDimensions(): void
@@ -73,21 +59,6 @@ class AssetsControllerTest extends Unit
 
         $this->assertNull($fs->getImageDimensions('document.pdf'));
         $this->assertSame(0, $fs->readCount);
-    }
-
-    public function testReplacementUploadsUseServerDimensionsForUploadedFile(): void
-    {
-        $asset = new Asset();
-        $asset->folderPath = 'uploads';
-
-        $controller = new DimensionTestAssetsController('cloud-assets', Craft::$app);
-        $controller->uploadedImageDimensions = [1080, 1440];
-
-        $this->assertSame([1080, 1440], $controller->uploadedImageDimensionsForTest(
-            $asset,
-            'upload-replacement.jpeg',
-        ));
-        $this->assertSame(1, $controller->readCount);
     }
 
     public function testUploadedAssetSizeUsesActualVolumeSize(): void
@@ -134,26 +105,9 @@ class AssetsControllerTest extends Unit
 
 class DimensionTestAssetsController extends AssetsController
 {
-    public ?array $uploadedImageDimensions = null;
-    public int $readCount = 0;
-
-    public function uploadedImageDimensionsForTest(Asset $asset, string $filename): array
-    {
-        $asset->setFilename($filename);
-
-        return $this->uploadedImageDimensions($asset);
-    }
-
     public function uploadedAssetSizeForTest(Asset $asset, string $filename): int
     {
         return $this->uploadedAssetSize($asset, $filename);
-    }
-
-    protected function readUploadedImageDimensions(Asset $asset): ?array
-    {
-        $this->readCount++;
-
-        return $this->uploadedImageDimensions;
     }
 }
 
