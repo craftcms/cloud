@@ -14,6 +14,7 @@ use craft\helpers\Db;
 use craft\models\Volume;
 use craft\web\Controller;
 use DateTime;
+use Throwable;
 use yii\base\Event;
 use yii\base\Exception;
 use yii\base\Model;
@@ -94,9 +95,6 @@ class AssetsController extends Controller
         $filename = $this->request->getRequiredBodyParam('filename');
         $originalFilename = $this->request->getRequiredBodyParam('originalFilename');
         $targetFilename = $this->request->getRequiredBodyParam('targetFilename');
-        $size = $this->request->getBodyParam('size');
-        $width = $this->request->getBodyParam('width');
-        $height = $this->request->getBodyParam('height');
         $elementsService = Craft::$app->getElements();
         $lastModifiedMs = (int) $this->request->getBodyParam('lastModified');
         $dateModified = $lastModifiedMs
@@ -159,9 +157,6 @@ class AssetsController extends Controller
         $asset->uploaderId = Craft::$app->getUser()->getId();
         $asset->avoidFilenameConflicts = true;
         $asset->dateModified = $dateModified;
-        $asset->size = $size;
-        $asset->width = $width;
-        $asset->height = $height;
 
         // Setting newFolderId, so that extension validation on newLocation occurs
         $asset->newFolderId = $folder->id;
@@ -171,6 +166,8 @@ class AssetsController extends Controller
 
         // Handle special characters that have been encoded from the presigned URL
         $asset->folderPath = is_string($folder->path) ? Fs::urlEncodePathSegments($folder->path) : $asset->folderPath;
+
+        $this->setUploadedAssetMetadata($asset, $filename, $originalFilename);
 
         if (!$selectionCondition) {
             $asset->newFilename = $targetFilename;
@@ -239,9 +236,6 @@ class AssetsController extends Controller
         $sourceAssetId = $this->request->getBodyParam('sourceAssetId');
         $filename = $this->request->getBodyParam('filename');
         $targetFilename = $this->request->getBodyParam('targetFilename');
-        $size = $this->request->getBodyParam('size');
-        $width = $this->request->getBodyParam('width');
-        $height = $this->request->getBodyParam('height');
         $lastModifiedMs = (int) $this->request->getBodyParam('lastModified');
         $dateModified = $lastModifiedMs
             ? DateTime::createFromFormat('U', (string) floor($lastModifiedMs / 1000))
@@ -272,9 +266,7 @@ class AssetsController extends Controller
 
         // Handle the Element Action
         if ($assetToReplace !== null && $filename) {
-            $assetToReplace->width = $width;
-            $assetToReplace->height = $height;
-            $assetToReplace->size = $size;
+            $this->setUploadedAssetMetadata($assetToReplace, $filename, $targetFilename);
             $assetToReplace->dateModified = $dateModified;
             if (!$this->replaceAssetFile($assetToReplace, $filename, $targetFilename)) {
                 throw new Exception('Unable to replace asset.');
@@ -395,5 +387,51 @@ class AssetsController extends Controller
     private function volumeSubpath(Volume $volume): string
     {
         return method_exists($volume, 'getSubpath') ? $volume->getSubpath() : '';
+    }
+
+    protected function setUploadedAssetMetadata(Asset $asset, string $filename, ?string $displayFilename = null): void
+    {
+        try {
+            $asset->size = $this->uploadedAssetSize($asset, $filename, $displayFilename);
+            [$width, $height] = $this->uploadedImageDimensions($asset, $filename);
+            $asset->width = $width;
+            $asset->height = $height;
+        } catch (Throwable $e) {
+            $this->deleteUploadedAsset($asset, $filename);
+            throw $e;
+        }
+    }
+
+    protected function uploadedAssetSize(Asset $asset, string $filename, ?string $displayFilename = null): int
+    {
+        $size = $asset->getVolume()->getFileSize($asset->getPath($filename));
+        $maxUploadSize = Craft::$app->getConfig()->getGeneral()->maxUploadFileSize;
+
+        if ($maxUploadSize && $size > $maxUploadSize) {
+            throw new BadRequestHttpException(Craft::t('app', '“{filename}” is too large.', [
+                'filename' => $displayFilename ?: $filename,
+            ]));
+        }
+
+        return $size;
+    }
+
+    protected function uploadedImageDimensions(Asset $asset, string $filename): array
+    {
+        $fs = $asset->getVolume()->getFs();
+
+        // Null dimensions are safer than browser-oriented dimensions for EXIF
+        // images, but they can still prevent image-editor use until reindexed.
+        return $fs instanceof Fs
+            ? $fs->getImageDimensions($asset->getPath($filename)) ?? [null, null]
+            : [null, null];
+    }
+
+    private function deleteUploadedAsset(Asset $asset, string $filename): void
+    {
+        try {
+            $asset->getVolume()->deleteFile($asset->getPath($filename));
+        } catch (Throwable) {
+        }
     }
 }
