@@ -417,19 +417,42 @@ class AssetsController extends Controller
 
     protected function readUploadedImageDimensions(Asset $asset): ?array
     {
+        $header = $this->uploadedImageHeader($asset);
+
+        if ($header === null) {
+            return null;
+        }
+
+        return $this->imageDimensionsFromHeader($header);
+    }
+
+    protected function uploadedImageHeader(Asset $asset): ?string
+    {
         $stream = null;
 
         try {
-            $stream = $asset->getVolume()->getFs()->getFileStream($asset->getPath());
-            $imageSize = $this->imageDimensionsFromHeader(
-                stream_get_contents($stream, self::IMAGE_DIMENSION_HEADER_BYTES),
-            );
+            $fs = $asset->getVolume()->getFs();
 
-            if ($imageSize === null) {
-                return null;
+            if ($fs instanceof Fs && !$fs->useLocalFs) {
+                $bucket = $fs->getBucketName();
+
+                if ($bucket === null) {
+                    return null;
+                }
+
+                $object = $fs->getClient()->getObject([
+                    'Bucket' => $bucket,
+                    'Key' => $fs->createBucketPath($asset->getPath())->toString(),
+                    'Range' => sprintf('bytes=0-%d', self::IMAGE_DIMENSION_HEADER_BYTES - 1),
+                ]);
+
+                return (string)$object->get('Body');
             }
 
-            return $imageSize;
+            $stream = $fs->getFileStream($asset->getPath());
+            $data = stream_get_contents($stream, self::IMAGE_DIMENSION_HEADER_BYTES);
+
+            return is_string($data) ? $data : null;
         } catch (Throwable) {
             return null;
         } finally {
