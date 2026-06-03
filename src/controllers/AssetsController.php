@@ -417,8 +417,7 @@ class AssetsController extends Controller
                 fclose($stream);
                 $stream = null;
 
-                $tempPath = Assets::tempFilePath($asset->getExtension());
-                Assets::downloadFile($asset->getVolume(), $asset->getPath(), $tempPath);
+                $tempPath = $asset->getCopyOfFile();
                 $imageSize = Image::imageSize($tempPath);
             }
 
