@@ -11,9 +11,12 @@ use craft\events\ReplaceAssetEvent;
 use craft\fields\Assets as AssetsField;
 use craft\helpers\Assets;
 use craft\helpers\Db;
+use craft\helpers\FileHelper;
+use craft\helpers\Image;
 use craft\models\Volume;
 use craft\web\Controller;
 use DateTime;
+use Throwable;
 use yii\base\Event;
 use yii\base\Exception;
 use yii\base\Model;
@@ -95,8 +98,6 @@ class AssetsController extends Controller
         $originalFilename = $this->request->getRequiredBodyParam('originalFilename');
         $targetFilename = $this->request->getRequiredBodyParam('targetFilename');
         $size = $this->request->getBodyParam('size');
-        $width = $this->request->getBodyParam('width');
-        $height = $this->request->getBodyParam('height');
         $elementsService = Craft::$app->getElements();
         $lastModifiedMs = (int) $this->request->getBodyParam('lastModified');
         $dateModified = $lastModifiedMs
@@ -160,8 +161,6 @@ class AssetsController extends Controller
         $asset->avoidFilenameConflicts = true;
         $asset->dateModified = $dateModified;
         $asset->size = $size;
-        $asset->width = $width;
-        $asset->height = $height;
 
         // Setting newFolderId, so that extension validation on newLocation occurs
         $asset->newFolderId = $folder->id;
@@ -171,6 +170,8 @@ class AssetsController extends Controller
 
         // Handle special characters that have been encoded from the presigned URL
         $asset->folderPath = is_string($folder->path) ? Fs::urlEncodePathSegments($folder->path) : $asset->folderPath;
+
+        [$asset->width, $asset->height] = $this->uploadedImageDimensions($asset, $filename);
 
         if (!$selectionCondition) {
             $asset->newFilename = $targetFilename;
@@ -240,8 +241,6 @@ class AssetsController extends Controller
         $filename = $this->request->getBodyParam('filename');
         $targetFilename = $this->request->getBodyParam('targetFilename');
         $size = $this->request->getBodyParam('size');
-        $width = $this->request->getBodyParam('width');
-        $height = $this->request->getBodyParam('height');
         $lastModifiedMs = (int) $this->request->getBodyParam('lastModified');
         $dateModified = $lastModifiedMs
             ? DateTime::createFromFormat('U', (string) floor($lastModifiedMs / 1000))
@@ -272,8 +271,6 @@ class AssetsController extends Controller
 
         // Handle the Element Action
         if ($assetToReplace !== null && $filename) {
-            $assetToReplace->width = $width;
-            $assetToReplace->height = $height;
             $assetToReplace->size = $size;
             $assetToReplace->dateModified = $dateModified;
             if (!$this->replaceAssetFile($assetToReplace, $filename, $targetFilename)) {
@@ -357,6 +354,7 @@ class AssetsController extends Controller
         $asset->avoidFilenameConflicts = true;
         $asset->setScenario(Asset::SCENARIO_REPLACE);
         $asset->setFilename($filename);
+        [$asset->width, $asset->height] = $this->uploadedImageDimensions($asset, $filename);
         $asset->newFilename = $targetFilename;
 
         $saved = $this->saveAsset($asset);
@@ -395,5 +393,48 @@ class AssetsController extends Controller
     private function volumeSubpath(Volume $volume): string
     {
         return method_exists($volume, 'getSubpath') ? $volume->getSubpath() : '';
+    }
+
+    protected function uploadedImageDimensions(Asset $asset, string $filename): array
+    {
+        if (Assets::getFileKindByExtension($filename) !== Asset::KIND_IMAGE) {
+            return [null, null];
+        }
+
+        return $this->readUploadedImageDimensions($asset) ?? [null, null];
+    }
+
+    protected function readUploadedImageDimensions(Asset $asset): ?array
+    {
+        $stream = null;
+        $tempPath = null;
+
+        try {
+            $stream = $asset->getVolume()->getFs()->getFileStream($asset->getPath());
+            $imageSize = Image::imageSizeByStream($stream);
+
+            if ($imageSize === false || !isset($imageSize[0], $imageSize[1])) {
+                fclose($stream);
+                $stream = null;
+
+                $tempPath = $asset->getCopyOfFile();
+                $imageSize = Image::imageSize($tempPath);
+            }
+
+            return [
+                (int)$imageSize[0] ?: null,
+                (int)$imageSize[1] ?: null,
+            ];
+        } catch (Throwable) {
+            return null;
+        } finally {
+            if (is_resource($stream)) {
+                fclose($stream);
+            }
+
+            if ($tempPath !== null) {
+                FileHelper::unlink($tempPath);
+            }
+        }
     }
 }
