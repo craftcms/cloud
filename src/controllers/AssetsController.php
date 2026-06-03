@@ -11,6 +11,7 @@ use craft\events\ReplaceAssetEvent;
 use craft\fields\Assets as AssetsField;
 use craft\helpers\Assets;
 use craft\helpers\Db;
+use craft\helpers\FileHelper;
 use craft\helpers\Image;
 use craft\models\Volume;
 use craft\web\Controller;
@@ -406,24 +407,34 @@ class AssetsController extends Controller
     protected function readUploadedImageDimensions(Asset $asset): ?array
     {
         $stream = null;
+        $tempPath = null;
 
         try {
             $stream = $asset->getVolume()->getFs()->getFileStream($asset->getPath());
             $imageSize = Image::imageSizeByStream($stream);
 
             if ($imageSize === false || !isset($imageSize[0], $imageSize[1])) {
-                return null;
+                fclose($stream);
+                $stream = null;
+
+                $tempPath = Assets::tempFilePath($asset->getExtension());
+                Assets::downloadFile($asset->getVolume(), $asset->getPath(), $tempPath);
+                $imageSize = Image::imageSize($tempPath);
             }
 
             return [
-                (int) $imageSize[0],
-                (int) $imageSize[1],
+                (int)$imageSize[0] ?: null,
+                (int)$imageSize[1] ?: null,
             ];
         } catch (Throwable) {
             return null;
         } finally {
             if (is_resource($stream)) {
                 fclose($stream);
+            }
+
+            if ($tempPath !== null) {
+                FileHelper::unlink($tempPath);
             }
         }
     }
