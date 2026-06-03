@@ -5,6 +5,7 @@ namespace craft\cloud\tests\unit;
 use Codeception\Test\Unit;
 use Craft;
 use craft\cloud\controllers\AssetsController;
+use craft\cloud\fs\Fs;
 use craft\elements\Asset;
 use craft\helpers\Assets as AssetsHelper;
 use craft\models\Volume;
@@ -114,14 +115,14 @@ class AssetsControllerTest extends Unit
 
     public function testImageDimensionsCanBeReadFromBoundedJpegHeader(): void
     {
-        $controller = new HeaderTestAssetsController('cloud-assets', Craft::$app);
+        $fs = new HeaderTestFs();
         $jpeg = "\xFF\xD8"
             . "\xFF\xE1" . pack('n', 4) . 'xx'
             . "\xFF\xC0" . pack('n', 17) . "\x08" . pack('n', 3020) . pack('n', 2139) . str_repeat("\0", 10);
 
-        $controller->header = $jpeg;
+        $fs->header = $jpeg;
 
-        $this->assertSame([2139, 3020], $controller->readUploadedImageDimensionsForTest(new Asset()));
+        $this->assertSame([2139, 3020], $fs->getImageDimensions('upload.jpeg'));
     }
 
     private function invokeVolumeSubpath(Volume $volume): string
@@ -159,16 +160,16 @@ class DimensionTestAssetsController extends AssetsController
     }
 }
 
-class HeaderTestAssetsController extends AssetsController
+class HeaderTestFs extends Fs
 {
     public string $header;
 
-    public function readUploadedImageDimensionsForTest(Asset $asset): ?array
+    public static function displayName(): string
     {
-        return $this->readUploadedImageDimensions($asset);
+        return 'Header Test';
     }
 
-    protected function uploadedImageHeaderStream(Asset $asset)
+    public function getFileStreamRange(string $uriPath, int $start, int $end)
     {
         $stream = fopen('php://temp', 'r+');
 

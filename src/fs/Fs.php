@@ -16,6 +16,7 @@ use craft\fs\Local;
 use craft\helpers\App;
 use craft\helpers\Assets;
 use craft\helpers\DateTimeHelper;
+use craft\helpers\Image;
 use DateTime;
 use DateTimeInterface;
 use Generator;
@@ -37,6 +38,8 @@ use yii\base\InvalidConfigException;
  */
 abstract class Fs extends FlysystemFs
 {
+    private const IMAGE_DIMENSION_HEADER_BYTES = 1048576;
+
     protected static bool $showUrlSetting = false;
     protected ?string $expires = null;
     protected ?Local $localFs = null;
@@ -517,6 +520,95 @@ abstract class Fs extends FlysystemFs
         }
 
         return parent::getFileStream($uriPath);
+    }
+
+    public function getImageDimensions(string $uriPath): ?array
+    {
+        $stream = $this->getFileStreamRange($uriPath, 0, self::IMAGE_DIMENSION_HEADER_BYTES - 1);
+
+        if ($stream === null) {
+            return null;
+        }
+
+        try {
+            $imageSize = Image::imageSizeByStream($stream);
+
+            if ($imageSize === false || !isset($imageSize[0], $imageSize[1])) {
+                return null;
+            }
+
+            return [
+                (int)$imageSize[0] ?: null,
+                (int)$imageSize[1] ?: null,
+            ];
+        } catch (Throwable) {
+            return null;
+        } finally {
+            if (is_resource($stream)) {
+                fclose($stream);
+            }
+        }
+    }
+
+    /**
+     * @return resource|null
+     */
+    public function getFileStreamRange(string $uriPath, int $start, int $end)
+    {
+        if ($start < 0 || $end < $start) {
+            return null;
+        }
+
+        if (!$this->useLocalFs) {
+            $bucket = $this->getBucketName();
+
+            if ($bucket === null) {
+                return null;
+            }
+
+            $object = $this->getClient()->getObject([
+                'Bucket' => $bucket,
+                'Key' => $this->createBucketPath($uriPath)->toString(),
+                'Range' => "bytes=$start-$end",
+            ]);
+
+            return $this->stringStream((string)$object->get('Body'));
+        }
+
+        $sourceStream = null;
+
+        try {
+            $sourceStream = $this->getFileStream($uriPath);
+
+            if (fseek($sourceStream, $start) === -1) {
+                return null;
+            }
+
+            $data = stream_get_contents($sourceStream, $end - $start + 1);
+
+            return is_string($data) ? $this->stringStream($data) : null;
+        } finally {
+            if (is_resource($sourceStream)) {
+                fclose($sourceStream);
+            }
+        }
+    }
+
+    /**
+     * @return resource|null
+     */
+    private function stringStream(string $contents)
+    {
+        $stream = fopen('php://temp', 'r+');
+
+        if ($stream === false) {
+            return null;
+        }
+
+        fwrite($stream, $contents);
+        rewind($stream);
+
+        return $stream;
     }
 
     /**

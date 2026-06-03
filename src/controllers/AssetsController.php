@@ -11,11 +11,9 @@ use craft\events\ReplaceAssetEvent;
 use craft\fields\Assets as AssetsField;
 use craft\helpers\Assets;
 use craft\helpers\Db;
-use craft\helpers\Image;
 use craft\models\Volume;
 use craft\web\Controller;
 use DateTime;
-use Throwable;
 use yii\base\Event;
 use yii\base\Exception;
 use yii\base\Model;
@@ -26,8 +24,6 @@ use yii\web\Response;
 class AssetsController extends Controller
 {
     use AssetsControllerTrait;
-
-    private const IMAGE_DIMENSION_HEADER_BYTES = 1048576;
 
     public function actionGetUploadUrl(): Response
     {
@@ -418,85 +414,12 @@ class AssetsController extends Controller
 
     protected function readUploadedImageDimensions(Asset $asset): ?array
     {
-        $stream = $this->uploadedImageHeaderStream($asset);
+        $fs = $asset->getVolume()->getFs();
 
-        if ($stream === null) {
+        if (!$fs instanceof Fs) {
             return null;
         }
 
-        try {
-            $imageSize = Image::imageSizeByStream($stream);
-
-            if ($imageSize === false || !isset($imageSize[0], $imageSize[1])) {
-                return null;
-            }
-
-            return [
-                (int)$imageSize[0] ?: null,
-                (int)$imageSize[1] ?: null,
-            ];
-        } catch (Throwable) {
-            return null;
-        } finally {
-            if (is_resource($stream)) {
-                fclose($stream);
-            }
-        }
-    }
-
-    /**
-     * @return resource|null
-     */
-    protected function uploadedImageHeaderStream(Asset $asset)
-    {
-        $sourceStream = null;
-
-        try {
-            $fs = $asset->getVolume()->getFs();
-
-            if ($fs instanceof Fs && !$fs->useLocalFs) {
-                $bucket = $fs->getBucketName();
-
-                if ($bucket === null) {
-                    return null;
-                }
-
-                $object = $fs->getClient()->getObject([
-                    'Bucket' => $bucket,
-                    'Key' => $fs->createBucketPath($asset->getPath())->toString(),
-                    'Range' => sprintf('bytes=0-%d', self::IMAGE_DIMENSION_HEADER_BYTES - 1),
-                ]);
-
-                return $this->stringStream((string)$object->get('Body'));
-            }
-
-            $sourceStream = $fs->getFileStream($asset->getPath());
-            $data = stream_get_contents($sourceStream, self::IMAGE_DIMENSION_HEADER_BYTES);
-
-            return is_string($data) ? $this->stringStream($data) : null;
-        } catch (Throwable) {
-            return null;
-        } finally {
-            if (is_resource($sourceStream)) {
-                fclose($sourceStream);
-            }
-        }
-    }
-
-    /**
-     * @return resource|null
-     */
-    private function stringStream(string $contents)
-    {
-        $stream = fopen('php://temp', 'r+');
-
-        if ($stream === false) {
-            return null;
-        }
-
-        fwrite($stream, $contents);
-        rewind($stream);
-
-        return $stream;
+        return $fs->getImageDimensions($asset->getPath());
     }
 }
