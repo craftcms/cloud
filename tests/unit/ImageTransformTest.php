@@ -5,10 +5,13 @@ namespace craft\cloud\tests\unit;
 use Codeception\Test\Unit;
 use Craft;
 use craft\cloud\Module as CloudModule;
+use craft\cloud\fs\AssetsFs;
 use craft\cloud\imagetransforms\ImageTransformBehavior;
 use craft\cloud\imagetransforms\ImageTransformer;
 use craft\elements\Asset;
+use craft\events\GenerateTransformEvent;
 use craft\models\ImageTransform;
+use craft\models\Volume;
 
 class ImageTransformTest extends Unit
 {
@@ -123,6 +126,27 @@ class ImageTransformTest extends Unit
         $this->assertStringNotContainsString('gravity%5Bx%5D=0.57', $secondUrl);
     }
 
+    public function testActionRequestsUseNativeTransforms(): void
+    {
+        $module = new TestCloudModule('cloud-test');
+        $event = new GenerateTransformEvent([
+            'asset' => new TransformDecisionAsset(),
+            'transform' => new ImageTransform(['width' => 100]),
+        ]);
+        $request = Craft::$app->getRequest();
+        $isActionRequest = $request->getIsActionRequest();
+
+        try {
+            $request->setIsActionRequest(true);
+            $this->assertFalse($module->usesAssetCdnTransform($event));
+
+            $request->setIsActionRequest(false);
+            $this->assertTrue($module->usesAssetCdnTransform($event));
+        } finally {
+            $request->setIsActionRequest($isActionRequest);
+        }
+    }
+
     private function makeAssetStub(array $focalPoint): Asset
     {
         return new class($focalPoint) extends Asset {
@@ -176,7 +200,7 @@ class ImageTransformTest extends Unit
                 return $this->focalPointValue;
             }
 
-            public function getWidth(array|string|\craft\models\ImageTransform $transform = null): ?int
+            public function getWidth(array|string|\craft\models\ImageTransform|null $transform = null): ?int
             {
                 return $this->widthValue;
             }
@@ -232,5 +256,26 @@ class UrlTestImageTransformer extends ImageTransformer
         $behavior = $imageTransform->getBehavior('cloud');
 
         return (string) \League\Uri\Components\Query::fromVariable($behavior->toOptions($gravity));
+    }
+}
+
+class TestCloudModule extends CloudModule
+{
+    public function usesAssetCdnTransform(GenerateTransformEvent $event): bool
+    {
+        return $this->shouldUseAssetCdnTransform($event);
+    }
+}
+
+class TransformDecisionAsset extends Asset
+{
+    public function getVolume(): Volume
+    {
+        return new class() extends Volume {
+            public function getFs(): AssetsFs
+            {
+                return new AssetsFs();
+            }
+        };
     }
 }

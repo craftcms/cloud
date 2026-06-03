@@ -94,7 +94,7 @@ abstract class Fs extends FlysystemFs
     {
         if ($this->useLocalFs) {
             return Modifier::wrap($this->getLocalFs()->getRootUrl() ?? '/')
-                ->appendSegment($this->createPath($path))
+                ->appendPath($this->createPath($path))
                 ->unwrap();
         }
 

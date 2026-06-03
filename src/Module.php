@@ -97,7 +97,7 @@ class Module extends \yii\base\Module implements \yii\base\BootstrapInterface
                 Asset::class,
                 Asset::EVENT_BEFORE_GENERATE_TRANSFORM,
                 function(GenerateTransformEvent $event) {
-                    if (!$event->transform || !$event->asset?->fs instanceof AssetsFs) {
+                    if (!$this->shouldUseAssetCdnTransform($event)) {
                         return;
                     }
 
@@ -117,6 +117,19 @@ class Module extends \yii\base\Module implements \yii\base\BootstrapInterface
                 $app->getView()->registerAssetBundle(UploaderAsset::class);
             }
         }
+    }
+
+    protected function shouldUseAssetCdnTransform(GenerateTransformEvent $event): bool
+    {
+        if (!$event->transform || !$event->asset?->fs instanceof AssetsFs) {
+            return false;
+        }
+
+        if (!(Craft::$app instanceof WebApplication)) {
+            return true;
+        }
+
+        return !Craft::$app->getRequest()->getIsActionRequest();
     }
 
     public function getConfig(): Config
