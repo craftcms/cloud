@@ -114,12 +114,14 @@ class AssetsControllerTest extends Unit
 
     public function testImageDimensionsCanBeReadFromBoundedJpegHeader(): void
     {
-        $controller = new DimensionTestAssetsController('cloud-assets', Craft::$app);
+        $controller = new HeaderTestAssetsController('cloud-assets', Craft::$app);
         $jpeg = "\xFF\xD8"
             . "\xFF\xE1" . pack('n', 4) . 'xx'
             . "\xFF\xC0" . pack('n', 17) . "\x08" . pack('n', 3020) . pack('n', 2139) . str_repeat("\0", 10);
 
-        $this->assertSame([2139, 3020], $controller->imageDimensionsFromHeaderForTest($jpeg));
+        $controller->header = $jpeg;
+
+        $this->assertSame([2139, 3020], $controller->readUploadedImageDimensionsForTest(new Asset()));
     }
 
     private function invokeVolumeSubpath(Volume $volume): string
@@ -149,16 +151,35 @@ class DimensionTestAssetsController extends AssetsController
         return $this->uploadedAssetSize($asset, $filename);
     }
 
-    public function imageDimensionsFromHeaderForTest(string|false $data): ?array
-    {
-        return $this->imageDimensionsFromHeader($data);
-    }
-
     protected function readUploadedImageDimensions(Asset $asset): ?array
     {
         $this->readCount++;
 
         return $this->uploadedImageDimensions;
+    }
+}
+
+class HeaderTestAssetsController extends AssetsController
+{
+    public string $header;
+
+    public function readUploadedImageDimensionsForTest(Asset $asset): ?array
+    {
+        return $this->readUploadedImageDimensions($asset);
+    }
+
+    protected function uploadedImageHeaderStream(Asset $asset)
+    {
+        $stream = fopen('php://temp', 'r+');
+
+        if ($stream === false) {
+            return null;
+        }
+
+        fwrite($stream, $this->header);
+        rewind($stream);
+
+        return $stream;
     }
 }
 

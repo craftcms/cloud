@@ -11,6 +11,7 @@ use craft\events\ReplaceAssetEvent;
 use craft\fields\Assets as AssetsField;
 use craft\helpers\Assets;
 use craft\helpers\Db;
+use craft\helpers\Image;
 use craft\models\Volume;
 use craft\web\Controller;
 use DateTime;
@@ -417,18 +418,38 @@ class AssetsController extends Controller
 
     protected function readUploadedImageDimensions(Asset $asset): ?array
     {
-        $header = $this->uploadedImageHeader($asset);
+        $stream = $this->uploadedImageHeaderStream($asset);
 
-        if ($header === null) {
+        if ($stream === null) {
             return null;
         }
 
-        return $this->imageDimensionsFromHeader($header);
+        try {
+            $imageSize = Image::imageSizeByStream($stream);
+
+            if ($imageSize === false || !isset($imageSize[0], $imageSize[1])) {
+                return null;
+            }
+
+            return [
+                (int)$imageSize[0] ?: null,
+                (int)$imageSize[1] ?: null,
+            ];
+        } catch (Throwable) {
+            return null;
+        } finally {
+            if (is_resource($stream)) {
+                fclose($stream);
+            }
+        }
     }
 
-    protected function uploadedImageHeader(Asset $asset): ?string
+    /**
+     * @return resource|null
+     */
+    protected function uploadedImageHeaderStream(Asset $asset)
     {
-        $stream = null;
+        $sourceStream = null;
 
         try {
             $fs = $asset->getVolume()->getFs();
@@ -446,118 +467,36 @@ class AssetsController extends Controller
                     'Range' => sprintf('bytes=0-%d', self::IMAGE_DIMENSION_HEADER_BYTES - 1),
                 ]);
 
-                return (string)$object->get('Body');
+                return $this->stringStream((string)$object->get('Body'));
             }
 
-            $stream = $fs->getFileStream($asset->getPath());
-            $data = stream_get_contents($stream, self::IMAGE_DIMENSION_HEADER_BYTES);
+            $sourceStream = $fs->getFileStream($asset->getPath());
+            $data = stream_get_contents($sourceStream, self::IMAGE_DIMENSION_HEADER_BYTES);
 
-            return is_string($data) ? $data : null;
+            return is_string($data) ? $this->stringStream($data) : null;
         } catch (Throwable) {
             return null;
         } finally {
-            if (is_resource($stream)) {
-                fclose($stream);
+            if (is_resource($sourceStream)) {
+                fclose($sourceStream);
             }
         }
     }
 
-    protected function imageDimensionsFromHeader(string|false $data): ?array
+    /**
+     * @return resource|null
+     */
+    private function stringStream(string $contents)
     {
-        if (!is_string($data) || strlen($data) < 10) {
+        $stream = fopen('php://temp', 'r+');
+
+        if ($stream === false) {
             return null;
         }
 
-        return match (substr($data, 0, 2)) {
-            "\xFF\xD8" => $this->jpegDimensionsFromHeader($data),
-            'GI' => $this->gifDimensionsFromHeader($data),
-            "\x89P" => $this->pngDimensionsFromHeader($data),
-            default => null,
-        };
-    }
+        fwrite($stream, $contents);
+        rewind($stream);
 
-    private function gifDimensionsFromHeader(string $data): ?array
-    {
-        if (!in_array(substr($data, 0, 6), ['GIF89a', 'GIF87a'], true)) {
-            return null;
-        }
-
-        $dimensions = unpack('vwidth/vheight', substr($data, 6, 4));
-
-        return isset($dimensions['width'], $dimensions['height'])
-            ? [(int)$dimensions['width'] ?: null, (int)$dimensions['height'] ?: null]
-            : null;
-    }
-
-    private function pngDimensionsFromHeader(string $data): ?array
-    {
-        if (strlen($data) < 24 || substr($data, 0, 8) !== "\x89PNG\x0D\x0A\x1A\x0A" || substr($data, 12, 4) !== 'IHDR') {
-            return null;
-        }
-
-        $dimensions = unpack('Nwidth/Nheight', substr($data, 16, 8));
-
-        return isset($dimensions['width'], $dimensions['height'])
-            ? [(int)$dimensions['width'] ?: null, (int)$dimensions['height'] ?: null]
-            : null;
-    }
-
-    private function jpegDimensionsFromHeader(string $data): ?array
-    {
-        $validFrames = [0xC0, 0xC1, 0xC2, 0xC3, 0xC5, 0xC6, 0xC7, 0xC9, 0xCA, 0xCB, 0xCD, 0xCE, 0xCF];
-        $offset = 2;
-        $length = strlen($data);
-
-        while ($offset + 4 <= $length) {
-            if (ord($data[$offset]) !== 0xFF) {
-                return null;
-            }
-
-            while ($offset < $length && ord($data[$offset]) === 0xFF) {
-                $offset++;
-            }
-
-            if ($offset >= $length) {
-                return null;
-            }
-
-            $marker = ord($data[$offset]);
-            $offset++;
-
-            if ($marker === 0xD9 || $marker === 0xDA) {
-                return null;
-            }
-
-            if ($marker === 0x01 || ($marker >= 0xD0 && $marker <= 0xD7)) {
-                continue;
-            }
-
-            if ($offset + 2 > $length) {
-                return null;
-            }
-
-            $segment = unpack('nlength', substr($data, $offset, 2));
-            $segmentLength = $segment['length'] ?? 0;
-
-            if ($segmentLength < 2 || $offset + $segmentLength > $length) {
-                return null;
-            }
-
-            if (in_array($marker, $validFrames, true)) {
-                if ($segmentLength < 7) {
-                    return null;
-                }
-
-                $dimensions = unpack('nheight/nwidth', substr($data, $offset + 3, 4));
-
-                return isset($dimensions['width'], $dimensions['height'])
-                    ? [(int)$dimensions['width'] ?: null, (int)$dimensions['height'] ?: null]
-                    : null;
-            }
-
-            $offset += $segmentLength;
-        }
-
-        return null;
+        return $stream;
     }
 }
