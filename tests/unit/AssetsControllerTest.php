@@ -6,8 +6,10 @@ use Codeception\Test\Unit;
 use Craft;
 use craft\cloud\controllers\AssetsController;
 use craft\elements\Asset;
+use craft\helpers\Assets as AssetsHelper;
 use craft\models\Volume;
 use ReflectionMethod;
+use yii\web\BadRequestHttpException;
 
 class AssetsControllerTest extends Unit
 {
@@ -90,6 +92,36 @@ class AssetsControllerTest extends Unit
         $this->assertSame(1, $controller->readCount);
     }
 
+    public function testUploadedAssetSizeUsesActualVolumeSize(): void
+    {
+        $controller = new DimensionTestAssetsController('cloud-assets', Craft::$app);
+        $asset = new SizeTestAsset(123);
+        $asset->setFilename('upload.jpeg');
+
+        $this->assertSame(123, $controller->uploadedAssetSizeForTest($asset, 'upload.jpeg'));
+    }
+
+    public function testUploadedAssetSizeRejectsOversizedActualFile(): void
+    {
+        $controller = new DimensionTestAssetsController('cloud-assets', Craft::$app);
+        $asset = new SizeTestAsset((int)AssetsHelper::getMaxUploadSize() + 1);
+        $asset->setFilename('upload.jpeg');
+
+        $this->expectException(BadRequestHttpException::class);
+
+        $controller->uploadedAssetSizeForTest($asset, 'upload.jpeg');
+    }
+
+    public function testImageDimensionsCanBeReadFromBoundedJpegHeader(): void
+    {
+        $controller = new DimensionTestAssetsController('cloud-assets', Craft::$app);
+        $jpeg = "\xFF\xD8"
+            . "\xFF\xE1" . pack('n', 4) . 'xx'
+            . "\xFF\xC0" . pack('n', 17) . "\x08" . pack('n', 3020) . pack('n', 2139) . str_repeat("\0", 10);
+
+        $this->assertSame([2139, 3020], $controller->imageDimensionsFromHeaderForTest($jpeg));
+    }
+
     private function invokeVolumeSubpath(Volume $volume): string
     {
         $controller = new AssetsController('cloud-assets', Craft::$app);
@@ -112,10 +144,51 @@ class DimensionTestAssetsController extends AssetsController
         return $this->uploadedImageDimensions($asset, $filename);
     }
 
+    public function uploadedAssetSizeForTest(Asset $asset, string $filename): int
+    {
+        return $this->uploadedAssetSize($asset, $filename);
+    }
+
+    public function imageDimensionsFromHeaderForTest(string|false $data): ?array
+    {
+        return $this->imageDimensionsFromHeader($data);
+    }
+
     protected function readUploadedImageDimensions(Asset $asset): ?array
     {
         $this->readCount++;
 
         return $this->uploadedImageDimensions;
+    }
+}
+
+class SizeTestAsset extends Asset
+{
+    private int $fileSize;
+
+    public function __construct(int $fileSize)
+    {
+        $this->fileSize = $fileSize;
+
+        parent::__construct();
+    }
+
+    public function getVolume(): Volume
+    {
+        return new class($this->fileSize) extends Volume {
+            private int $fileSize;
+
+            public function __construct(int $fileSize)
+            {
+                $this->fileSize = $fileSize;
+
+                parent::__construct();
+            }
+
+            public function getFileSize(string $uri): int
+            {
+                return $this->fileSize;
+            }
+        };
     }
 }

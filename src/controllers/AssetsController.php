@@ -11,8 +11,6 @@ use craft\events\ReplaceAssetEvent;
 use craft\fields\Assets as AssetsField;
 use craft\helpers\Assets;
 use craft\helpers\Db;
-use craft\helpers\FileHelper;
-use craft\helpers\Image;
 use craft\models\Volume;
 use craft\web\Controller;
 use DateTime;
@@ -27,6 +25,8 @@ use yii\web\Response;
 class AssetsController extends Controller
 {
     use AssetsControllerTrait;
+
+    private const IMAGE_DIMENSION_HEADER_BYTES = 1048576;
 
     public function actionGetUploadUrl(): Response
     {
@@ -97,7 +97,6 @@ class AssetsController extends Controller
         $filename = $this->request->getRequiredBodyParam('filename');
         $originalFilename = $this->request->getRequiredBodyParam('originalFilename');
         $targetFilename = $this->request->getRequiredBodyParam('targetFilename');
-        $size = $this->request->getBodyParam('size');
         $elementsService = Craft::$app->getElements();
         $lastModifiedMs = (int) $this->request->getBodyParam('lastModified');
         $dateModified = $lastModifiedMs
@@ -160,7 +159,6 @@ class AssetsController extends Controller
         $asset->uploaderId = Craft::$app->getUser()->getId();
         $asset->avoidFilenameConflicts = true;
         $asset->dateModified = $dateModified;
-        $asset->size = $size;
 
         // Setting newFolderId, so that extension validation on newLocation occurs
         $asset->newFolderId = $folder->id;
@@ -171,6 +169,7 @@ class AssetsController extends Controller
         // Handle special characters that have been encoded from the presigned URL
         $asset->folderPath = is_string($folder->path) ? Fs::urlEncodePathSegments($folder->path) : $asset->folderPath;
 
+        $asset->size = $this->uploadedAssetSize($asset, $filename);
         [$asset->width, $asset->height] = $this->uploadedImageDimensions($asset, $filename);
 
         if (!$selectionCondition) {
@@ -240,7 +239,6 @@ class AssetsController extends Controller
         $sourceAssetId = $this->request->getBodyParam('sourceAssetId');
         $filename = $this->request->getBodyParam('filename');
         $targetFilename = $this->request->getBodyParam('targetFilename');
-        $size = $this->request->getBodyParam('size');
         $lastModifiedMs = (int) $this->request->getBodyParam('lastModified');
         $dateModified = $lastModifiedMs
             ? DateTime::createFromFormat('U', (string) floor($lastModifiedMs / 1000))
@@ -271,7 +269,7 @@ class AssetsController extends Controller
 
         // Handle the Element Action
         if ($assetToReplace !== null && $filename) {
-            $assetToReplace->size = $size;
+            $assetToReplace->size = $this->uploadedAssetSize($assetToReplace, $filename);
             $assetToReplace->dateModified = $dateModified;
             if (!$this->replaceAssetFile($assetToReplace, $filename, $targetFilename)) {
                 throw new Exception('Unable to replace asset.');
@@ -395,6 +393,19 @@ class AssetsController extends Controller
         return method_exists($volume, 'getSubpath') ? $volume->getSubpath() : '';
     }
 
+    protected function uploadedAssetSize(Asset $asset, string $filename): int
+    {
+        $size = $asset->getVolume()->getFileSize($asset->getPath($filename));
+
+        if ($size > Assets::getMaxUploadSize()) {
+            throw new BadRequestHttpException(Craft::t('app', '“{filename}” is too large.', [
+                'filename' => $filename,
+            ]));
+        }
+
+        return $size;
+    }
+
     protected function uploadedImageDimensions(Asset $asset, string $filename): array
     {
         if (Assets::getFileKindByExtension($filename) !== Asset::KIND_IMAGE) {
@@ -407,34 +418,123 @@ class AssetsController extends Controller
     protected function readUploadedImageDimensions(Asset $asset): ?array
     {
         $stream = null;
-        $tempPath = null;
 
         try {
             $stream = $asset->getVolume()->getFs()->getFileStream($asset->getPath());
-            $imageSize = Image::imageSizeByStream($stream);
+            $imageSize = $this->imageDimensionsFromHeader(
+                stream_get_contents($stream, self::IMAGE_DIMENSION_HEADER_BYTES),
+            );
 
-            if ($imageSize === false || !isset($imageSize[0], $imageSize[1])) {
-                fclose($stream);
-                $stream = null;
-
-                $tempPath = $asset->getCopyOfFile();
-                $imageSize = Image::imageSize($tempPath);
+            if ($imageSize === null) {
+                return null;
             }
 
-            return [
-                (int)$imageSize[0] ?: null,
-                (int)$imageSize[1] ?: null,
-            ];
+            return $imageSize;
         } catch (Throwable) {
             return null;
         } finally {
             if (is_resource($stream)) {
                 fclose($stream);
             }
-
-            if ($tempPath !== null) {
-                FileHelper::unlink($tempPath);
-            }
         }
+    }
+
+    protected function imageDimensionsFromHeader(string|false $data): ?array
+    {
+        if (!is_string($data) || strlen($data) < 10) {
+            return null;
+        }
+
+        return match (substr($data, 0, 2)) {
+            "\xFF\xD8" => $this->jpegDimensionsFromHeader($data),
+            'GI' => $this->gifDimensionsFromHeader($data),
+            "\x89P" => $this->pngDimensionsFromHeader($data),
+            default => null,
+        };
+    }
+
+    private function gifDimensionsFromHeader(string $data): ?array
+    {
+        if (!in_array(substr($data, 0, 6), ['GIF89a', 'GIF87a'], true)) {
+            return null;
+        }
+
+        $dimensions = unpack('vwidth/vheight', substr($data, 6, 4));
+
+        return isset($dimensions['width'], $dimensions['height'])
+            ? [(int)$dimensions['width'] ?: null, (int)$dimensions['height'] ?: null]
+            : null;
+    }
+
+    private function pngDimensionsFromHeader(string $data): ?array
+    {
+        if (strlen($data) < 24 || substr($data, 0, 8) !== "\x89PNG\x0D\x0A\x1A\x0A" || substr($data, 12, 4) !== 'IHDR') {
+            return null;
+        }
+
+        $dimensions = unpack('Nwidth/Nheight', substr($data, 16, 8));
+
+        return isset($dimensions['width'], $dimensions['height'])
+            ? [(int)$dimensions['width'] ?: null, (int)$dimensions['height'] ?: null]
+            : null;
+    }
+
+    private function jpegDimensionsFromHeader(string $data): ?array
+    {
+        $validFrames = [0xC0, 0xC1, 0xC2, 0xC3, 0xC5, 0xC6, 0xC7, 0xC9, 0xCA, 0xCB, 0xCD, 0xCE, 0xCF];
+        $offset = 2;
+        $length = strlen($data);
+
+        while ($offset + 4 <= $length) {
+            if (ord($data[$offset]) !== 0xFF) {
+                return null;
+            }
+
+            while ($offset < $length && ord($data[$offset]) === 0xFF) {
+                $offset++;
+            }
+
+            if ($offset >= $length) {
+                return null;
+            }
+
+            $marker = ord($data[$offset]);
+            $offset++;
+
+            if ($marker === 0xD9 || $marker === 0xDA) {
+                return null;
+            }
+
+            if ($marker === 0x01 || ($marker >= 0xD0 && $marker <= 0xD7)) {
+                continue;
+            }
+
+            if ($offset + 2 > $length) {
+                return null;
+            }
+
+            $segment = unpack('nlength', substr($data, $offset, 2));
+            $segmentLength = $segment['length'] ?? 0;
+
+            if ($segmentLength < 2 || $offset + $segmentLength > $length) {
+                return null;
+            }
+
+            if (in_array($marker, $validFrames, true)) {
+                if ($segmentLength < 7) {
+                    return null;
+                }
+
+                $dimensions = unpack('nheight/nwidth', substr($data, $offset + 3, 4));
+
+                return isset($dimensions['width'], $dimensions['height'])
+                    ? [(int)$dimensions['width'] ?: null, (int)$dimensions['height'] ?: null]
+                    : null;
+            }
+
+            $offset += $segmentLength;
+        }
+
+        return null;
     }
 }
