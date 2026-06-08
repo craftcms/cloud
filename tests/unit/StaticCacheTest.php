@@ -49,13 +49,13 @@ class StaticCacheTest extends Unit
         parent::_after();
     }
 
-    public function testNonTemplateResponseWithoutTagsDoesNotAddCacheHeaders(): void
+    public function testNonTemplateResponseWithoutTagsAddsCacheHeaders(): void
     {
         $this->addCacheHeadersToWebResponse(new StaticCache());
 
         $headers = Craft::$app->getResponse()->getHeaders();
 
-        $this->assertFalse($headers->has(HeaderEnum::CDN_CACHE_CONTROL->value));
+        $this->assertMatchesRegularExpression('/^public,max-age=\d+,stale-while-revalidate=3600$/', $headers->get(HeaderEnum::CDN_CACHE_CONTROL->value));
         $this->assertFalse($headers->has(HeaderEnum::CACHE_TAG->value));
     }
 

@@ -218,10 +218,6 @@ class StaticCache extends \yii\base\Component
         $this->tags->push(...$existingTagsFromHeader);
         $this->tags = $this->prepareTags(...$this->tags);
 
-        if ($this->tags->isEmpty()) {
-            return;
-        }
-
         $this->cacheDuration = $this->cacheDuration ?? Module::getInstance()->getConfig()->staticCacheDuration;
 
         $cacheControlDirectives = Collection::make($headers->get(
