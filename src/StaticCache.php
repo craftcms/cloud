@@ -321,6 +321,7 @@ class StaticCache extends \yii\base\Component
         $response = Craft::$app->getResponse();
 
         return
+            ($request->getIsGet() || $request->getIsHead()) &&
             !$request->getIsCpRequest() &&
             $response instanceof \craft\web\Response &&
             $response->getIsOk();
