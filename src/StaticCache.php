@@ -39,7 +39,6 @@ class StaticCache extends \yii\base\Component
     private Collection $tags;
     private Collection $tagsToPurge;
     private bool $collectingCacheInfo = false;
-    private bool $renderedPageTemplate = false;
 
     public function init(): void
     {
@@ -134,8 +133,6 @@ class StaticCache extends \yii\base\Component
 
     private function handleBeforeRenderPageTemplate(TemplateEvent $event): void
     {
-        $this->renderedPageTemplate = true;
-
         /** @var UrlManager $urlManager */
         $urlManager = Craft::$app->getUrlManager();
         $matchedElement = $urlManager->getMatchedElement();
@@ -221,7 +218,7 @@ class StaticCache extends \yii\base\Component
         $this->tags->push(...$existingTagsFromHeader);
         $this->tags = $this->prepareTags(...$this->tags);
 
-        if ($this->tags->isEmpty() && !$this->renderedPageTemplate) {
+        if ($this->tags->isEmpty()) {
             return;
         }
 

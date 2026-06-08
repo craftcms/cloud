@@ -8,7 +8,6 @@ use craft\cloud\HeaderEnum;
 use craft\cloud\Module as CloudModule;
 use craft\cloud\StaticCache;
 use ReflectionMethod;
-use ReflectionProperty;
 
 class StaticCacheTest extends Unit
 {
@@ -60,19 +59,6 @@ class StaticCacheTest extends Unit
         $this->assertSame(['headless-tag'], $headers->get(HeaderEnum::CACHE_TAG->value, first: false));
     }
 
-    public function testTemplateResponseWithoutTagsStillAddsCacheHeaders(): void
-    {
-        $staticCache = new StaticCache();
-        $this->setRenderedPageTemplate($staticCache);
-
-        $this->addCacheHeadersToWebResponse($staticCache);
-
-        $headers = Craft::$app->getResponse()->getHeaders();
-
-        $this->assertMatchesRegularExpression('/^public,max-age=\d+,stale-while-revalidate=3600$/', $headers->get(HeaderEnum::CDN_CACHE_CONTROL->value));
-        $this->assertFalse($headers->has(HeaderEnum::CACHE_TAG->value));
-    }
-
     public function testCpResponsesAreNotCacheable(): void
     {
         $staticCache = new StaticCache();
@@ -115,10 +101,4 @@ class StaticCacheTest extends Unit
         return $method->invoke($staticCache);
     }
 
-    private function setRenderedPageTemplate(StaticCache $staticCache): void
-    {
-        $property = new ReflectionProperty($staticCache, 'renderedPageTemplate');
-        $property->setAccessible(true);
-        $property->setValue($staticCache, true);
-    }
 }
