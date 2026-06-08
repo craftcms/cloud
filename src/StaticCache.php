@@ -9,6 +9,7 @@ use craft\events\InvalidateElementCachesEvent;
 use craft\events\RegisterCacheOptionsEvent;
 use craft\events\TemplateEvent;
 use craft\helpers\ElementHelper;
+use craft\helpers\Session as SessionHelper;
 use craft\services\Elements;
 use craft\utilities\ClearCaches;
 use craft\web\UrlManager;
@@ -314,10 +315,12 @@ class StaticCache extends \yii\base\Component
     {
         $request = Craft::$app->getRequest();
         $response = Craft::$app->getResponse();
+        $user = Craft::$app->getUser();
 
         return
             ($request->getIsGet() || $request->getIsHead()) &&
             !$request->getIsCpRequest() &&
+            !SessionHelper::has($user->idParam) &&
             $response instanceof \craft\web\Response &&
             $response->getIsOk();
     }
