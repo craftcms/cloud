@@ -312,10 +312,12 @@ class StaticCache extends \yii\base\Component
 
     private function isCacheable(): bool
     {
+        $request = Craft::$app->getRequest();
         $response = Craft::$app->getResponse();
 
         return
-            Craft::$app->getView()->templateMode === View::TEMPLATE_MODE_SITE &&
+            ($request->getIsGet() || $request->getIsHead()) &&
+            !$request->getIsCpRequest() &&
             $response instanceof \craft\web\Response &&
             $response->getIsOk();
     }
