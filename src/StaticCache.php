@@ -315,12 +315,11 @@ class StaticCache extends \yii\base\Component
     {
         $request = Craft::$app->getRequest();
         $response = Craft::$app->getResponse();
-        $user = Craft::$app->getUser();
 
         return
             ($request->getIsGet() || $request->getIsHead()) &&
             !$request->getIsCpRequest() &&
-            !SessionHelper::has($user->idParam) &&
+            !SessionHelper::exists() &&
             $response instanceof \craft\web\Response &&
             $response->getIsOk();
     }
