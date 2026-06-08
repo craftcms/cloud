@@ -5,6 +5,7 @@ namespace craft\cloud\tests\unit;
 use Codeception\Test\Unit;
 use Craft;
 use craft\cloud\StaticCache;
+use craft\helpers\Session as SessionHelper;
 use ReflectionMethod;
 
 class StaticCacheTest extends Unit
@@ -23,6 +24,7 @@ class StaticCacheTest extends Unit
         Craft::$app->getRequest()->setIsCpRequest(false);
         Craft::$app->getResponse()->clear();
         Craft::$app->getResponse()->setStatusCode(200);
+        SessionHelper::remove(Craft::$app->getUser()->idParam);
 
         $this->requestMethod = $_SERVER['REQUEST_METHOD'] ?? null;
         $_SERVER['REQUEST_METHOD'] = 'GET';
@@ -32,6 +34,7 @@ class StaticCacheTest extends Unit
     {
         Craft::$app->getRequest()->setIsCpRequest(null);
         Craft::$app->getResponse()->clear();
+        SessionHelper::remove(Craft::$app->getUser()->idParam);
 
         if ($this->requestMethod === null) {
             unset($_SERVER['REQUEST_METHOD']);
@@ -47,6 +50,15 @@ class StaticCacheTest extends Unit
         $staticCache = new StaticCache();
 
         Craft::$app->getRequest()->setIsCpRequest(true);
+
+        $this->assertFalse($this->isCacheable($staticCache));
+    }
+
+    public function testAuthenticatedSessionsAreNotCacheable(): void
+    {
+        $staticCache = new StaticCache();
+
+        SessionHelper::set(Craft::$app->getUser()->idParam, 123);
 
         $this->assertFalse($this->isCacheable($staticCache));
     }
