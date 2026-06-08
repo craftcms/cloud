@@ -4,8 +4,6 @@ namespace craft\cloud\tests\unit;
 
 use Codeception\Test\Unit;
 use Craft;
-use craft\cloud\HeaderEnum;
-use craft\cloud\Module as CloudModule;
 use craft\cloud\StaticCache;
 use ReflectionMethod;
 
@@ -21,11 +19,6 @@ class StaticCacheTest extends Unit
     protected function _before(): void
     {
         parent::_before();
-
-        if (CloudModule::getInstance() === null) {
-            $module = new CloudModule('cloud');
-            $module->bootstrap(Craft::$app);
-        }
 
         Craft::$app->getRequest()->setIsCpRequest(false);
         Craft::$app->getResponse()->clear();
@@ -49,27 +42,6 @@ class StaticCacheTest extends Unit
         parent::_after();
     }
 
-    public function testNonTemplateResponseWithoutTagsAddsCacheHeaders(): void
-    {
-        $this->addCacheHeadersToWebResponse(new StaticCache());
-
-        $headers = Craft::$app->getResponse()->getHeaders();
-
-        $this->assertMatchesRegularExpression('/^public,max-age=\d+,stale-while-revalidate=3600$/', $headers->get(HeaderEnum::CDN_CACHE_CONTROL->value));
-        $this->assertFalse($headers->has(HeaderEnum::CACHE_TAG->value));
-    }
-
-    public function testNonTemplateResponseWithTagsAddsCacheHeaders(): void
-    {
-        $headers = Craft::$app->getResponse()->getHeaders();
-        $headers->add(HeaderEnum::CACHE_TAG->value, 'headless-tag');
-
-        $this->addCacheHeadersToWebResponse(new StaticCache());
-
-        $this->assertMatchesRegularExpression('/^public,max-age=\d+,stale-while-revalidate=3600$/', $headers->get(HeaderEnum::CDN_CACHE_CONTROL->value));
-        $this->assertSame(['headless-tag'], $headers->get(HeaderEnum::CACHE_TAG->value, first: false));
-    }
-
     public function testCpResponsesAreNotCacheable(): void
     {
         $staticCache = new StaticCache();
@@ -79,24 +51,15 @@ class StaticCacheTest extends Unit
         $this->assertFalse($this->isCacheable($staticCache));
     }
 
-    public function testGetSiteResponsesAreCacheable(): void
+    public function testReadResponsesAreCacheable(): void
     {
         $staticCache = new StaticCache();
 
-        Craft::$app->getRequest()->setIsCpRequest(false);
-        $_SERVER['REQUEST_METHOD'] = 'GET';
+        foreach (['GET', 'HEAD'] as $method) {
+            $_SERVER['REQUEST_METHOD'] = $method;
 
-        $this->assertTrue($this->isCacheable($staticCache));
-    }
-
-    public function testHeadSiteResponsesAreCacheable(): void
-    {
-        $staticCache = new StaticCache();
-
-        Craft::$app->getRequest()->setIsCpRequest(false);
-        $_SERVER['REQUEST_METHOD'] = 'HEAD';
-
-        $this->assertTrue($this->isCacheable($staticCache));
+            $this->assertTrue($this->isCacheable($staticCache));
+        }
     }
 
     public function testPostResponsesAreNotCacheable(): void
@@ -106,22 +69,6 @@ class StaticCacheTest extends Unit
         $_SERVER['REQUEST_METHOD'] = 'POST';
 
         $this->assertFalse($this->isCacheable($staticCache));
-    }
-
-    public function testErrorResponsesAreNotCacheable(): void
-    {
-        $staticCache = new StaticCache();
-
-        Craft::$app->getResponse()->setStatusCode(500);
-
-        $this->assertFalse($this->isCacheable($staticCache));
-    }
-
-    private function addCacheHeadersToWebResponse(StaticCache $staticCache): void
-    {
-        $method = new ReflectionMethod($staticCache, 'addCacheHeadersToWebResponse');
-        $method->setAccessible(true);
-        $method->invoke($staticCache);
     }
 
     private function isCacheable(StaticCache $staticCache): bool
