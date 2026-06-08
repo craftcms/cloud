@@ -210,15 +210,8 @@ class StaticCache extends \yii\base\Component
 
     private function addCacheHeadersToWebResponse(): void
     {
-        $headers = Craft::$app->getResponse()->getHeaders();
-
-        // Capture and remove any existing headers, so we can prepare them
-        $existingTagsFromHeader = Collection::make($headers->get(HeaderEnum::CACHE_TAG->value, first: false) ?? []);
-        $headers->remove(HeaderEnum::CACHE_TAG->value);
-        $this->tags->push(...$existingTagsFromHeader);
-        $this->tags = $this->prepareTags(...$this->tags);
-
         $this->cacheDuration = $this->cacheDuration ?? Module::getInstance()->getConfig()->staticCacheDuration;
+        $headers = Craft::$app->getResponse()->getHeaders();
 
         $cacheControlDirectives = Collection::make($headers->get(
             HeaderEnum::CACHE_CONTROL->value,
@@ -240,6 +233,12 @@ class StaticCache extends \yii\base\Component
             HeaderEnum::CDN_CACHE_CONTROL->value,
             $cdnCacheControlDirectives->implode(','),
         );
+
+        // Capture and remove any existing headers, so we can prepare them
+        $existingTagsFromHeader = Collection::make($headers->get(HeaderEnum::CACHE_TAG->value, first: false) ?? []);
+        $headers->remove(HeaderEnum::CACHE_TAG->value);
+        $this->tags->push(...$existingTagsFromHeader);
+        $this->tags = $this->prepareTags(...$this->tags);
 
         Craft::info(new PsrMessage('Adding cache tags to response', [
             'tags' => $this->tags,
