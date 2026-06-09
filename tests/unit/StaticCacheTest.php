@@ -76,12 +76,16 @@ class StaticCacheTest extends Unit
     {
         $staticCache = new StaticCache();
 
-        Craft::$app->getResponse()->getHeaders()->set(
-            HeaderEnum::CACHE_CONTROL->value,
-            'no-cache, no-store, must-revalidate',
-        );
+        foreach ([HeaderEnum::CACHE_CONTROL, HeaderEnum::CDN_CACHE_CONTROL] as $header) {
+            Craft::$app->getResponse()->getHeaders()->set(
+                $header->value,
+                'no-cache, no-store, must-revalidate',
+            );
 
-        $this->assertTrue($this->hasNoCacheHeader($staticCache));
+            $this->assertTrue($this->hasNoCacheHeader($staticCache));
+
+            Craft::$app->getResponse()->clear();
+        }
     }
 
     private function isCacheable(StaticCache $staticCache): bool

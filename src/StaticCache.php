@@ -328,26 +328,34 @@ class StaticCache extends \yii\base\Component
 
     private function hasNoCacheHeader(): bool
     {
+        return Collection::make([
+            HeaderEnum::CACHE_CONTROL->value,
+            HeaderEnum::CDN_CACHE_CONTROL->value,
+        ])
+            ->flatMap(fn(string $headerName) => $this->cacheHeaderValues($headerName))
+            ->contains(fn(string $header) => preg_match('/(?:^|,\s*)(no-cache|no-store)\b/i', $header) === 1);
+    }
+
+    private function cacheHeaderValues(string $headerName): Collection
+    {
         $headers = Craft::$app->getResponse()->getHeaders();
 
         $responseHeaders = Collection::make($headers->get(
-            HeaderEnum::CACHE_CONTROL->value,
+            $headerName,
             first: false,
         ) ?? []);
 
         $nativeHeaders = Collection::make(headers_list())
             ->filter(fn(string $header) => str_starts_with(
                 strtolower($header),
-                strtolower(HeaderEnum::CACHE_CONTROL->value . ':'),
+                strtolower("$headerName:"),
             ))
             ->map(fn(string $header) => trim(substr(
                 $header,
-                strlen(HeaderEnum::CACHE_CONTROL->value) + 1,
+                strlen($headerName) + 1,
             )));
 
-        return $responseHeaders
-            ->merge($nativeHeaders)
-            ->contains(fn(string $header) => preg_match('/(?:^|,\s*)(no-cache|no-store)\b/i', $header) === 1);
+        return $responseHeaders->merge($nativeHeaders);
     }
 
     private function prepareTags(string|StaticCacheTag ...$tags): Collection
