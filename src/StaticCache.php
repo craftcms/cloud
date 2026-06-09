@@ -340,6 +340,16 @@ class StaticCache extends \yii\base\Component
 
     private function syncNativeCacheHeaders(): void
     {
+        $nativeHeaders = Collection::make(headers_list())
+            ->map(function(string $header) {
+                [$name, $value] = array_pad(explode(':', $header, 2), 2, '');
+
+                return [
+                    'name' => trim($name),
+                    'value' => trim($value),
+                ];
+            });
+
         foreach ([HeaderEnum::CDN_CACHE_CONTROL, HeaderEnum::CACHE_CONTROL] as $header) {
             $headers = Craft::$app->getResponse()->getHeaders();
             $name = $header->value;
@@ -348,18 +358,13 @@ class StaticCache extends \yii\base\Component
                 continue;
             }
 
-            $nativeHeader = Collection::make(headers_list())->first(fn(string $nativeHeader) => str_starts_with(
-                strtolower($nativeHeader),
-                strtolower("$name:"),
-            ));
+            $nativeHeader = $nativeHeaders->first(fn(array $nativeHeader) => strtolower($nativeHeader['name']) === strtolower($name));
 
             if (!$nativeHeader) {
                 continue;
             }
 
-            $value = trim(substr($nativeHeader, strlen($name) + 1));
-
-            $headers->set($name, $value);
+            $headers->set($name, $nativeHeader['value']);
         }
     }
 
