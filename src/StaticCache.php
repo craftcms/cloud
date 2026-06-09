@@ -308,20 +308,13 @@ class StaticCache extends \yii\base\Component
 
     private function staticCacheDirectives(): Collection
     {
-        $headers = Craft::$app->getResponse()->getHeaders();
-        $cdnCacheControlDirectives = Collection::make($headers->get(
-            HeaderEnum::CDN_CACHE_CONTROL->value,
-            first: false,
-        ) ?? []);
+        $cdnCacheControlDirectives = $this->headerDirectives(HeaderEnum::CDN_CACHE_CONTROL->value);
 
         if ($cdnCacheControlDirectives->isNotEmpty()) {
             return $cdnCacheControlDirectives;
         }
 
-        $cacheControlDirectives = Collection::make($headers->get(
-            HeaderEnum::CACHE_CONTROL->value,
-            first: false,
-        ) ?? []);
+        $cacheControlDirectives = $this->headerDirectives(HeaderEnum::CACHE_CONTROL->value);
 
         if ($cacheControlDirectives->isNotEmpty()) {
             return $cacheControlDirectives;
@@ -335,6 +328,23 @@ class StaticCache extends \yii\base\Component
             "max-age=$this->cacheDuration",
             "stale-while-revalidate=$swrDuration",
         ]);
+    }
+
+    private function headerDirectives(string $name): Collection
+    {
+        $headers = Craft::$app->getResponse()->getHeaders();
+        $directives = Collection::make($headers->get($name, first: false) ?? []);
+
+        if ($directives->isNotEmpty()) {
+            return $directives;
+        }
+
+        return Collection::make(headers_list())
+            ->filter(fn(string $header) => str_starts_with(
+                strtolower($header),
+                strtolower("$name:"),
+            ))
+            ->map(fn(string $header) => trim(substr($header, strlen($name) + 1)));
     }
 
     private function prepareTags(string|StaticCacheTag ...$tags): Collection
