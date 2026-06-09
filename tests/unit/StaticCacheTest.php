@@ -4,6 +4,7 @@ namespace craft\cloud\tests\unit;
 
 use Codeception\Test\Unit;
 use Craft;
+use craft\cloud\HeaderEnum;
 use craft\cloud\StaticCache;
 use ReflectionMethod;
 
@@ -71,9 +72,29 @@ class StaticCacheTest extends Unit
         $this->assertFalse($this->isCacheable($staticCache));
     }
 
+    public function testNoCacheResponsesDoNotAllowStaticCacheHeaders(): void
+    {
+        $staticCache = new StaticCache();
+
+        Craft::$app->getResponse()->getHeaders()->set(
+            HeaderEnum::CACHE_CONTROL->value,
+            'no-cache, no-store, must-revalidate',
+        );
+
+        $this->assertTrue($this->hasNoCacheHeader($staticCache));
+    }
+
     private function isCacheable(StaticCache $staticCache): bool
     {
         $method = new ReflectionMethod($staticCache, 'isCacheable');
+        $method->setAccessible(true);
+
+        return $method->invoke($staticCache);
+    }
+
+    private function hasNoCacheHeader(StaticCache $staticCache): bool
+    {
+        $method = new ReflectionMethod($staticCache, 'hasNoCacheHeader');
         $method->setAccessible(true);
 
         return $method->invoke($staticCache);

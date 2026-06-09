@@ -128,6 +128,10 @@ class StaticCache extends \yii\base\Component
             $this->cacheDuration = $duration;
         }
 
+        if ($this->hasNoCacheHeader()) {
+            return;
+        }
+
         $this->addCacheHeadersToWebResponse();
     }
 
@@ -320,6 +324,30 @@ class StaticCache extends \yii\base\Component
             !$request->getIsCpRequest() &&
             $response instanceof \craft\web\Response &&
             $response->getIsOk();
+    }
+
+    private function hasNoCacheHeader(): bool
+    {
+        $headers = Craft::$app->getResponse()->getHeaders();
+
+        $responseHeaders = Collection::make($headers->get(
+            HeaderEnum::CACHE_CONTROL->value,
+            first: false,
+        ) ?? []);
+
+        $nativeHeaders = Collection::make(headers_list())
+            ->filter(fn(string $header) => str_starts_with(
+                strtolower($header),
+                strtolower(HeaderEnum::CACHE_CONTROL->value . ':'),
+            ))
+            ->map(fn(string $header) => trim(substr(
+                $header,
+                strlen(HeaderEnum::CACHE_CONTROL->value) + 1,
+            )));
+
+        return $responseHeaders
+            ->merge($nativeHeaders)
+            ->contains(fn(string $header) => preg_match('/(?:^|,\s*)(no-cache|no-store)\b/i', $header) === 1);
     }
 
     private function prepareTags(string|StaticCacheTag ...$tags): Collection
