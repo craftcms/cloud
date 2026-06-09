@@ -308,13 +308,22 @@ class StaticCache extends \yii\base\Component
 
     private function staticCacheDirectives(): Collection
     {
-        $cdnCacheControlDirectives = $this->headerDirectives(HeaderEnum::CDN_CACHE_CONTROL->value);
+        $this->syncNativeCacheHeaders();
+        $headers = Craft::$app->getResponse()->getHeaders();
+
+        $cdnCacheControlDirectives = Collection::make($headers->get(
+            HeaderEnum::CDN_CACHE_CONTROL->value,
+            first: false,
+        ) ?? []);
 
         if ($cdnCacheControlDirectives->isNotEmpty()) {
             return $cdnCacheControlDirectives;
         }
 
-        $cacheControlDirectives = $this->headerDirectives(HeaderEnum::CACHE_CONTROL->value);
+        $cacheControlDirectives = Collection::make($headers->get(
+            HeaderEnum::CACHE_CONTROL->value,
+            first: false,
+        ) ?? []);
 
         if ($cacheControlDirectives->isNotEmpty()) {
             return $cacheControlDirectives;
@@ -330,21 +339,32 @@ class StaticCache extends \yii\base\Component
         ]);
     }
 
-    private function headerDirectives(string $name): Collection
+    private function syncNativeCacheHeaders(): void
+    {
+        foreach ([HeaderEnum::CDN_CACHE_CONTROL, HeaderEnum::CACHE_CONTROL] as $header) {
+            $this->syncNativeCacheHeader($header);
+        }
+    }
+
+    private function syncNativeCacheHeader(HeaderEnum $header): void
     {
         $headers = Craft::$app->getResponse()->getHeaders();
-        $directives = Collection::make($headers->get($name, first: false) ?? []);
+        $name = $header->value;
 
-        if ($directives->isNotEmpty()) {
-            return $directives;
+        if ($headers->has($name)) {
+            return;
         }
 
-        return Collection::make(headers_list())
-            ->filter(fn(string $header) => str_starts_with(
-                strtolower($header),
-                strtolower("$name:"),
-            ))
-            ->map(fn(string $header) => trim(substr($header, strlen($name) + 1)));
+        $nativeHeader = Collection::make(headers_list())->first(fn(string $nativeHeader) => str_starts_with(
+            strtolower($nativeHeader),
+            strtolower("$name:"),
+        ));
+
+        if (!$nativeHeader) {
+            return;
+        }
+
+        $headers->set($name, trim(substr($nativeHeader, strlen($name) + 1)));
     }
 
     private function prepareTags(string|StaticCacheTag ...$tags): Collection
