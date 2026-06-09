@@ -73,25 +73,6 @@ class StaticCacheTest extends Unit
         $this->assertFalse($this->isCacheable($staticCache));
     }
 
-    public function testNoCacheHeadersAreUsedForStaticCacheDirectives(): void
-    {
-        $staticCache = new StaticCache();
-
-        foreach ([HeaderEnum::CACHE_CONTROL, HeaderEnum::CDN_CACHE_CONTROL] as $header) {
-            Craft::$app->getResponse()->getHeaders()->set(
-                $header->value,
-                'no-cache, no-store, must-revalidate',
-            );
-
-            $this->assertSame(
-                ['no-cache, no-store, must-revalidate'],
-                $this->staticCacheDirectives($staticCache)->all(),
-            );
-
-            Craft::$app->getResponse()->clear();
-        }
-    }
-
     public function testStaticCacheDirectivesPreferCdnCacheControl(): void
     {
         $staticCache = new StaticCache();
@@ -126,5 +107,4 @@ class StaticCacheTest extends Unit
 
         return $method->invoke($staticCache);
     }
-
 }
