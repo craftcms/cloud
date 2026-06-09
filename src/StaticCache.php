@@ -128,10 +128,6 @@ class StaticCache extends \yii\base\Component
             $this->cacheDuration = $duration;
         }
 
-        if ($this->hasNoCacheHeader()) {
-            return;
-        }
-
         $this->addCacheHeadersToWebResponse();
     }
 
@@ -214,28 +210,16 @@ class StaticCache extends \yii\base\Component
 
     private function addCacheHeadersToWebResponse(): void
     {
-        $this->cacheDuration = $this->cacheDuration ?? Module::getInstance()->getConfig()->staticCacheDuration;
         $headers = Craft::$app->getResponse()->getHeaders();
+        $staticCacheDirectives = $this->staticCacheDirectives();
 
-        $cacheControlDirectives = Collection::make($headers->get(
-            HeaderEnum::CACHE_CONTROL->value,
-            first: false,
-        ));
-
-        // Copy cache-control directives to the cdn-cache-control header
-        // @see https://developers.cloudflare.com/cache/concepts/cdn-cache-control/#header-precedence
-        $swrDuration = Module::getInstance()->getConfig()->staticCacheStaleWhileRevalidateDuration;
-        $cdnCacheControlDirectives = $cacheControlDirectives->isEmpty()
-            ? Collection::make([
-                'public',
-                "max-age=$this->cacheDuration",
-                "stale-while-revalidate=$swrDuration",
-            ])
-            : $cacheControlDirectives;
+        if ($this->hasNoCacheDirective($staticCacheDirectives)) {
+            return;
+        }
 
         $headers->setDefault(
             HeaderEnum::CDN_CACHE_CONTROL->value,
-            $cdnCacheControlDirectives->implode(','),
+            $staticCacheDirectives->implode(','),
         );
 
         // Capture and remove any existing headers, so we can prepare them
@@ -326,36 +310,40 @@ class StaticCache extends \yii\base\Component
             $response->getIsOk();
     }
 
-    private function hasNoCacheHeader(): bool
-    {
-        return Collection::make([
-            HeaderEnum::CACHE_CONTROL->value,
-            HeaderEnum::CDN_CACHE_CONTROL->value,
-        ])
-            ->flatMap(fn(string $headerName) => $this->cacheHeaderValues($headerName))
-            ->contains(fn(string $header) => preg_match('/(?:^|,\s*)(no-cache|no-store)\b/i', $header) === 1);
-    }
-
-    private function cacheHeaderValues(string $headerName): Collection
+    private function staticCacheDirectives(): Collection
     {
         $headers = Craft::$app->getResponse()->getHeaders();
-
-        $responseHeaders = Collection::make($headers->get(
-            $headerName,
+        $cdnCacheControlDirectives = Collection::make($headers->get(
+            HeaderEnum::CDN_CACHE_CONTROL->value,
             first: false,
         ) ?? []);
 
-        $nativeHeaders = Collection::make(headers_list())
-            ->filter(fn(string $header) => str_starts_with(
-                strtolower($header),
-                strtolower("$headerName:"),
-            ))
-            ->map(fn(string $header) => trim(substr(
-                $header,
-                strlen($headerName) + 1,
-            )));
+        if ($cdnCacheControlDirectives->isNotEmpty()) {
+            return $cdnCacheControlDirectives;
+        }
 
-        return $responseHeaders->merge($nativeHeaders);
+        $cacheControlDirectives = Collection::make($headers->get(
+            HeaderEnum::CACHE_CONTROL->value,
+            first: false,
+        ) ?? []);
+
+        if ($cacheControlDirectives->isNotEmpty()) {
+            return $cacheControlDirectives;
+        }
+
+        $this->cacheDuration = $this->cacheDuration ?? Module::getInstance()->getConfig()->staticCacheDuration;
+        $swrDuration = Module::getInstance()->getConfig()->staticCacheStaleWhileRevalidateDuration;
+
+        return Collection::make([
+            'public',
+            "max-age=$this->cacheDuration",
+            "stale-while-revalidate=$swrDuration",
+        ]);
+    }
+
+    private function hasNoCacheDirective(Collection $directives): bool
+    {
+        return $directives->contains(fn(string $directive) => preg_match('/(?:^|,\s*)(no-cache|no-store)\b/i', $directive) === 1);
     }
 
     private function prepareTags(string|StaticCacheTag ...$tags): Collection

@@ -6,6 +6,7 @@ use Codeception\Test\Unit;
 use Craft;
 use craft\cloud\HeaderEnum;
 use craft\cloud\StaticCache;
+use Illuminate\Support\Collection;
 use ReflectionMethod;
 
 class StaticCacheTest extends Unit
@@ -82,10 +83,32 @@ class StaticCacheTest extends Unit
                 'no-cache, no-store, must-revalidate',
             );
 
-            $this->assertTrue($this->hasNoCacheHeader($staticCache));
+            $this->assertTrue($this->hasNoCacheDirective(
+                $staticCache,
+                $this->staticCacheDirectives($staticCache),
+            ));
 
             Craft::$app->getResponse()->clear();
         }
+    }
+
+    public function testStaticCacheDirectivesPreferCdnCacheControl(): void
+    {
+        $staticCache = new StaticCache();
+
+        Craft::$app->getResponse()->getHeaders()->set(
+            HeaderEnum::CACHE_CONTROL->value,
+            'public,max-age=60',
+        );
+        Craft::$app->getResponse()->getHeaders()->set(
+            HeaderEnum::CDN_CACHE_CONTROL->value,
+            'no-store',
+        );
+
+        $this->assertSame(
+            ['no-store'],
+            $this->staticCacheDirectives($staticCache)->all(),
+        );
     }
 
     private function isCacheable(StaticCache $staticCache): bool
@@ -96,11 +119,19 @@ class StaticCacheTest extends Unit
         return $method->invoke($staticCache);
     }
 
-    private function hasNoCacheHeader(StaticCache $staticCache): bool
+    private function staticCacheDirectives(StaticCache $staticCache): Collection
     {
-        $method = new ReflectionMethod($staticCache, 'hasNoCacheHeader');
+        $method = new ReflectionMethod($staticCache, 'staticCacheDirectives');
         $method->setAccessible(true);
 
         return $method->invoke($staticCache);
+    }
+
+    private function hasNoCacheDirective(StaticCache $staticCache, Collection $directives): bool
+    {
+        $method = new ReflectionMethod($staticCache, 'hasNoCacheDirective');
+        $method->setAccessible(true);
+
+        return $method->invoke($staticCache, $directives);
     }
 }
