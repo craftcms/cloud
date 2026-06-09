@@ -73,7 +73,7 @@ class StaticCacheTest extends Unit
         $this->assertFalse($this->isCacheable($staticCache));
     }
 
-    public function testNoCacheResponsesDoNotAllowStaticCacheHeaders(): void
+    public function testNoCacheHeadersAreUsedForStaticCacheDirectives(): void
     {
         $staticCache = new StaticCache();
 
@@ -83,10 +83,10 @@ class StaticCacheTest extends Unit
                 'no-cache, no-store, must-revalidate',
             );
 
-            $this->assertTrue($this->hasNoCacheDirective(
-                $staticCache,
-                $this->staticCacheDirectives($staticCache),
-            ));
+            $this->assertSame(
+                ['no-cache, no-store, must-revalidate'],
+                $this->staticCacheDirectives($staticCache)->all(),
+            );
 
             Craft::$app->getResponse()->clear();
         }
@@ -127,11 +127,4 @@ class StaticCacheTest extends Unit
         return $method->invoke($staticCache);
     }
 
-    private function hasNoCacheDirective(StaticCache $staticCache, Collection $directives): bool
-    {
-        $method = new ReflectionMethod($staticCache, 'hasNoCacheDirective');
-        $method->setAccessible(true);
-
-        return $method->invoke($staticCache, $directives);
-    }
 }

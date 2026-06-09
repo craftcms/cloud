@@ -213,10 +213,6 @@ class StaticCache extends \yii\base\Component
         $headers = Craft::$app->getResponse()->getHeaders();
         $staticCacheDirectives = $this->staticCacheDirectives();
 
-        if ($this->hasNoCacheDirective($staticCacheDirectives)) {
-            return;
-        }
-
         $headers->setDefault(
             HeaderEnum::CDN_CACHE_CONTROL->value,
             $staticCacheDirectives->implode(','),
@@ -339,11 +335,6 @@ class StaticCache extends \yii\base\Component
             "max-age=$this->cacheDuration",
             "stale-while-revalidate=$swrDuration",
         ]);
-    }
-
-    private function hasNoCacheDirective(Collection $directives): bool
-    {
-        return $directives->contains(fn(string $directive) => preg_match('/(?:^|,\s*)(no-cache|no-store)\b/i', $directive) === 1);
     }
 
     private function prepareTags(string|StaticCacheTag ...$tags): Collection
