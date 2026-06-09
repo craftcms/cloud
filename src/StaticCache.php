@@ -341,29 +341,24 @@ class StaticCache extends \yii\base\Component
     private function syncNativeCacheHeaders(): void
     {
         foreach ([HeaderEnum::CDN_CACHE_CONTROL, HeaderEnum::CACHE_CONTROL] as $header) {
-            $this->syncNativeCacheHeader($header);
+            $headers = Craft::$app->getResponse()->getHeaders();
+            $name = $header->value;
+
+            if ($headers->has($name)) {
+                continue;
+            }
+
+            $nativeHeader = Collection::make(headers_list())->first(fn(string $nativeHeader) => str_starts_with(
+                strtolower($nativeHeader),
+                strtolower("$name:"),
+            ));
+
+            if (!$nativeHeader) {
+                continue;
+            }
+
+            $headers->set($name, trim(substr($nativeHeader, strlen($name) + 1)));
         }
-    }
-
-    private function syncNativeCacheHeader(HeaderEnum $header): void
-    {
-        $headers = Craft::$app->getResponse()->getHeaders();
-        $name = $header->value;
-
-        if ($headers->has($name)) {
-            return;
-        }
-
-        $nativeHeader = Collection::make(headers_list())->first(fn(string $nativeHeader) => str_starts_with(
-            strtolower($nativeHeader),
-            strtolower("$name:"),
-        ));
-
-        if (!$nativeHeader) {
-            return;
-        }
-
-        $headers->set($name, trim(substr($nativeHeader, strlen($name) + 1)));
     }
 
     private function prepareTags(string|StaticCacheTag ...$tags): Collection
