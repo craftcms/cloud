@@ -211,11 +211,10 @@ class StaticCache extends \yii\base\Component
     private function addCacheHeadersToWebResponse(): void
     {
         $headers = Craft::$app->getResponse()->getHeaders();
-        $staticCacheDirectives = $this->staticCacheDirectives();
 
         $headers->setDefault(
             HeaderEnum::CDN_CACHE_CONTROL->value,
-            $staticCacheDirectives->implode(','),
+            $this->staticCacheDirectives()->implode(','),
         );
 
         // Capture and remove any existing headers, so we can prepare them
