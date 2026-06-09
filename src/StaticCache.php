@@ -357,7 +357,9 @@ class StaticCache extends \yii\base\Component
                 continue;
             }
 
-            $headers->set($name, trim(substr($nativeHeader, strlen($name) + 1)));
+            $value = trim(substr($nativeHeader, strlen($name) + 1));
+
+            $headers->set($name, $value);
         }
     }
 
