@@ -9,11 +9,11 @@ use craft\events\InvalidateElementCachesEvent;
 use craft\events\RegisterCacheOptionsEvent;
 use craft\events\TemplateEvent;
 use craft\helpers\ElementHelper;
-use craft\helpers\Session as SessionHelper;
 use craft\services\Elements;
 use craft\utilities\ClearCaches;
 use craft\web\UrlManager;
 use craft\web\View;
+use GuzzleHttp\Utils as GuzzleUtils;
 use Illuminate\Support\Collection;
 use League\Uri\Components\Path;
 use samdark\log\PsrMessage;
@@ -211,28 +211,11 @@ class StaticCache extends \yii\base\Component
 
     private function addCacheHeadersToWebResponse(): void
     {
-        $this->cacheDuration = $this->cacheDuration ?? Module::getInstance()->getConfig()->staticCacheDuration;
         $headers = Craft::$app->getResponse()->getHeaders();
-
-        $cacheControlDirectives = Collection::make($headers->get(
-            HeaderEnum::CACHE_CONTROL->value,
-            first: false,
-        ));
-
-        // Copy cache-control directives to the cdn-cache-control header
-        // @see https://developers.cloudflare.com/cache/concepts/cdn-cache-control/#header-precedence
-        $swrDuration = Module::getInstance()->getConfig()->staticCacheStaleWhileRevalidateDuration;
-        $cdnCacheControlDirectives = $cacheControlDirectives->isEmpty()
-            ? Collection::make([
-                'public',
-                "max-age=$this->cacheDuration",
-                "stale-while-revalidate=$swrDuration",
-            ])
-            : $cacheControlDirectives;
 
         $headers->setDefault(
             HeaderEnum::CDN_CACHE_CONTROL->value,
-            $cdnCacheControlDirectives->implode(','),
+            $this->staticCacheDirectives()->implode(','),
         );
 
         // Capture and remove any existing headers, so we can prepare them
@@ -319,9 +302,63 @@ class StaticCache extends \yii\base\Component
         return
             ($request->getIsGet() || $request->getIsHead()) &&
             !$request->getIsCpRequest() &&
-            !SessionHelper::exists() &&
             $response instanceof \craft\web\Response &&
             $response->getIsOk();
+    }
+
+    private function staticCacheDirectives(): Collection
+    {
+        $this->syncNativeCacheHeaders();
+        $headers = Craft::$app->getResponse()->getHeaders();
+
+        $cdnCacheControlDirectives = Collection::make($headers->get(
+            HeaderEnum::CDN_CACHE_CONTROL->value,
+            first: false,
+        ) ?? []);
+
+        if ($cdnCacheControlDirectives->isNotEmpty()) {
+            return $cdnCacheControlDirectives;
+        }
+
+        $cacheControlDirectives = Collection::make($headers->get(
+            HeaderEnum::CACHE_CONTROL->value,
+            first: false,
+        ) ?? []);
+
+        if ($cacheControlDirectives->isNotEmpty()) {
+            return $cacheControlDirectives;
+        }
+
+        $this->cacheDuration = $this->cacheDuration ?? Module::getInstance()->getConfig()->staticCacheDuration;
+        $swrDuration = Module::getInstance()->getConfig()->staticCacheStaleWhileRevalidateDuration;
+
+        return Collection::make([
+            'public',
+            "max-age=$this->cacheDuration",
+            "stale-while-revalidate=$swrDuration",
+        ]);
+    }
+
+    private function syncNativeCacheHeaders(): void
+    {
+        $headers = Craft::$app->getResponse()->getHeaders();
+        $nativeHeaders = Collection::make(GuzzleUtils::headersFromLines(headers_list()));
+
+        foreach ([HeaderEnum::CDN_CACHE_CONTROL, HeaderEnum::CACHE_CONTROL] as $header) {
+            $name = $header->value;
+
+            if ($headers->has($name)) {
+                continue;
+            }
+
+            $values = $nativeHeaders->first(fn(array $values, string $nativeName) => strtolower($nativeName) === strtolower($name));
+
+            if (!$values) {
+                continue;
+            }
+
+            $headers->set($name, $values);
+        }
     }
 
     private function prepareTags(string|StaticCacheTag ...$tags): Collection
