@@ -4,7 +4,7 @@
         "Read more about it at https://getcomposer.org/doc/01-basic-usage.md#installing-dependencies",
         "This file is @generated automatically"
     ],
-    "content-hash": "b26b8aa4892c1dfa64bc47191b04d39b",
+    "content-hash": "dcd08efcfa79b08fba1ef27eeef85643",
     "packages": [
         {
             "name": "99designs/http-signatures",

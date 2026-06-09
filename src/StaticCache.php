@@ -13,6 +13,7 @@ use craft\services\Elements;
 use craft\utilities\ClearCaches;
 use craft\web\UrlManager;
 use craft\web\View;
+use GuzzleHttp\Utils as GuzzleUtils;
 use Illuminate\Support\Collection;
 use League\Uri\Components\Path;
 use samdark\log\PsrMessage;
@@ -340,31 +341,23 @@ class StaticCache extends \yii\base\Component
 
     private function syncNativeCacheHeaders(): void
     {
-        $nativeHeaders = Collection::make(headers_list())
-            ->map(function(string $header) {
-                [$name, $value] = array_pad(explode(':', $header, 2), 2, '');
-
-                return [
-                    'name' => trim($name),
-                    'value' => trim($value),
-                ];
-            });
+        $headers = Craft::$app->getResponse()->getHeaders();
+        $nativeHeaders = Collection::make(GuzzleUtils::headersFromLines(headers_list()));
 
         foreach ([HeaderEnum::CDN_CACHE_CONTROL, HeaderEnum::CACHE_CONTROL] as $header) {
-            $headers = Craft::$app->getResponse()->getHeaders();
             $name = $header->value;
 
             if ($headers->has($name)) {
                 continue;
             }
 
-            $nativeHeader = $nativeHeaders->first(fn(array $nativeHeader) => strtolower($nativeHeader['name']) === strtolower($name));
+            $values = $nativeHeaders->first(fn(array $values, string $nativeName) => strtolower($nativeName) === strtolower($name));
 
-            if (!$nativeHeader) {
+            if (!$values) {
                 continue;
             }
 
-            $headers->set($name, $nativeHeader['value']);
+            $headers->set($name, $values);
         }
     }
 

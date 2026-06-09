@@ -8,6 +8,7 @@
     "bref/extra-php-extensions": "^3",
     "craftcms/cms": "^4.6 || ^5",
     "craftcms/flysystem": "^1.0.0 || ^2.0.0",
+    "guzzlehttp/guzzle": "^7.4.5",
     "league/flysystem-aws-s3-v3": "^3.15",
     "league/uri": "^7.6",
     "league/uri-components": "^7.6",
