@@ -100,6 +100,7 @@ Most configuration (to Craft and the extension itself) is handled directly by Cl
 | `artifactBaseUrl`     | `string\|null` | Directly set a fully-qualified URL to build artifacts.                                                                          |
 | `s3ClientOptions`     | `array`        | Additional settings to pass to the `Aws\S3\S3Client` instance when accessing storage APIs.                                      |
 | `cdnBaseUrl`          | `string`       | Used when building URLs to [assets](#filesystem) and other build [artifacts](#artifacturl).                                     |
+| `gatewayBaseUrl`      | `string`       | Used when making gateway API requests.                                                                                          |
 | `sqsUrl`              | `string`       | Determines how Craft communicates with the underlying queue provider.                                                           |
 | `projectId`           | `string`       | UUID of the current project.                                                                                                    |
 | `environmentId`       | `string`       | UUID of the current [environment](https://craftcms.com/knowledge-base/cloud-environments).                                      |

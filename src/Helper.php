@@ -5,8 +5,8 @@ namespace craft\cloud;
 use Craft;
 use craft\cloud\fs\BuildArtifactsFs;
 use craft\helpers\App;
-use GuzzleHttp\Psr7\Request;
-use HttpSignatures\Context;
+use GuzzleHttp\Client;
+use GuzzleHttp\RequestOptions;
 use Illuminate\Support\Collection;
 use Psr\Http\Message\ResponseInterface;
 use yii\base\Exception;
@@ -23,49 +23,75 @@ class Helper
         return (new BuildArtifactsFs())->createUrl($path);
     }
 
+    /**
+     * @deprecated Use createGatewayApiClient()->request() instead.
+     */
     public static function makeGatewayApiRequest(iterable $headers): ResponseInterface
     {
-        if (!Helper::isCraftCloud()) {
-            throw new Exception('Gateway API requests are only supported in a Craft Cloud environment.');
+        $normalizeHeaderValue = fn(mixed $value): array => Collection::make(is_iterable($value) ? $value : [$value])
+            ->flatMap(fn(mixed $value) => explode(',', (string) $value))
+            ->map(fn(string $value) => trim($value))
+            ->filter()
+            ->unique()
+            ->values()
+            ->all();
+
+        $tags = [];
+        $prefixes = [];
+
+        foreach ($headers as $name => $value) {
+            if (HeaderEnum::CACHE_PURGE_TAG->matches((string) $name)) {
+                $tags = $normalizeHeaderValue($value);
+                break;
+            }
+
+            if (HeaderEnum::CACHE_PURGE_PREFIX->matches((string) $name)) {
+                $prefixes = $normalizeHeaderValue($value);
+            }
         }
 
-        $headers = Collection::make($headers)
-            ->put(HeaderEnum::REQUEST_TYPE->value, 'api');
-
-        if (Module::getInstance()->getConfig()->getDevMode()) {
-            $headers->put(HeaderEnum::DEV_MODE->value, '1');
+        if (empty($tags) && empty($prefixes)) {
+            throw new Exception('Gateway API requests require a supported purge header.');
         }
 
-        $url = Craft::$app->getRequest()->getIsConsoleRequest()
-            ? Module::getInstance()->getConfig()->getPreviewDomainUrl()
-            : Craft::$app->getRequest()->getHostInfo();
-
-        if (!$url) {
-            throw new Exception('Gateway API requests require a URL.');
-        }
-
-        $context = Helper::createSigningContext($headers->keys());
-        $request = new Request(
-            'HEAD',
-            (string) $url,
-            $headers->all(),
-        );
-
-        return Craft::createGuzzleClient()->send(
-            $context->signer()->sign($request)
+        return self::createGatewayApiClient()->request(
+            'POST',
+            'cache/purge',
+            [
+                RequestOptions::JSON => !empty($tags)
+                    ? ['tags' => $tags]
+                    : ['prefixes' => $prefixes],
+            ],
         );
     }
 
-    private static function createSigningContext(iterable $headers = []): Context
+    public static function createGatewayApiClient(): Client
     {
-        $headers = Collection::make($headers);
+        $config = Module::getInstance()->getConfig();
 
-        return new Context([
-            'keys' => [
-                'hmac' => Module::getInstance()->getConfig()->signingKey,
-            ],
-            'algorithm' => 'hmac-sha256',
-            'headers' => $headers->all(),
+        if (!$config->environmentId) {
+            throw new Exception('Gateway API requests require an environment ID.');
+        }
+
+        if (!$config->signingKey) {
+            throw new Exception('Gateway API requests require a signing key.');
+        }
+
+        $headers = [
+            'X-Gateway-Authorization' => "Bearer {$config->signingKey}",
+        ];
+
+        if ($config->getDevMode()) {
+            $headers[HeaderEnum::DEV_MODE->value] = '1';
+        }
+
+        return Craft::createGuzzleClient([
+            'base_uri' => sprintf(
+                '%s/api/%s/',
+                rtrim($config->gatewayBaseUrl, '/'),
+                rawurlencode($config->environmentId),
+            ),
+            RequestOptions::HEADERS => $headers,
         ]);
     }
 }

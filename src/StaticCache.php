@@ -13,6 +13,7 @@ use craft\services\Elements;
 use craft\utilities\ClearCaches;
 use craft\web\UrlManager;
 use craft\web\View;
+use GuzzleHttp\RequestOptions;
 use GuzzleHttp\Utils as GuzzleUtils;
 use Illuminate\Support\Collection;
 use League\Uri\Components\Path;
@@ -269,10 +270,11 @@ class StaticCache extends \yii\base\Component
             return;
         }
 
-        // TODO: make sure we don't go over max header size
-        Helper::makeGatewayApiRequest([
+        Helper::createGatewayApiClient()->request('POST', 'cache/purge', [
             // Mapping to string because: https://github.com/laravel/framework/pull/54630
-            HeaderEnum::CACHE_PURGE_TAG->value => $tags->map(fn(StaticCacheTag $tag) => (string) $tag)->implode(','),
+            RequestOptions::JSON => [
+                'tags' => $tags->map(fn(StaticCacheTag $tag) => (string) $tag)->values()->all(),
+            ],
         ]);
     }
 
@@ -288,9 +290,10 @@ class StaticCache extends \yii\base\Component
             'urlPrefixes' => $urlPrefixes->all(),
         ]), __METHOD__);
 
-        // TODO: make sure we don't go over max header size
-        Helper::makeGatewayApiRequest([
-            HeaderEnum::CACHE_PURGE_PREFIX->value => $urlPrefixes->implode(','),
+        Helper::createGatewayApiClient()->request('POST', 'cache/purge', [
+            RequestOptions::JSON => [
+                'prefixes' => $urlPrefixes->values()->all(),
+            ],
         ]);
     }
 

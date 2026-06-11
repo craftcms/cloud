@@ -19,6 +19,7 @@ class Config extends BaseConfig
 {
     public ?string $artifactBaseUrl = null;
     public string $cdnBaseUrl = 'https://cdn.craft.cloud';
+    public string $gatewayBaseUrl = 'https://gateway.craft.cloud';
     public bool $gzipResponse = true;
     public ?string $sqsUrl = null;
     public ?string $projectId = null;
