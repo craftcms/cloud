@@ -42,7 +42,12 @@ class Helper
         foreach ($headers as $name => $value) {
             if (HeaderEnum::CACHE_PURGE_TAG->matches((string) $name)) {
                 $tags = $normalizeHeaderValue($value);
-                break;
+
+                if (!empty($tags)) {
+                    break;
+                }
+
+                continue;
             }
 
             if (HeaderEnum::CACHE_PURGE_PREFIX->matches((string) $name)) {

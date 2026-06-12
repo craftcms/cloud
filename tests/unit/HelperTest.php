@@ -4,18 +4,21 @@ namespace craft\cloud\tests\unit;
 
 use Codeception\Test\Unit;
 use craft\cloud\Helper;
+use craft\cloud\HeaderEnum;
 use craft\cloud\Module;
 use GuzzleHttp\RequestOptions;
 use ReflectionMethod;
 
 class HelperTest extends Unit
 {
+    private string|false $craftCloudDevMode = false;
     private ?Module $previousModule = null;
 
     protected function _before(): void
     {
         parent::_before();
 
+        $this->craftCloudDevMode = getenv('CRAFT_CLOUD_DEV_MODE');
         $this->previousModule = Module::getInstance();
         Module::setInstance(new Module('cloud'));
 
@@ -28,6 +31,12 @@ class HelperTest extends Unit
 
     protected function _after(): void
     {
+        if ($this->craftCloudDevMode === false) {
+            putenv('CRAFT_CLOUD_DEV_MODE');
+        } else {
+            putenv("CRAFT_CLOUD_DEV_MODE={$this->craftCloudDevMode}");
+        }
+
         Module::setInstance($this->previousModule);
 
         parent::_after();
@@ -57,6 +66,16 @@ class HelperTest extends Unit
         $headers = $client->getConfig(RequestOptions::HEADERS);
 
         $this->assertSame('Bearer test-signing-key', $headers['X-Gateway-Authorization'] ?? null);
+    }
+
+    public function testGatewayApiClientsAddDevModeHeader(): void
+    {
+        putenv('CRAFT_CLOUD_DEV_MODE=1');
+
+        $client = Helper::createGatewayApiClient();
+        $headers = $client->getConfig(RequestOptions::HEADERS);
+
+        $this->assertSame('1', $headers[HeaderEnum::DEV_MODE->value] ?? null);
     }
 
     public function testGatewayApiRequestHelperKeepsLegacySignature(): void
