@@ -166,7 +166,7 @@ class ImageTransformTest extends Unit
             'svg',
             'avif',
             'heic',
-        ], ImageTransformer::SUPPORTED_INPUT_IMAGE_FORMATS);
+        ], ImageTransformer::SUPPORTED_IMAGE_FORMATS);
     }
 
     private function setActionSegments(?array $actionSegments): void

@@ -21,7 +21,8 @@ use yii\base\NotSupportedException;
  */
 class ImageTransformer extends Component implements ImageTransformerInterface
 {
-    public const SUPPORTED_INPUT_IMAGE_FORMATS = ['png', 'jpg', 'jpeg', 'gif', 'webp', 'svg', 'avif', 'heic'];
+    // Source asset extensions Cloudflare Images can accept for transformations.
+    public const SUPPORTED_IMAGE_FORMATS = ['png', 'jpg', 'jpeg', 'gif', 'webp', 'svg', 'avif', 'heic'];
 
     private const SIGNING_PARAM = 's';
 
