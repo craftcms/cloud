@@ -5,6 +5,7 @@ namespace craft\cloud\tests\unit;
 use Codeception\Test\Unit;
 use Craft;
 use craft\cloud\Module as CloudModule;
+use craft\cloud\signing\UrlSigner;
 use craft\cloud\fs\AssetsFs;
 use craft\cloud\imagetransforms\ImageTransformBehavior;
 use craft\cloud\imagetransforms\ImageTransformer;
@@ -24,6 +25,8 @@ class ImageTransformTest extends Unit
             $module = new CloudModule('cloud');
             $module->bootstrap(Craft::$app);
         }
+
+        CloudModule::getInstance()->set('urlSigner', fn() => new UrlSigner('test-signing-key'));
     }
 
     public function testCropModeWithExplicitGravityPreservesItInOptions(): void
@@ -125,6 +128,18 @@ class ImageTransformTest extends Unit
         $this->assertStringContainsString('gravity%5Bx%5D=0.4631', $secondUrl);
         $this->assertStringContainsString('gravity%5By%5D=0.308', $secondUrl);
         $this->assertStringNotContainsString('gravity%5Bx%5D=0.57', $secondUrl);
+    }
+
+    public function testTransformUrlSigningUsesSharedUrlSigner(): void
+    {
+        $transformer = new UrlTestImageTransformer();
+        $asset = $this->makeUrlAssetStub(1, 'test.jpg', 100, 100, ['x' => 0.5, 'y' => 0.5]);
+        $transform = new ImageTransform(['width' => 100, 'height' => 100]);
+
+        $signedUrl = $transformer->getTransformUrl($asset, $transform, true);
+
+        $this->assertStringContainsString('&s=', $signedUrl);
+        $this->assertTrue(CloudModule::getInstance()->getUrlSigner()->verify($signedUrl));
     }
 
     public function testEditImageActionUsesNativeTransforms(): void

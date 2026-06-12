@@ -3,9 +3,13 @@
 namespace craft\cloud;
 
 use Craft;
+use craft\cloud\signing\UrlSigner;
 use craft\helpers\UrlHelper;
 use InvalidArgumentException;
 
+/**
+ * @internal
+ */
 class Esi
 {
     public function __construct(

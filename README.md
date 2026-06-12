@@ -53,6 +53,106 @@ composer update "craftcms/cms:^5" "craftcms/flysystem:^2.0" --with-all-dependenc
 
 ## Developer Features
 
+### Signed HTTP Requests
+
+Use the module’s request signer to sign a PSR-7 request with Cloud’s signing key before sending it to any destination that can verify HTTP message signatures.
+
+```php
+use craft\cloud\Module;
+use GuzzleHttp\Psr7\Request;
+
+$signer = Module::getInstance()->getRequestSigner();
+
+$signedRequest = $signer->sign(new Request('POST', 'https://example.test/webhook'));
+```
+
+External systems can create compatible signatures without this PHP package. See
+[httpsig.org](https://httpsig.org/) for more information about HTTP message signatures. For example,
+install [`http-message-sig`](https://www.npmjs.com/package/http-message-sig) in a Node-based build
+environment:
+
+```bash
+npm install http-message-sig
+```
+
+Then a build script, e.g. on Vercel, can sign a Craft GraphQL request:
+
+```js
+import crypto from 'node:crypto';
+import { signatureHeadersSync } from 'http-message-sig';
+
+const method = 'POST';
+const url = process.env.CRAFT_GRAPHQL_URL;
+
+const body = JSON.stringify({
+    query: `
+        {
+            entries(section: "blog") {
+                title
+                url
+            }
+        }
+    `,
+});
+
+const headers = {
+    'Content-Type': 'application/json',
+    Authorization: `Bearer ${process.env.CRAFT_GRAPHQL_TOKEN}`,
+};
+
+const signer = {
+    keyid: 'hmac',
+    alg: 'hmac-sha256',
+    signSync(data) {
+        return crypto
+            .createHmac('sha256', process.env.CRAFT_CLOUD_SIGNING_KEY)
+            .update(data)
+            .digest();
+    },
+};
+
+const created = new Date();
+const signatureHeaders = signatureHeadersSync(
+    { method, url, headers, body },
+    {
+        key: 'sig',
+        signer,
+        components: ['@method', '@target-uri'],
+        created,
+        expires: new Date(created.getTime() + 300_000),
+    },
+);
+
+const response = await fetch(url, {
+    method,
+    headers: {
+        ...headers,
+        ...signatureHeaders,
+    },
+    body,
+});
+
+const responseBody = await response.json();
+```
+
+The `@target-uri` value must be the exact URL being requested, including any query string.
+
+### Signed URLs
+
+Use the module’s URL signer when you need a signed URL instead of a signed HTTP request.
+
+```php
+use craft\cloud\Module;
+
+$signer = Module::getInstance()->getUrlSigner();
+
+$signedUrl = $signer->sign('https://example.test/downloads/report.pdf?version=latest');
+$isValid = $signer->verify($signedUrl);
+```
+
+URL signatures cover the URL’s path and query string, so changing either invalidates the
+signature.
+
 ### Template Helpers
 
 #### `cloud.artifactUrl()`
@@ -109,7 +209,7 @@ Most configuration (to Craft and the extension itself) is handled directly by Cl
 | `accessSecret`        | `string`       | AWS access secret, used in conjunction with the `accessKey`.                                                                    |
 | `accessToken`         | `string`       | AWS access token.                                                                                                               |
 | `redisUrl`            | `string`       | Connection string for the environment’s Redis instance.                                                                         |
-| `signingKey`          | `string`       | A secret value used to protect transform URLs against abuse.                                                                    |
+| `signingKey`          | `string`       | A secret value used to protect transform URLs and sign HTTP requests. |
 | `useAssetBundleCdn`   | `boolean`      | Whether or not to enable the CDN for asset bundles.                                                                             |
 | `previewDomain`       | `string\|null` | Set when accessing an environment from its [preview domain](https://craftcms.com/knowledge-base/cloud-domains#preview-domains). |
 | `useQueue`            | `boolean`      | Whether or not to use Cloud’s SQS-backed queue driver.                                                                          |

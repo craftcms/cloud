@@ -11,20 +11,19 @@ use craft\helpers\Assets;
 use craft\helpers\Html;
 use craft\models\ImageTransform;
 use League\Uri\Components\Query;
-use League\Uri\Contracts\UriInterface;
 use League\Uri\Modifier;
 use League\Uri\Uri;
 use yii\base\NotSupportedException;
 
 /**
  * TODO: ImageEditorTransformerInterface
+ *
+ * @internal
  */
 class ImageTransformer extends Component implements ImageTransformerInterface
 {
     // Source asset extensions Cloudflare Images can accept for transformations.
     public const SUPPORTED_IMAGE_FORMATS = ['png', 'jpg', 'jpeg', 'gif', 'webp', 'svg', 'avif', 'heic'];
-
-    private const SIGNING_PARAM = 's';
 
     public function getTransformUrl(Asset $asset, ImageTransform $imageTransform, bool $immediately): string
     {
@@ -61,7 +60,7 @@ class ImageTransformer extends Component implements ImageTransformerInterface
             ->mergeQuery($query)
             ->unwrap();
 
-        return (string) $this->sign($uri);
+        return Module::getInstance()->getUrlSigner()->sign((string) $uri);
     }
 
     public function invalidateAssetTransforms(Asset $asset): void
@@ -76,33 +75,5 @@ class ImageTransformer extends Component implements ImageTransformerInterface
         }
 
         return $asset->getFocalPoint();
-    }
-
-    private function sign(UriInterface $uri): UriInterface
-    {
-        $data = "{$uri->getPath()}#?{$uri->getQuery()}";
-
-        Craft::info("Signing transform: `{$data}`", __METHOD__);
-
-        // https://developers.cloudflare.com/workers/examples/signing-requests
-        $hash = hash_hmac(
-            'sha256',
-            $data,
-            Module::getInstance()->getConfig()->signingKey,
-            true,
-        );
-
-        $signature = $this->base64UrlEncode($hash);
-
-        return Modifier::wrap($uri)
-            ->mergeQueryParameters([self::SIGNING_PARAM => $signature])
-            ->unwrap();
-    }
-
-    private function base64UrlEncode(string $data): string
-    {
-        $base64Url = strtr(base64_encode($data), '+/', '-_');
-
-        return rtrim($base64Url, '=');
     }
 }

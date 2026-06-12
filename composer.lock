@@ -4,66 +4,8 @@
         "Read more about it at https://getcomposer.org/doc/01-basic-usage.md#installing-dependencies",
         "This file is @generated automatically"
     ],
-    "content-hash": "dcd08efcfa79b08fba1ef27eeef85643",
+    "content-hash": "4b1eea6a66f4ad9940cdb80b82d7eaeb",
     "packages": [
-        {
-            "name": "99designs/http-signatures",
-            "version": "4.0.0",
-            "source": {
-                "type": "git",
-                "url": "https://github.com/99designs/http-signatures-php.git",
-                "reference": "acb9d2e4f4661de9445fa5930b49a259bfd6175b"
-            },
-            "dist": {
-                "type": "zip",
-                "url": "https://api.github.com/repos/99designs/http-signatures-php/zipball/acb9d2e4f4661de9445fa5930b49a259bfd6175b",
-                "reference": "acb9d2e4f4661de9445fa5930b49a259bfd6175b",
-                "shasum": ""
-            },
-            "require": {
-                "paragonie/random_compat": "^1.0|^2.0",
-                "php": ">=5.5",
-                "psr/http-message": "^1.0"
-            },
-            "require-dev": {
-                "friendsofphp/php-cs-fixer": "^1.11",
-                "guzzlehttp/psr7": "^1.2",
-                "phpunit/phpunit": "~4.8",
-                "symfony/http-foundation": "~2.8|~3.0",
-                "symfony/psr-http-message-bridge": "^1.0",
-                "zendframework/zend-diactoros": "^1.1"
-            },
-            "type": "library",
-            "autoload": {
-                "psr-4": {
-                    "HttpSignatures\\": "src/"
-                }
-            },
-            "notification-url": "https://packagist.org/downloads/",
-            "license": [
-                "MIT"
-            ],
-            "authors": [
-                {
-                    "name": "Paul Annesley",
-                    "email": "paul@99designs.com"
-                }
-            ],
-            "description": "Sign and verify HTTP messages",
-            "keywords": [
-                "hmac",
-                "http",
-                "https",
-                "signature",
-                "signed",
-                "signing"
-            ],
-            "support": {
-                "issues": "https://github.com/99designs/http-signatures-php/issues",
-                "source": "https://github.com/99designs/http-signatures-php/tree/master"
-            },
-            "time": "2017-05-04T01:36:17+00:00"
-        },
         {
             "name": "aws/aws-crt-php",
             "version": "v1.2.7",
@@ -268,6 +210,88 @@
                 "source": "https://github.com/Bacon/BaconQrCode/tree/2.0.8"
             },
             "time": "2022-12-07T17:46:57+00:00"
+        },
+        {
+            "name": "bakame/http-structured-fields",
+            "version": "2.0.0",
+            "source": {
+                "type": "git",
+                "url": "https://github.com/bakame-php/http-structured-fields.git",
+                "reference": "d0fc193e5b173a4e90f2fa589d5b97b2b653b323"
+            },
+            "dist": {
+                "type": "zip",
+                "url": "https://api.github.com/repos/bakame-php/http-structured-fields/zipball/d0fc193e5b173a4e90f2fa589d5b97b2b653b323",
+                "reference": "d0fc193e5b173a4e90f2fa589d5b97b2b653b323",
+                "shasum": ""
+            },
+            "require": {
+                "php": "^8.1"
+            },
+            "require-dev": {
+                "bakame/aide-base32": "dev-main",
+                "friendsofphp/php-cs-fixer": "^3.65.0",
+                "httpwg/structured-field-tests": "*@dev",
+                "phpbench/phpbench": "^1.3.1",
+                "phpstan/phpstan": "^2.0.3",
+                "phpstan/phpstan-deprecation-rules": "^2.0.1",
+                "phpstan/phpstan-phpunit": "^2.0.1",
+                "phpstan/phpstan-strict-rules": "^2.0",
+                "phpunit/phpunit": "^10.5.38 || ^11.5.0",
+                "symfony/var-dumper": "^6.4.15 || ^v7.2.0"
+            },
+            "type": "library",
+            "extra": {
+                "branch-alias": {
+                    "dev-develop": "1.x-dev"
+                }
+            },
+            "autoload": {
+                "psr-4": {
+                    "Bakame\\Http\\StructuredFields\\": "src/"
+                }
+            },
+            "notification-url": "https://packagist.org/downloads/",
+            "license": [
+                "MIT"
+            ],
+            "authors": [
+                {
+                    "name": "Ignace Nyamagana Butera",
+                    "email": "nyamsprod@gmail.com",
+                    "homepage": "https://github.com/nyamsprod/",
+                    "role": "Developer"
+                }
+            ],
+            "description": "A PHP library that parses, validates and serializes HTTP structured fields according to RFC9561 and RFC8941",
+            "keywords": [
+                "headers",
+                "http",
+                "http headers",
+                "http trailers",
+                "parser",
+                "rfc8941",
+                "rfc9651",
+                "serializer",
+                "structured fields",
+                "structured headers",
+                "structured trailers",
+                "structured values",
+                "trailers",
+                "validation"
+            ],
+            "support": {
+                "docs": "https://github.com/bakame-php/http-structured-fields",
+                "issues": "https://github.com/bakame-php/http-structured-fields/issues",
+                "source": "https://github.com/bakame-php/http-structured-fields"
+            },
+            "funding": [
+                {
+                    "url": "https://github.com/sponsors/nyamsprod",
+                    "type": "github"
+                }
+            ],
+            "time": "2024-12-12T08:25:42+00:00"
         },
         {
             "name": "bref/bref",
@@ -1003,6 +1027,59 @@
                 "source": "https://github.com/craftcms/flysystem"
             },
             "time": "2024-03-22T18:41:28+00:00"
+        },
+        {
+            "name": "craftcms/http-message-signatures",
+            "version": "0.1.0",
+            "source": {
+                "type": "git",
+                "url": "https://github.com/craftcms/http-message-signatures-php.git",
+                "reference": "ccb73a34946feb5003086026f4645fa81c9a5553"
+            },
+            "dist": {
+                "type": "zip",
+                "url": "https://api.github.com/repos/craftcms/http-message-signatures-php/zipball/ccb73a34946feb5003086026f4645fa81c9a5553",
+                "reference": "ccb73a34946feb5003086026f4645fa81c9a5553",
+                "shasum": ""
+            },
+            "require": {
+                "bakame/http-structured-fields": "^2.0",
+                "league/uri-components": "^7.0",
+                "php": "^8.1",
+                "psr/http-factory": "^1.0",
+                "psr/http-message": "^2.0"
+            },
+            "require-dev": {
+                "carthage-software/mago": "^1.13",
+                "guzzlehttp/psr7": "^2.0",
+                "http-interop/http-factory-guzzle": "^1.0",
+                "phpstan/extension-installer": "^1.3",
+                "phpstan/phpstan": "^2.0",
+                "phpunit/phpunit": "^10.5"
+            },
+            "type": "library",
+            "autoload": {
+                "psr-4": {
+                    "HttpMessageSignatures\\": "src/"
+                }
+            },
+            "notification-url": "https://packagist.org/downloads/",
+            "license": [
+                "MIT"
+            ],
+            "description": "PSR-7 compliant PHP 8.1+ implementation of HTTP Message Signatures (RFC 9421)",
+            "keywords": [
+                "Authentication",
+                "http",
+                "rfc9421",
+                "security",
+                "signature"
+            ],
+            "support": {
+                "issues": "https://github.com/craftcms/http-message-signatures-php/issues",
+                "source": "https://github.com/craftcms/http-message-signatures-php/tree/0.1.0"
+            },
+            "time": "2026-06-12T14:48:03+00:00"
         },
         {
             "name": "craftcms/plugin-installer",
@@ -3777,60 +3854,6 @@
             "time": "2025-09-24T15:06:41+00:00"
         },
         {
-            "name": "paragonie/random_compat",
-            "version": "v2.0.21",
-            "source": {
-                "type": "git",
-                "url": "https://github.com/paragonie/random_compat.git",
-                "reference": "96c132c7f2f7bc3230723b66e89f8f150b29d5ae"
-            },
-            "dist": {
-                "type": "zip",
-                "url": "https://api.github.com/repos/paragonie/random_compat/zipball/96c132c7f2f7bc3230723b66e89f8f150b29d5ae",
-                "reference": "96c132c7f2f7bc3230723b66e89f8f150b29d5ae",
-                "shasum": ""
-            },
-            "require": {
-                "php": ">=5.2.0"
-            },
-            "require-dev": {
-                "phpunit/phpunit": "*"
-            },
-            "suggest": {
-                "ext-libsodium": "Provides a modern crypto API that can be used to generate random bytes."
-            },
-            "type": "library",
-            "autoload": {
-                "files": [
-                    "lib/random.php"
-                ]
-            },
-            "notification-url": "https://packagist.org/downloads/",
-            "license": [
-                "MIT"
-            ],
-            "authors": [
-                {
-                    "name": "Paragon Initiative Enterprises",
-                    "email": "security@paragonie.com",
-                    "homepage": "https://paragonie.com"
-                }
-            ],
-            "description": "PHP 5.x polyfill for random_bytes() and random_int() from PHP 7",
-            "keywords": [
-                "csprng",
-                "polyfill",
-                "pseudorandom",
-                "random"
-            ],
-            "support": {
-                "email": "info@paragonie.com",
-                "issues": "https://github.com/paragonie/random_compat/issues",
-                "source": "https://github.com/paragonie/random_compat"
-            },
-            "time": "2022-02-16T17:07:03+00:00"
-        },
-        {
             "name": "phlak/semver",
             "version": "4.1.0",
             "source": {
@@ -4791,16 +4814,16 @@
         },
         {
             "name": "psr/http-message",
-            "version": "1.1",
+            "version": "2.0",
             "source": {
                 "type": "git",
                 "url": "https://github.com/php-fig/http-message.git",
-                "reference": "cb6ce4845ce34a8ad9e68117c10ee90a29919eba"
+                "reference": "402d35bcb92c70c026d1a6a9883f06b2ead23d71"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/php-fig/http-message/zipball/cb6ce4845ce34a8ad9e68117c10ee90a29919eba",
-                "reference": "cb6ce4845ce34a8ad9e68117c10ee90a29919eba",
+                "url": "https://api.github.com/repos/php-fig/http-message/zipball/402d35bcb92c70c026d1a6a9883f06b2ead23d71",
+                "reference": "402d35bcb92c70c026d1a6a9883f06b2ead23d71",
                 "shasum": ""
             },
             "require": {
@@ -4809,7 +4832,7 @@
             "type": "library",
             "extra": {
                 "branch-alias": {
-                    "dev-master": "1.1.x-dev"
+                    "dev-master": "2.0.x-dev"
                 }
             },
             "autoload": {
@@ -4824,7 +4847,7 @@
             "authors": [
                 {
                     "name": "PHP-FIG",
-                    "homepage": "http://www.php-fig.org/"
+                    "homepage": "https://www.php-fig.org/"
                 }
             ],
             "description": "Common interface for HTTP messages",
@@ -4838,9 +4861,9 @@
                 "response"
             ],
             "support": {
-                "source": "https://github.com/php-fig/http-message/tree/1.1"
+                "source": "https://github.com/php-fig/http-message/tree/2.0"
             },
-            "time": "2023-04-04T09:50:52+00:00"
+            "time": "2023-04-04T09:54:51+00:00"
         },
         {
             "name": "psr/http-server-handler",

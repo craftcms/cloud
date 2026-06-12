@@ -70,9 +70,11 @@ class Helper
         );
     }
 
+    /** @internal */
     public static function createGatewayApiClient(): Client
     {
-        $config = Module::getInstance()->getConfig();
+        $module = Module::getInstance();
+        $config = $module->getConfig();
 
         if (!$config->environmentId) {
             throw new Exception('Gateway API requests require an environment ID.');
@@ -82,9 +84,7 @@ class Helper
             throw new Exception('Gateway API requests require a signing key.');
         }
 
-        $headers = [
-            'X-Gateway-Authorization' => "Bearer {$config->signingKey}",
-        ];
+        $headers = [];
 
         if ($config->getDevMode()) {
             $headers[HeaderEnum::DEV_MODE->value] = '1';
@@ -96,6 +96,7 @@ class Helper
                 rtrim($config->gatewayBaseUrl, '/'),
                 rawurlencode($config->environmentId),
             ),
+            'handler' => $module->getRequestSigner()->createHandlerStack(),
             RequestOptions::HEADERS => $headers,
         ]);
     }
