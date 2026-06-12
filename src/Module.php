@@ -91,7 +91,7 @@ class Module extends \yii\base\Module implements \yii\base\BootstrapInterface
         }
 
         if ($this->getConfig()->useAssetCdn) {
-            $app->getImages()->supportedImageFormats = ImageTransformer::SUPPORTED_IMAGE_FORMATS;
+            $app->getImages()->supportedImageFormats = ImageTransformer::SUPPORTED_INPUT_IMAGE_FORMATS;
 
             Event::on(
                 Asset::class,
