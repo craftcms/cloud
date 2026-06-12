@@ -155,6 +155,20 @@ class ImageTransformTest extends Unit
         }
     }
 
+    public function testSupportedInputFormatsMatchCloudflareImages(): void
+    {
+        $this->assertSame([
+            'png',
+            'jpg',
+            'jpeg',
+            'gif',
+            'webp',
+            'svg',
+            'avif',
+            'heic',
+        ], ImageTransformer::SUPPORTED_IMAGE_FORMATS);
+    }
+
     private function setActionSegments(?array $actionSegments): void
     {
         $property = new ReflectionProperty(Craft::$app->getRequest(), '_actionSegments');
