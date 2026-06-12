@@ -27,6 +27,148 @@ class ImageTransformer extends Component implements ImageTransformerInterface
     // Source asset extensions Cloudflare Images can accept for transformations.
     public const SUPPORTED_IMAGE_FORMATS = ['png', 'jpg', 'jpeg', 'gif', 'webp', 'svg', 'avif', 'heic'];
 
+    public static function fromImageEditor(
+        Asset $asset,
+        int $viewportRotation,
+        float $imageRotation,
+        array $cropData,
+        array $imageDimensions,
+        ?array $flipData,
+        float $zoom,
+        ?array $focalPoint = null,
+    ): ?ImageTransform {
+        $rotation = ((int)round($imageRotation + $viewportRotation) % 360 + 360) % 360;
+        $flipX = !empty($flipData['x']);
+        $flipY = !empty($flipData['y']);
+        $flip = match (true) {
+            $flipX && $flipY => 'hv',
+            $flipX => 'h',
+            $flipY => 'v',
+            default => null,
+        };
+        $sourceReferenceDimensions = self::rotatedDimensions($imageDimensions['width'], $imageDimensions['height'], 0);
+        $cropReferenceDimensions = self::rotatedDimensions($imageDimensions['width'], $imageDimensions['height'], $rotation);
+        $cropDimensions = [
+            'width' => (int)round($cropData['width']),
+            'height' => (int)round($cropData['height']),
+        ];
+        $imageCropped = $cropDimensions !== $sourceReferenceDimensions && $cropDimensions !== $cropReferenceDimensions;
+        $imageRotated = $rotation !== 0;
+        $imageFlipped = $flip !== null;
+
+        if (!$imageCropped && !$imageRotated && !$imageFlipped) {
+            return null;
+        }
+
+        if (!$asset->width || !$asset->height) {
+            throw new NotSupportedException('Image dimensions are required to edit images.');
+        }
+
+        $transform = new ImageTransform([
+            'width' => $asset->width,
+            'height' => $asset->height,
+        ]);
+
+        /** @var ImageTransformBehavior $behavior */
+        $behavior = $transform->getBehavior('cloud');
+        $behavior->fit = 'crop';
+
+        if ($zoom !== 1.0) {
+            $behavior->zoom = max(0, min(1, 1 - (1 / $zoom)));
+        }
+
+        if ($imageCropped) {
+            $crop = self::crop($asset, $rotation, $cropData, $imageDimensions, $zoom);
+
+            $transform->width = $crop['width'];
+            $transform->height = $crop['height'];
+            $behavior->trim = $crop;
+        }
+
+        if ($imageRotated) {
+            $behavior->rotate = $rotation;
+
+            if (in_array($rotation, [90, 270], true)) {
+                [$transform->width, $transform->height] = [$transform->height, $transform->width];
+            }
+        }
+
+        if ($imageFlipped) {
+            $behavior->flip = $flip;
+        }
+
+        return $transform;
+    }
+
+    private static function crop(Asset $asset, int $rotation, array $cropData, array $imageDimensions, float $zoom): array
+    {
+        $adjustmentRatio = min(
+            $asset->width / $imageDimensions['width'],
+            $asset->height / $imageDimensions['height'],
+        );
+        $editedDimensions = self::rotatedDimensions($asset->width, $asset->height, $rotation);
+
+        $width = (int)round($cropData['width'] * $zoom * $adjustmentRatio);
+        $height = (int)round($cropData['height'] * $zoom * $adjustmentRatio);
+        $crop = [
+            'left' => (int)round(($editedDimensions['width'] / 2) + ($cropData['offsetX'] * $zoom * $adjustmentRatio) - ($width / 2)),
+            'top' => (int)round(($editedDimensions['height'] / 2) + ($cropData['offsetY'] * $zoom * $adjustmentRatio) - ($height / 2)),
+            'width' => $width,
+            'height' => $height,
+        ];
+
+        return self::constrainCrop(
+            self::sourceCrop($crop, $asset->width, $asset->height, $rotation),
+            $asset->width,
+            $asset->height,
+        );
+    }
+
+    private static function sourceCrop(array $crop, int $sourceWidth, int $sourceHeight, int $rotation): array
+    {
+        return match ($rotation) {
+            90 => [
+                'left' => $crop['top'],
+                'top' => $sourceHeight - $crop['left'] - $crop['width'],
+                'width' => $crop['height'],
+                'height' => $crop['width'],
+            ],
+            180 => [
+                'left' => $sourceWidth - $crop['left'] - $crop['width'],
+                'top' => $sourceHeight - $crop['top'] - $crop['height'],
+                'width' => $crop['width'],
+                'height' => $crop['height'],
+            ],
+            270 => [
+                'left' => $sourceWidth - $crop['top'] - $crop['height'],
+                'top' => $crop['left'],
+                'width' => $crop['height'],
+                'height' => $crop['width'],
+            ],
+            default => $crop,
+        };
+    }
+
+    private static function constrainCrop(array $crop, int $sourceWidth, int $sourceHeight): array
+    {
+        $left = max(0, $crop['left']);
+        $top = max(0, $crop['top']);
+
+        return [
+            'left' => $left,
+            'top' => $top,
+            'width' => min($crop['width'], $sourceWidth - $left),
+            'height' => min($crop['height'], $sourceHeight - $top),
+        ];
+    }
+
+    private static function rotatedDimensions(int|float $width, int|float $height, int $rotation): array
+    {
+        return in_array($rotation, [90, 270], true)
+            ? ['width' => (int)round($height), 'height' => (int)round($width)]
+            : ['width' => (int)round($width), 'height' => (int)round($height)];
+    }
+
     public function getTransformUrl(Asset $asset, mixed $transform, bool $immediately): string
     {
         $imageTransform = $this->normalizeTransform($transform);
