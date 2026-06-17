@@ -4,7 +4,7 @@ namespace craft\cloud\tests\unit;
 
 use Codeception\Test\Unit;
 use craft\cloud\Esi;
-use craft\cloud\UrlSigner;
+use craft\cloud\signing\UrlSigner;
 use craft\web\twig\TemplateLoaderException;
 use InvalidArgumentException;
 

@@ -8,6 +8,7 @@
     "bref/extra-php-extensions": "^3",
     "craftcms/cms": "^4.6 || ^5",
     "craftcms/flysystem": "^1.0.0 || ^2.0.0",
+    "craftcms/http-message-signatures": "^0.1",
     "guzzlehttp/guzzle": "^7.4.5",
     "league/flysystem-aws-s3-v3": "^3.15",
     "league/uri": "^7.6",
@@ -15,7 +16,6 @@
     "yiisoft/yii2-redis": "^2.0",
     "yiisoft/yii2-queue": "^2.3.7",
     "phlak/semver": "^4.1",
-    "99designs/http-signatures": "^4.0",
     "symfony/process": "^6",
     "aws/aws-sdk-php": "^3.342.6",
     "craftcms/yii2-cache-cascade": "^1.2.1"

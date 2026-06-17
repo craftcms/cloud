@@ -3,7 +3,8 @@
 namespace craft\cloud\tests\unit;
 
 use Codeception\Test\Unit;
-use craft\cloud\UrlSigner;
+use craft\cloud\signing\UrlSigner;
+use League\Uri\Components\Query;
 
 class UrlSignerTest extends Unit
 {
@@ -61,6 +62,17 @@ class UrlSignerTest extends Unit
         $this->tester->assertStringContainsString('foo=bar', $signedUrl);
         $this->tester->assertStringContainsString('baz=qux', $signedUrl);
         $this->tester->assertStringContainsString('&s=', $signedUrl);
+        $this->tester->assertTrue($this->urlSigner->verify($signedUrl));
+    }
+
+    public function testSignReplacesExistingSignatureParameter()
+    {
+        $signedUrl = $this->urlSigner->sign('https://example.com/test?s=old&foo=bar');
+
+        $parameters = Query::fromUri($signedUrl)->parameters();
+
+        $this->tester->assertArrayHasKey('s', $parameters);
+        $this->tester->assertNotSame('old', $parameters['s']);
         $this->tester->assertTrue($this->urlSigner->verify($signedUrl));
     }
 

@@ -3,9 +3,10 @@
 namespace craft\cloud\tests\unit;
 
 use Codeception\Test\Unit;
-use craft\cloud\Helper;
 use craft\cloud\HeaderEnum;
+use craft\cloud\Helper;
 use craft\cloud\Module;
+use craft\cloud\signing\RequestSigner;
 use GuzzleHttp\RequestOptions;
 use ReflectionMethod;
 
@@ -20,13 +21,18 @@ class HelperTest extends Unit
 
         $this->craftCloudDevMode = getenv('CRAFT_CLOUD_DEV_MODE');
         $this->previousModule = Module::getInstance();
-        Module::setInstance(new Module('cloud'));
+        $module = new Module('cloud');
+        Module::setInstance($module);
 
-        $config = Module::getInstance()->getConfig();
+        $config = $module->getConfig();
 
         $config->environmentId = '123-environment-id';
         $config->gatewayBaseUrl = 'https://gateway.craft.cloud';
         $config->signingKey = 'test-signing-key';
+
+        $module->set('requestSigner', fn() => new RequestSigner(
+            signingKey: $module->getConfig()->signingKey ?? '',
+        ));
     }
 
     protected function _after(): void
@@ -60,12 +66,12 @@ class HelperTest extends Unit
         );
     }
 
-    public function testGatewayApiClientsAddAuthenticationHeaders(): void
+    public function testGatewayApiClientsDoNotAddStaticAuthenticationHeaders(): void
     {
         $client = Helper::createGatewayApiClient();
         $headers = $client->getConfig(RequestOptions::HEADERS);
 
-        $this->assertSame('Bearer test-signing-key', $headers['X-Gateway-Authorization'] ?? null);
+        $this->assertArrayNotHasKey('X-Gateway-Authorization', $headers);
     }
 
     public function testGatewayApiClientsAddDevModeHeader(): void

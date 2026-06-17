@@ -8,6 +8,8 @@ use craft\base\Model;
 use craft\cloud\fs\AssetsFs;
 use craft\cloud\imagetransforms\ImageTransformBehavior;
 use craft\cloud\imagetransforms\ImageTransformer;
+use craft\cloud\signing\RequestSigner;
+use craft\cloud\signing\UrlSigner;
 use craft\cloud\twig\TwigExtension;
 use craft\cloud\web\assets\uploader\UploaderAsset;
 use craft\cloud\web\ResponseEventHandler;
@@ -77,6 +79,9 @@ class Module extends \yii\base\Module implements \yii\base\BootstrapInterface
 
         $this->setComponents([
             'staticCache' => StaticCache::class,
+            'requestSigner' => fn() => new RequestSigner(
+                signingKey: $this->getConfig()->signingKey ?? '',
+            ),
             'urlSigner' => fn() => new UrlSigner(
                 signingKey: $this->getConfig()->signingKey ?? '',
             ),
@@ -247,6 +252,11 @@ class Module extends \yii\base\Module implements \yii\base\BootstrapInterface
     public function getStaticCache(): StaticCache
     {
         return $this->get('staticCache');
+    }
+
+    public function getRequestSigner(): RequestSigner
+    {
+        return $this->get('requestSigner');
     }
 
     public function getUrlSigner(): UrlSigner
