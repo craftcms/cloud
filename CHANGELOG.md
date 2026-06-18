@@ -1,5 +1,9 @@
 # Release Notes for Craft Cloud ⛅️
 
+## 2026-06-18
+- Released version 3.4.1 of the `craftcms/cloud` package.
+  - Required version 1.0+ of `craftcms/http-message-signatures`.
+
 ## 2026-05-19
 - Added Sweden and the United Kingdom as two new regions.
 

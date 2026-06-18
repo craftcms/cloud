@@ -4,7 +4,7 @@
         "Read more about it at https://getcomposer.org/doc/01-basic-usage.md#installing-dependencies",
         "This file is @generated automatically"
     ],
-    "content-hash": "4b1eea6a66f4ad9940cdb80b82d7eaeb",
+    "content-hash": "24d6ecbcbb621089fa1ad0ab19208921",
     "packages": [
         {
             "name": "aws/aws-crt-php",
@@ -1030,7 +1030,7 @@
         },
         {
             "name": "craftcms/http-message-signatures",
-            "version": "0.1.0",
+            "version": "1.0.0",
             "source": {
                 "type": "git",
                 "url": "https://github.com/craftcms/http-message-signatures-php.git",
@@ -1077,7 +1077,7 @@
             ],
             "support": {
                 "issues": "https://github.com/craftcms/http-message-signatures-php/issues",
-                "source": "https://github.com/craftcms/http-message-signatures-php/tree/0.1.0"
+                "source": "https://github.com/craftcms/http-message-signatures-php/tree/1.0.0"
             },
             "time": "2026-06-12T14:48:03+00:00"
         },
@@ -12055,5 +12055,5 @@
         "ext-curl": "*"
     },
     "platform-dev": {},
-    "plugin-api-version": "2.6.0"
+    "plugin-api-version": "2.9.0"
 }
