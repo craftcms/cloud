@@ -10,9 +10,9 @@ use HttpMessageSignatures\Url\UrlSigner as HttpUrlSigner;
 use HttpMessageSignatures\Url\UrlSigningConfig;
 use HttpMessageSignatures\Url\UrlVerifier as HttpUrlVerifier;
 use League\Uri\Components\Query;
+use League\Uri\Exceptions\SyntaxError;
 use League\Uri\Modifier;
 use League\Uri\UriString;
-use Throwable;
 
 class UrlSigner
 {
@@ -33,10 +33,10 @@ class UrlSigner
     {
         try {
             $normalizedUrl = $this->normalizeUrlForSigning($url);
-        } catch (Throwable $e) {
-            Craft::info([
-                'message' => 'Invalid URL signature',
-                'reason' => sprintf('URL could not be normalized: %s', $e->getMessage()),
+        } catch (SyntaxError $e) {
+            Craft::warning([
+                'message' => 'Malformed signed URL',
+                'reason' => $e->getMessage(),
                 'url' => $url,
                 'signatureParameter' => $this->signatureParameter,
             ], __METHOD__);
