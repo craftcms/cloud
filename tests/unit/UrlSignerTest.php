@@ -54,6 +54,13 @@ class UrlSignerTest extends Unit
         $this->tester->assertFalse($this->urlSigner->verify($url));
     }
 
+    public function testVerifyReturnsFalseForMalformedUrl(): void
+    {
+        $url = 'https://exa mple.com/test?s=wrongsignature';
+
+        $this->tester->assertFalse($this->urlSigner->verify($url));
+    }
+
     public function testSignWithExistingQueryParameters()
     {
         $url = 'https://example.com/test?foo=bar&baz=qux';
@@ -63,6 +70,52 @@ class UrlSignerTest extends Unit
         $this->tester->assertStringContainsString('baz=qux', $signedUrl);
         $this->tester->assertStringContainsString('&s=', $signedUrl);
         $this->tester->assertTrue($this->urlSigner->verify($signedUrl));
+    }
+
+    public function testSignNormalizesQueryValuesBeforeSigning(): void
+    {
+        $url = 'https://example.com/actions/cloud/esi/render-template?template=_includes/head';
+        $signedUrl = $this->urlSigner->sign($url);
+
+        $this->tester->assertStringContainsString('template=_includes%2Fhead', $signedUrl);
+        $this->tester->assertTrue($this->urlSigner->verify($signedUrl));
+    }
+
+    public function testSignPreservesFormEncodedQueryValues(): void
+    {
+        $url = 'https://example.com/actions/cloud/esi/render-template?variables%5Btitle%5D=Hello+world';
+        $signedUrl = $this->urlSigner->sign($url);
+
+        $this->tester->assertStringContainsString('variables%5Btitle%5D=Hello%20world', $signedUrl);
+        $this->tester->assertStringNotContainsString('variables%5Btitle%5D=Hello%2Bworld', $signedUrl);
+        $this->tester->assertTrue($this->urlSigner->verify($signedUrl));
+    }
+
+    public function testVerifyRejectsNonCanonicalQueryValues(): void
+    {
+        $encodedUrl = 'https://example.com/actions/cloud/esi/render-template?template=_includes%2Fhead';
+        $signedUrl = $this->urlSigner->sign($encodedUrl);
+        $rawUrl = str_replace('template=_includes%2Fhead', 'template=_includes/head', $signedUrl);
+
+        $this->tester->assertFalse($this->urlSigner->verify($rawUrl));
+    }
+
+    public function testVerifyRejectsQueryValuesThatParseDifferently(): void
+    {
+        $encodedUrl = 'https://example.com/actions/cloud/esi/render-template?template=foo%2Bbar';
+        $signedUrl = $this->urlSigner->sign($encodedUrl);
+        $rawUrl = str_replace('template=foo%2Bbar', 'template=foo+bar', $signedUrl);
+
+        $this->tester->assertFalse($this->urlSigner->verify($rawUrl));
+    }
+
+    public function testVerifyRejectsAlternateFormEncodedQueryValues(): void
+    {
+        $encodedUrl = 'https://example.com/actions/cloud/esi/render-template?variables%5Btitle%5D=Hello%20world';
+        $signedUrl = $this->urlSigner->sign($encodedUrl);
+        $rawUrl = str_replace('variables%5Btitle%5D=Hello%20world', 'variables%5Btitle%5D=Hello+world', $signedUrl);
+
+        $this->tester->assertFalse($this->urlSigner->verify($rawUrl));
     }
 
     public function testSignReplacesExistingSignatureParameter()

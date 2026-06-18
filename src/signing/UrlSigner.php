@@ -9,6 +9,10 @@ use HttpMessageSignatures\Exception\VerificationException;
 use HttpMessageSignatures\Url\UrlSigner as HttpUrlSigner;
 use HttpMessageSignatures\Url\UrlSigningConfig;
 use HttpMessageSignatures\Url\UrlVerifier as HttpUrlVerifier;
+use League\Uri\Components\Query;
+use League\Uri\Modifier;
+use League\Uri\UriString;
+use Throwable;
 
 class UrlSigner
 {
@@ -22,12 +26,29 @@ class UrlSigner
 
     public function sign(string $url): string
     {
-        return $this->createSigner()->sign($url);
+        return $this->createSigner()->sign($this->normalizeUrlForSigning($url));
     }
 
     public function verify(string $url): bool
     {
         try {
+            $normalizedUrl = $this->normalizeUrlForSigning($url);
+        } catch (Throwable $e) {
+            Craft::info([
+                'message' => 'Invalid URL signature',
+                'reason' => sprintf('URL could not be normalized: %s', $e->getMessage()),
+                'url' => $url,
+                'signatureParameter' => $this->signatureParameter,
+            ], __METHOD__);
+
+            return false;
+        }
+
+        try {
+            if ($url !== $normalizedUrl) {
+                throw new VerificationException('URL is not normalized.');
+            }
+
             return $this->createVerifier()->verify($url);
         } catch (VerificationException $e) {
             Craft::info([
@@ -39,6 +60,28 @@ class UrlSigner
 
             return false;
         }
+    }
+
+    /**
+     * Normalize query serialization before signing.
+     *
+     * Older Craft versions leave forward slashes unencoded in query values,
+     * e.g. `template=_includes/head`, and Yii query generation may encode
+     * spaces as `+`. The shared URL signer signs `@query`, then returns a
+     * League URI-serialized URL where slashes are encoded. Signing a normalized
+     * form keeps the signature tied to the exact URL we return, while parsing
+     * with form-data semantics preserves the values PHP will expose to action
+     * controllers.
+     *
+     * @see https://github.com/craftcms/cms/pull/19057
+     */
+    private function normalizeUrlForSigning(string $url): string
+    {
+        $query = Query::fromFormData(UriString::parse($url)['query']);
+
+        return Modifier::wrap($url)
+            ->withQuery($query->toRFC3986())
+            ->toString();
     }
 
     private function createSigner(): HttpUrlSigner
