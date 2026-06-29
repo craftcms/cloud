@@ -113,6 +113,19 @@ class AssetsControllerTest extends Unit
         $this->assertSame(3, $fs->readCount);
     }
 
+    public function testUploadedImageDimensionsFallsBackToFullStream(): void
+    {
+        $fs = new HeaderTestFs();
+        $fs->headers = array_fill(0, 4, "\xFF\xD8" . "\xFF\xE1" . pack('n', 4) . 'xx');
+        $fs->streamHeader = "\xFF\xD8"
+            . "\xFF\xE1" . pack('n', 4) . 'xx'
+            . "\xFF\xC0" . pack('n', 17) . "\x08" . pack('n', 3024) . pack('n', 4032) . str_repeat("\0", 10);
+
+        $this->assertSame([4032, 3024], $fs->getImageDimensions('upload.jpeg'));
+        $this->assertSame(4, $fs->readCount);
+        $this->assertSame(1, $fs->streamReadCount);
+    }
+
     private function invokeVolumeSubpath(Volume $volume): string
     {
         $controller = new AssetsController('cloud-assets', Craft::$app);
@@ -160,6 +173,8 @@ class HeaderTestFs extends Fs
     public string $header;
     public array $headers = [];
     public int $readCount = 0;
+    public ?string $streamHeader = null;
+    public int $streamReadCount = 0;
 
     public static function displayName(): string
     {
@@ -177,6 +192,22 @@ class HeaderTestFs extends Fs
         }
 
         fwrite($stream, $this->headers[$this->readCount - 1] ?? $this->header);
+        rewind($stream);
+
+        return $stream;
+    }
+
+    public function getFileStream(string $uriPath)
+    {
+        $this->streamReadCount++;
+
+        $stream = fopen('php://temp', 'r+');
+
+        if ($stream === false) {
+            return null;
+        }
+
+        fwrite($stream, $this->streamHeader ?? $this->header);
         rewind($stream);
 
         return $stream;
