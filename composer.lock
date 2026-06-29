@@ -4,7 +4,7 @@
         "Read more about it at https://getcomposer.org/doc/01-basic-usage.md#installing-dependencies",
         "This file is @generated automatically"
     ],
-    "content-hash": "24d6ecbcbb621089fa1ad0ab19208921",
+    "content-hash": "46f338fb48697e1600687619ae69a5fe",
     "packages": [
         {
             "name": "aws/aws-crt-php",
@@ -1178,16 +1178,16 @@
         },
         {
             "name": "craftcms/yii2-cache-cascade",
-            "version": "1.2.1",
+            "version": "1.3.0",
             "source": {
                 "type": "git",
                 "url": "https://github.com/craftcms/yii2-cache-cascade.git",
-                "reference": "75be47c5af1804b49fa108f38bc74a35af91c107"
+                "reference": "627265ba559b8fccfc2990c1750a20fe695aa365"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/craftcms/yii2-cache-cascade/zipball/75be47c5af1804b49fa108f38bc74a35af91c107",
-                "reference": "75be47c5af1804b49fa108f38bc74a35af91c107",
+                "url": "https://api.github.com/repos/craftcms/yii2-cache-cascade/zipball/627265ba559b8fccfc2990c1750a20fe695aa365",
+                "reference": "627265ba559b8fccfc2990c1750a20fe695aa365",
                 "shasum": ""
             },
             "require": {
@@ -1219,9 +1219,9 @@
             ],
             "support": {
                 "issues": "https://github.com/craftcms/yii2-cache-cascade/issues",
-                "source": "https://github.com/craftcms/yii2-cache-cascade/tree/1.2.1"
+                "source": "https://github.com/craftcms/yii2-cache-cascade/tree/1.3.0"
             },
-            "time": "2026-03-26T04:39:59+00:00"
+            "time": "2026-06-29T02:25:01+00:00"
         },
         {
             "name": "creocoder/yii2-nested-sets",
@@ -12044,7 +12044,7 @@
         }
     ],
     "aliases": [],
-    "minimum-stability": "dev",
+    "minimum-stability": "stable",
     "stability-flags": {
         "craftcms/ecs": 20,
         "craftcms/phpstan": 20
