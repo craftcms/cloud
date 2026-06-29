@@ -61,6 +61,21 @@ class AssetsControllerTest extends Unit
         $this->assertSame(1, $fs->readCount);
     }
 
+    public function testUploadedAssetMetadataFallsBackToRequestDimensions(): void
+    {
+        $controller = new SizeTestAssetsController('cloud-assets', Craft::$app);
+        $controller->requestImageDimensions = [2496, 2496];
+        $asset = new TestAsset(new TestVolume(123, new MissingDimensionsTestFs()));
+        $asset->setFilename('upload.png');
+        $asset->kind = Asset::KIND_IMAGE;
+
+        $controller->setUploadedAssetMetadataForTest($asset, 'upload.png');
+
+        $this->assertSame(123, $asset->size);
+        $this->assertSame(2496, $asset->getWidth());
+        $this->assertSame(2496, $asset->getHeight());
+    }
+
     public function testUploadedAssetMetadataDeletesUploadedObjectOnValidationFailure(): void
     {
         $maxUploadSize = Craft::$app->getConfig()->getGeneral()->maxUploadFileSize;
@@ -110,9 +125,16 @@ class AssetsControllerTest extends Unit
 
 class SizeTestAssetsController extends AssetsController
 {
+    public array $requestImageDimensions = [null, null];
+
     public function setUploadedAssetMetadataForTest(Asset $asset, string $filename, ?string $displayFilename = null): void
     {
         $this->setUploadedAssetMetadata($asset, $filename, $displayFilename);
+    }
+
+    protected function uploadedRequestImageDimensions(): array
+    {
+        return $this->requestImageDimensions;
     }
 }
 
@@ -158,6 +180,14 @@ class HeaderTestFs extends Fs
         rewind($stream);
 
         return $stream;
+    }
+}
+
+class MissingDimensionsTestFs extends HeaderTestFs
+{
+    public function getImageDimensions(string $uriPath): ?array
+    {
+        return null;
     }
 }
 
