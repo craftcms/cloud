@@ -61,6 +61,21 @@ class AssetsControllerTest extends Unit
         $this->assertSame(1, $fs->readCount);
     }
 
+    public function testUploadedAssetMetadataFallsBackToRequestDimensions(): void
+    {
+        $controller = new SizeTestAssetsController('cloud-assets', Craft::$app);
+        $controller->requestImageDimensions = [2496, 2496];
+        $asset = new TestAsset(new TestVolume(123, new MissingDimensionsTestFs()));
+        $asset->setFilename('upload.png');
+        $asset->kind = Asset::KIND_IMAGE;
+
+        $controller->setUploadedAssetMetadataForTest($asset, 'upload.png');
+
+        $this->assertSame(123, $asset->size);
+        $this->assertSame(2496, $asset->getWidth());
+        $this->assertSame(2496, $asset->getHeight());
+    }
+
     public function testUploadedAssetMetadataDeletesUploadedObjectOnValidationFailure(): void
     {
         $maxUploadSize = Craft::$app->getConfig()->getGeneral()->maxUploadFileSize;
@@ -98,6 +113,19 @@ class AssetsControllerTest extends Unit
         $this->assertSame(3, $fs->readCount);
     }
 
+    public function testUploadedImageDimensionsFallsBackToFullStream(): void
+    {
+        $fs = new HeaderTestFs();
+        $fs->headers = array_fill(0, 4, "\xFF\xD8" . "\xFF\xE1" . pack('n', 4) . 'xx');
+        $fs->streamHeader = "\xFF\xD8"
+            . "\xFF\xE1" . pack('n', 4) . 'xx'
+            . "\xFF\xC0" . pack('n', 17) . "\x08" . pack('n', 3024) . pack('n', 4032) . str_repeat("\0", 10);
+
+        $this->assertSame([4032, 3024], $fs->getImageDimensions('upload.jpeg'));
+        $this->assertSame(4, $fs->readCount);
+        $this->assertSame(1, $fs->streamReadCount);
+    }
+
     private function invokeVolumeSubpath(Volume $volume): string
     {
         $controller = new AssetsController('cloud-assets', Craft::$app);
@@ -110,9 +138,16 @@ class AssetsControllerTest extends Unit
 
 class SizeTestAssetsController extends AssetsController
 {
+    public array $requestImageDimensions = [null, null];
+
     public function setUploadedAssetMetadataForTest(Asset $asset, string $filename, ?string $displayFilename = null): void
     {
         $this->setUploadedAssetMetadata($asset, $filename, $displayFilename);
+    }
+
+    protected function uploadedRequestImageDimensions(): array
+    {
+        return $this->requestImageDimensions;
     }
 }
 
@@ -138,6 +173,8 @@ class HeaderTestFs extends Fs
     public string $header;
     public array $headers = [];
     public int $readCount = 0;
+    public ?string $streamHeader = null;
+    public int $streamReadCount = 0;
 
     public static function displayName(): string
     {
@@ -158,6 +195,30 @@ class HeaderTestFs extends Fs
         rewind($stream);
 
         return $stream;
+    }
+
+    public function getFileStream(string $uriPath)
+    {
+        $this->streamReadCount++;
+
+        $stream = fopen('php://temp', 'r+');
+
+        if ($stream === false) {
+            return null;
+        }
+
+        fwrite($stream, $this->streamHeader ?? $this->header);
+        rewind($stream);
+
+        return $stream;
+    }
+}
+
+class MissingDimensionsTestFs extends HeaderTestFs
+{
+    public function getImageDimensions(string $uriPath): ?array
+    {
+        return null;
     }
 }
 
