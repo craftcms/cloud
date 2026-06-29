@@ -86,6 +86,7 @@ class AppConfig
 
             return Craft::createObject([
                 'class' => CascadeCache::class,
+                'cooldownDuration' => 60,
                 'caches' => [
                     $primaryCache,
                     ['class' => ArrayCache::class],
