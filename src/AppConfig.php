@@ -77,6 +77,8 @@ class AppConfig
                     'class' => Redis::class,
                     'url' => $valkey,
                     'database' => 0,
+                    'connectionTimeout' => 1,
+                    'dataTimeout' => 1,
                 ],
             ] : [
                 'class' => DbCache::class,
