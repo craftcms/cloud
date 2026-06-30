@@ -540,13 +540,12 @@ abstract class Fs extends FlysystemFs
             }
         }
 
-        try {
-            $stream = $this->getFileStream($uriPath);
-        } catch (Throwable) {
-            return null;
-        }
+        Craft::warning(
+            "Unable to determine image dimensions for \"{$uriPath}\" within the " . self::IMAGE_DIMENSION_MAX_BYTES . ' byte read limit.',
+            __METHOD__,
+        );
 
-        return $this->getImageDimensionsFromStream($stream);
+        return null;
     }
 
     private function getImageDimensionsFromRange(string $uriPath, int $bytes): ?array
