@@ -540,13 +540,7 @@ abstract class Fs extends FlysystemFs
             }
         }
 
-        try {
-            $stream = $this->getFileStream($uriPath);
-        } catch (Throwable) {
-            return null;
-        }
-
-        return $this->getImageDimensionsFromStream($stream);
+        return null;
     }
 
     private function getImageDimensionsFromRange(string $uriPath, int $bytes): ?array
