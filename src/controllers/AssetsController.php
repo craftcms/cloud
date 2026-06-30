@@ -394,14 +394,8 @@ class AssetsController extends Controller
         try {
             $asset->size = $this->uploadedAssetSize($asset, $filename, $displayFilename);
             [$width, $height] = $this->uploadedImageDimensions($asset, $filename);
-            [$fallbackWidth, $fallbackHeight] = $this->uploadedRequestImageDimensions();
             $asset->width = $width;
             $asset->height = $height;
-
-            if ($asset->width === null || $asset->height === null) {
-                $asset->width = $asset->width ?? $fallbackWidth;
-                $asset->height = $asset->height ?? $fallbackHeight;
-            }
         } catch (Throwable $e) {
             $this->deleteUploadedAsset($asset, $filename);
             throw $e;
@@ -431,14 +425,6 @@ class AssetsController extends Controller
         return $fs instanceof Fs
             ? $fs->getImageDimensions($asset->getPath($filename)) ?? [null, null]
             : [null, null];
-    }
-
-    protected function uploadedRequestImageDimensions(): array
-    {
-        return [
-            (int)$this->request->getBodyParam('width') ?: null,
-            (int)$this->request->getBodyParam('height') ?: null,
-        ];
     }
 
     private function deleteUploadedAsset(Asset $asset, string $filename): void
