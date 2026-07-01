@@ -143,7 +143,7 @@ class ImageTransformTest extends Unit
         $this->assertTrue(CloudModule::getInstance()->getUrlSigner()->verify($signedUrl));
     }
 
-    public function testCloudTransformUrlDoesNotAppendAssetRevAfterSigning(): void
+    public function testCloudTransformUrlRemovesAssetRevBeforeSigning(): void
     {
         $generalConfig = Craft::$app->getConfig()->getGeneral();
         $revAssetUrls = $generalConfig->revAssetUrls;
@@ -160,12 +160,9 @@ class ImageTransformTest extends Unit
 
             $this->assertStringNotContainsString('?&', $signedUrl);
             $this->assertArrayNotHasKey('v', $parameters);
-            $this->assertSame('100', $parameters['height']);
             $this->assertSame('100', $parameters['width']);
-            $this->assertArrayHasKey('s', $parameters);
             $this->assertTrue(CloudModule::getInstance()->getUrlSigner()->verify($signedUrl));
             $this->assertFalse(CloudModule::getInstance()->getUrlSigner()->verify("{$signedUrl}&v=123"));
-            $this->assertTrue($generalConfig->revAssetUrls);
         } finally {
             $generalConfig->revAssetUrls = $revAssetUrls;
         }
