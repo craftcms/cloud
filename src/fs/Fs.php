@@ -4,6 +4,7 @@ namespace craft\cloud\fs;
 
 use Aws\Credentials\Credentials;
 use Aws\Handler\Guzzle\GuzzleHandler;
+use Aws\S3\PostObjectV4;
 use Aws\S3\S3Client;
 use Craft;
 use craft\behaviors\EnvAttributeParserBehavior;
@@ -218,18 +219,16 @@ abstract class Fs extends FlysystemFs
     /**
      * @inheritDoc
      */
-    protected function addFileMetadataToConfig(array $config): array
+    protected function addFileMetadataToConfig(array $config, bool $includeCacheControl = false): array
     {
-        if (!empty($this->getExpires()) && DateTimeHelper::isValidIntervalString($this->getExpires())) {
-            $expires = new DateTime();
-            $now = new DateTime();
-            $expires->modify('+' . $this->getExpires());
-            $diff = (int)$expires->format('U') - (int)$now->format('U');
+        $maxAge = $this->cacheControlMaxAge();
 
-            // Setting this in metadata instead of `CacheControl` because
-            // `CacheControl` is not respected by S3 when using presigned PUT URLs.
-            // @see https://github.com/aws/aws-sdk-php/issues/1691
-            $config['Metadata']['max-age'] = $diff;
+        if ($maxAge !== null) {
+            $config['Metadata']['max-age'] = $maxAge;
+
+            if ($includeCacheControl) {
+                $config['CacheControl'] = $config['CacheControl'] ?? "max-age={$maxAge}";
+            }
         }
 
         $config['Metadata']['visibility'] = $this->hasUrls
@@ -237,6 +236,19 @@ abstract class Fs extends FlysystemFs
             : Visibility::PRIVATE;
 
         return parent::addFileMetadataToConfig($config);
+    }
+
+    private function cacheControlMaxAge(): ?int
+    {
+        if (empty($this->getExpires()) || !DateTimeHelper::isValidIntervalString($this->getExpires())) {
+            return null;
+        }
+
+        $expires = new DateTime();
+        $now = new DateTime();
+        $expires->modify('+' . $this->getExpires());
+
+        return (int)$expires->format('U') - (int)$now->format('U');
     }
 
     /**
@@ -326,7 +338,9 @@ abstract class Fs extends FlysystemFs
         }
 
         try {
-            $commandConfig = $this->addFileMetadataToConfig($config);
+            // CacheControl is not respected by S3 when using presigned PUT URLs.
+            // @see https://github.com/aws/aws-sdk-php/issues/1691
+            $commandConfig = $this->addFileMetadataToConfig($config, false);
 
             $command = $this->getClient()->getCommand($command, [
                 'Bucket' => $this->getBucketName(),
@@ -342,6 +356,61 @@ abstract class Fs extends FlysystemFs
         } catch (Throwable $exception) {
             throw new FsException($exception->getMessage(), 0, $exception);
         }
+    }
+
+    public function presignedPost(string $path, DateTimeInterface $expiresAt, array $config = []): array
+    {
+        if ($this->useLocalFs) {
+            throw new InvalidConfigException();
+        }
+
+        try {
+            $key = $this->createBucketPath($path)->toString();
+            $fields = $this->postFieldsFromConfig($this->addFileMetadataToConfig($config, true));
+            $fields['key'] = $key;
+
+            $post = new PostObjectV4(
+                $this->getClient(),
+                $this->getBucketName(),
+                $fields,
+                $this->postConditions($fields),
+                $expiresAt,
+            );
+
+            return [
+                'url' => $post->getFormAttributes()['action'],
+                'fields' => $post->getFormInputs(),
+            ];
+        } catch (Throwable $exception) {
+            throw new FsException($exception->getMessage(), 0, $exception);
+        }
+    }
+
+    private function postFieldsFromConfig(array $config): array
+    {
+        $fields = [];
+
+        if (!empty($config['CacheControl'])) {
+            $fields['Cache-Control'] = $config['CacheControl'];
+        }
+
+        if (!empty($config['ContentType'])) {
+            $fields['Content-Type'] = $config['ContentType'];
+        }
+
+        foreach ($config['Metadata'] ?? [] as $name => $value) {
+            $fields["x-amz-meta-{$name}"] = (string)$value;
+        }
+
+        return $fields;
+    }
+
+    private function postConditions(array $fields): array
+    {
+        return Collection::make($fields)
+            ->map(fn($value, $name) => [$name => (string)$value])
+            ->values()
+            ->all();
     }
 
     /**
@@ -455,7 +524,7 @@ abstract class Fs extends FlysystemFs
         parent::write(
             $path,
             $contents,
-            $this->addFileMetadataToConfig($config),
+            $this->addFileMetadataToConfig($config, true),
         );
     }
 
@@ -485,7 +554,7 @@ abstract class Fs extends FlysystemFs
         parent::writeFileFromStream(
             $path,
             $stream,
-            $this->addFileMetadataToConfig($config),
+            $this->addFileMetadataToConfig($config, true),
         );
     }
 
@@ -679,7 +748,7 @@ abstract class Fs extends FlysystemFs
             $this->filesystem()->copy(
                 $path,
                 $path,
-                $this->addFileMetadataToConfig($config),
+                $this->addFileMetadataToConfig($config, true),
             );
         } catch (FilesystemException|UnableToCopyFile $exception) {
             throw new FsException($exception->getMessage(), 0, $exception);

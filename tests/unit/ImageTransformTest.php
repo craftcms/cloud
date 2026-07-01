@@ -4,15 +4,16 @@ namespace craft\cloud\tests\unit;
 
 use Codeception\Test\Unit;
 use Craft;
-use craft\cloud\Module as CloudModule;
-use craft\cloud\signing\UrlSigner;
 use craft\cloud\fs\AssetsFs;
 use craft\cloud\imagetransforms\ImageTransformBehavior;
 use craft\cloud\imagetransforms\ImageTransformer;
+use craft\cloud\Module as CloudModule;
+use craft\cloud\signing\UrlSigner;
 use craft\elements\Asset;
 use craft\events\GenerateTransformEvent;
 use craft\models\ImageTransform;
 use craft\models\Volume;
+use League\Uri\Components\Query;
 use ReflectionProperty;
 
 class ImageTransformTest extends Unit
@@ -142,6 +143,33 @@ class ImageTransformTest extends Unit
         $this->assertTrue(CloudModule::getInstance()->getUrlSigner()->verify($signedUrl));
     }
 
+    public function testCloudTransformUrlDoesNotAppendAssetRevAfterSigning(): void
+    {
+        $generalConfig = Craft::$app->getConfig()->getGeneral();
+        $revAssetUrls = $generalConfig->revAssetUrls;
+
+        try {
+            $generalConfig->revAssetUrls = true;
+
+            $transformer = new UrlTestImageTransformer();
+            $asset = $this->makeUrlAssetStub(1, 'test image.jpg', 100, 100, ['x' => 0.5, 'y' => 0.5]);
+            $transform = new ImageTransform(['width' => 100, 'height' => 100]);
+
+            $signedUrl = $transformer->getTransformUrl($asset, $transform, true);
+            $parameters = Query::fromUri($signedUrl)->parameters();
+
+            $this->assertArrayNotHasKey('v', $parameters);
+            $this->assertSame('100', $parameters['height']);
+            $this->assertSame('100', $parameters['width']);
+            $this->assertArrayHasKey('s', $parameters);
+            $this->assertTrue(CloudModule::getInstance()->getUrlSigner()->verify($signedUrl));
+            $this->assertFalse(CloudModule::getInstance()->getUrlSigner()->verify("{$signedUrl}&v=123"));
+            $this->assertTrue($generalConfig->revAssetUrls);
+        } finally {
+            $generalConfig->revAssetUrls = $revAssetUrls;
+        }
+    }
+
     public function testEditImageActionUsesNativeTransforms(): void
     {
         $module = new TestCloudModule('cloud-test');
@@ -217,13 +245,14 @@ class ImageTransformTest extends Unit
 
     private function makeUrlAssetStub(int $id, string $filename, int $width, int $height, array $focalPoint): Asset
     {
-        return new class($id, $filename, $width, $height, $focalPoint) extends Asset {
+        return new class($id, $filename, $width, $height, $focalPoint, $this->makeCloudAssetsVolume()) extends Asset {
             public function __construct(
                 int $id,
                 private string $filenameValue,
                 private int $widthValue,
                 private int $heightValue,
                 private array $focalPointValue,
+                private Volume $volumeValue,
             ) {
                 parent::__construct();
                 $this->id = $id;
@@ -268,6 +297,32 @@ class ImageTransformTest extends Unit
             {
                 return 'image/jpeg';
             }
+
+            public function getVolume(): Volume
+            {
+                return $this->volumeValue;
+            }
+        };
+    }
+
+    private function makeCloudAssetsVolume(): Volume
+    {
+        return new class() extends Volume {
+            public function getFs(): AssetsFs
+            {
+                return new class() extends AssetsFs {
+                    public function init(): void
+                    {
+                        parent::init();
+                        $this->useLocalFs = false;
+                    }
+
+                    public function getRootUrl(): ?string
+                    {
+                        return 'https://cdn.craft.cloud/assets/';
+                    }
+                };
+            }
         };
     }
 
@@ -279,7 +334,6 @@ class ImageTransformTest extends Unit
 
         return $behavior;
     }
-
 }
 
 class TestImageTransformer extends ImageTransformer

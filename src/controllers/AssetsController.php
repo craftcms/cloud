@@ -11,6 +11,7 @@ use craft\events\ReplaceAssetEvent;
 use craft\fields\Assets as AssetsField;
 use craft\helpers\Assets;
 use craft\helpers\Db;
+use craft\helpers\FileHelper;
 use craft\models\Volume;
 use craft\web\Controller;
 use DateTime;
@@ -36,6 +37,11 @@ class AssetsController extends Controller
         $fieldId = $this->request->getBodyParam('fieldId');
         $assetId = $this->request->getBodyParam('assetId');
         $folderId = $this->request->getBodyParam('folderId');
+        $contentType = $this->request->getBodyParam('contentType');
+
+        if (!is_string($contentType) || $contentType === '') {
+            $contentType = FileHelper::getMimeTypeByExtension($originalFilename);
+        }
 
         if ($assetId && !$folderId) {
             $folderId = Craft::$app->getAssets()->getAssetById($assetId)->folderId;
@@ -73,12 +79,14 @@ class AssetsController extends Controller
         /** @var Fs $fs */
         $fs = $folder->getVolume()->getFs();
 
-        // TODO: use setting for expiry
-        // TODO: tagging isn't working
-        $url = $fs->presignedUrl('PutObject', $pathInVolume, new DateTime('+20 minutes'));
+        $post = $fs->presignedPost($pathInVolume, new DateTime('+20 minutes'), [
+            'ContentType' => $contentType,
+        ]);
 
         return $this->asJson([
-            'url' => $url,
+            'method' => 'POST',
+            'url' => $post['url'],
+            'fields' => $post['fields'],
             'originalFilename' => $originalFilename,
             'targetFilename' => Assets::prepareAssetName($originalFilename),
             'filename' => $filename,
