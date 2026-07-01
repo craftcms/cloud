@@ -2,17 +2,12 @@
 
 namespace craft\cloud\tests\unit;
 
-use Aws\Credentials\Credentials;
-use Aws\S3\S3Client;
 use Codeception\Test\Unit;
 use Craft;
 use craft\cloud\controllers\AssetsController;
 use craft\cloud\fs\Fs;
 use craft\elements\Asset;
 use craft\models\Volume;
-use DateTime;
-use League\Uri\Components\HierarchicalPath;
-use League\Uri\Contracts\SegmentedPathInterface;
 use ReflectionMethod;
 use yii\web\BadRequestHttpException;
 
@@ -45,39 +40,6 @@ class AssetsControllerTest extends Unit
         $volume->setSubpath('volume-prefix');
 
         $this->assertSame('volume-prefix/', $this->invokeVolumeSubpath($volume));
-    }
-
-    public function testPresignedPostIncludesCacheControlAndCustomMetadata(): void
-    {
-        $fs = new HeaderTestFs();
-        $fs->hasUrls = true;
-        $fs->setExpires('1 hour');
-        $fs->setClientForTest(new S3Client([
-            'credentials' => new Credentials('test-key', 'test-secret'),
-            'endpoint' => 'https://s3.example.test',
-            'region' => 'us-east-1',
-            'use_path_style_endpoint' => true,
-            'version' => 'latest',
-        ]));
-
-        $post = $fs->presignedPost('uploads/example.pdf', new DateTime('+20 minutes'), [
-            'ContentType' => 'application/pdf',
-        ]);
-
-        $fields = $post['fields'];
-        $maxAge = substr($fields['Cache-Control'], strlen('max-age='));
-        $policy = json_decode(base64_decode($fields['Policy']), true);
-
-        $this->assertSame('https://s3.example.test/test-bucket', $post['url']);
-        $this->assertSame('uploads/example.pdf', $fields['key']);
-        $this->assertSame('application/pdf', $fields['Content-Type']);
-        $this->assertMatchesRegularExpression('/^max-age=\d+$/', $fields['Cache-Control']);
-        $this->assertSame($maxAge, $fields['x-amz-meta-max-age']);
-        $this->assertSame('public', $fields['x-amz-meta-visibility']);
-        $this->assertContains(['Cache-Control' => $fields['Cache-Control']], $policy['conditions']);
-        $this->assertContains(['Content-Type' => 'application/pdf'], $policy['conditions']);
-        $this->assertContains(['x-amz-meta-max-age' => $maxAge], $policy['conditions']);
-        $this->assertContains(['x-amz-meta-visibility' => 'public'], $policy['conditions']);
     }
 
     public function testUploadedAssetMetadataUsesVolumeMetadata(): void
@@ -203,31 +165,10 @@ class HeaderTestFs extends Fs
     public string $header;
     public array $headers = [];
     public int $readCount = 0;
-    private ?S3Client $testClient = null;
 
     public static function displayName(): string
     {
         return 'Header Test';
-    }
-
-    public function getBucketName(): ?string
-    {
-        return 'test-bucket';
-    }
-
-    public function createBucketPath(string $path): SegmentedPathInterface
-    {
-        return HierarchicalPath::fromRelative($path);
-    }
-
-    public function getClient(): S3Client
-    {
-        return $this->testClient ?? parent::getClient();
-    }
-
-    public function setClientForTest(S3Client $client): void
-    {
-        $this->testClient = $client;
     }
 
     public function getFileStreamRange(string $uriPath, int $start, int $end)

@@ -117,7 +117,6 @@ Craft.CloudUploader = Craft.BaseUploader.extend(
 
     uploadFile: async function (file) {
       const formData = Object.assign({}, this.formData, {
-        contentType: file.type,
         filename: file.name,
       });
 
@@ -130,7 +129,27 @@ Craft.CloudUploader = Craft.BaseUploader.extend(
           },
         );
 
-        await this.uploadToStorage(response.data, file);
+        await axios.put(response.data.url, file, {
+          headers: {
+            'Content-Type': file.type,
+          },
+          onUploadProgress: (axiosProgressEvent) => {
+            this._uploadedBytes =
+              this._uploadedBytes +
+              axiosProgressEvent.loaded -
+              this._lastUploadedBytes;
+            this._lastUploadedBytes = axiosProgressEvent.loaded;
+
+            this.element.dispatchEvent(
+              new CustomEvent('fileuploadprogressall', {
+                detail: {
+                  loaded: this._uploadedBytes,
+                  total: this._totalBytes,
+                },
+              }),
+            );
+          },
+        });
 
         Object.assign(formData, response.data, {
           size: file.size,
@@ -154,46 +173,6 @@ Craft.CloudUploader = Craft.BaseUploader.extend(
         this._lastUploadedBytes = 0;
         this.element.dispatchEvent(new Event('fileuploadalways'));
       }
-    },
-
-    uploadToStorage: async function (upload, file) {
-      if (upload.method !== 'POST') {
-        return axios.put(upload.url, file, {
-          headers: {
-            'Content-Type': file.type,
-          },
-          onUploadProgress: this.handleUploadProgress.bind(this),
-        });
-      }
-
-      const formData = new FormData();
-
-      Object.entries(upload.fields).forEach(([name, value]) => {
-        formData.append(name, value);
-      });
-
-      formData.append('file', file);
-
-      return axios.post(upload.url, formData, {
-        onUploadProgress: this.handleUploadProgress.bind(this),
-      });
-    },
-
-    handleUploadProgress: function (axiosProgressEvent) {
-      this._uploadedBytes =
-        this._uploadedBytes +
-        axiosProgressEvent.loaded -
-        this._lastUploadedBytes;
-      this._lastUploadedBytes = axiosProgressEvent.loaded;
-
-      this.element.dispatchEvent(
-        new CustomEvent('fileuploadprogressall', {
-          detail: {
-            loaded: this._uploadedBytes,
-            total: this._totalBytes,
-          },
-        }),
-      );
     },
 
     handleChange: function (event) {
