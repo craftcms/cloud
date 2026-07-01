@@ -89,6 +89,8 @@ class ImageTransformer extends Component implements ImageTransformerInterface
             return $uri;
         }
 
+        // Craft's asset revision query isn't needed for Cloud transforms,
+        // regardless of the revAssetUrls config setting.
         return Uri::new((string) Modifier::wrap($uri)
             ->removeQueryParameters('v')
             ->removeEmptyQueryPairs()
