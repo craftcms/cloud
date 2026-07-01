@@ -4,15 +4,16 @@ namespace craft\cloud\tests\unit;
 
 use Codeception\Test\Unit;
 use Craft;
-use craft\cloud\Module as CloudModule;
-use craft\cloud\signing\UrlSigner;
 use craft\cloud\fs\AssetsFs;
 use craft\cloud\imagetransforms\ImageTransformBehavior;
 use craft\cloud\imagetransforms\ImageTransformer;
+use craft\cloud\Module as CloudModule;
+use craft\cloud\signing\UrlSigner;
 use craft\elements\Asset;
 use craft\events\GenerateTransformEvent;
 use craft\models\ImageTransform;
 use craft\models\Volume;
+use League\Uri\Components\Query;
 use ReflectionProperty;
 
 class ImageTransformTest extends Unit
@@ -115,8 +116,8 @@ class ImageTransformTest extends Unit
             'height' => 750,
         ]);
 
-        $firstAsset = $this->makeUrlAssetStub(1, 'first.jpg', 3402, 4253, ['x' => 0.57, 'y' => 0.7707]);
-        $secondAsset = $this->makeUrlAssetStub(2, 'second.jpg', 3402, 4253, ['x' => 0.4631, 'y' => 0.308]);
+        $firstAsset = $this->makeTransformUrlAsset('first.jpg', ['x' => 0.57, 'y' => 0.7707]);
+        $secondAsset = $this->makeTransformUrlAsset('second.jpg', ['x' => 0.4631, 'y' => 0.308]);
 
         $transformer = new UrlTestImageTransformer();
 
@@ -133,13 +134,38 @@ class ImageTransformTest extends Unit
     public function testTransformUrlSigningUsesSharedUrlSigner(): void
     {
         $transformer = new UrlTestImageTransformer();
-        $asset = $this->makeUrlAssetStub(1, 'test.jpg', 100, 100, ['x' => 0.5, 'y' => 0.5]);
+        $asset = $this->makeTransformUrlAsset('test.jpg', ['x' => 0.5, 'y' => 0.5]);
         $transform = new ImageTransform(['width' => 100, 'height' => 100]);
 
         $signedUrl = $transformer->getTransformUrl($asset, $transform, true);
 
         $this->assertStringContainsString('&s=', $signedUrl);
         $this->assertTrue(CloudModule::getInstance()->getUrlSigner()->verify($signedUrl));
+    }
+
+    public function testCloudTransformUrlRemovesAssetRevBeforeSigning(): void
+    {
+        $generalConfig = Craft::$app->getConfig()->getGeneral();
+        $revAssetUrls = $generalConfig->revAssetUrls;
+
+        try {
+            $generalConfig->revAssetUrls = true;
+
+            $transformer = new UrlTestImageTransformer();
+            $asset = $this->makeTransformUrlAsset('test image.jpg', ['x' => 0.5, 'y' => 0.5]);
+            $transform = new ImageTransform(['width' => 100, 'height' => 100]);
+
+            $signedUrl = $transformer->getTransformUrl($asset, $transform, true);
+            $parameters = Query::fromUri($signedUrl)->parameters();
+
+            $this->assertStringNotContainsString('?&', $signedUrl);
+            $this->assertArrayNotHasKey('v', $parameters);
+            $this->assertSame('100', $parameters['width']);
+            $this->assertTrue(CloudModule::getInstance()->getUrlSigner()->verify($signedUrl));
+            $this->assertFalse(CloudModule::getInstance()->getUrlSigner()->verify("{$signedUrl}&v=123"));
+        } finally {
+            $generalConfig->revAssetUrls = $revAssetUrls;
+        }
     }
 
     public function testEditImageActionUsesNativeTransforms(): void
@@ -215,60 +241,9 @@ class ImageTransformTest extends Unit
         };
     }
 
-    private function makeUrlAssetStub(int $id, string $filename, int $width, int $height, array $focalPoint): Asset
+    private function makeTransformUrlAsset(string $filename, array $focalPoint): Asset
     {
-        return new class($id, $filename, $width, $height, $focalPoint) extends Asset {
-            public function __construct(
-                int $id,
-                private string $filenameValue,
-                private int $widthValue,
-                private int $heightValue,
-                private array $focalPointValue,
-            ) {
-                parent::__construct();
-                $this->id = $id;
-                $this->kind = self::KIND_IMAGE;
-            }
-
-            public function getHasFocalPoint(): bool
-            {
-                return true;
-            }
-
-            public function getFocalPoint(bool $asCss = false): array|string|null
-            {
-                if ($asCss) {
-                    return ($this->focalPointValue['x'] * 100) . '% ' . ($this->focalPointValue['y'] * 100) . '%';
-                }
-
-                return $this->focalPointValue;
-            }
-
-            public function getWidth(array|string|\craft\models\ImageTransform|null $transform = null): ?int
-            {
-                return $this->widthValue;
-            }
-
-            public function getHeight(mixed $transform = null): ?int
-            {
-                return $this->heightValue;
-            }
-
-            public function getFilename(bool $withExtension = true): string
-            {
-                return $this->filenameValue;
-            }
-
-            public function getPath(?string $filename = null): string
-            {
-                return 'tests/' . ($filename ?? $this->filenameValue);
-            }
-
-            public function getMimeType(mixed $transform = null): ?string
-            {
-                return 'image/jpeg';
-            }
-        };
+        return new TransformUrlAsset($filename, $focalPoint);
     }
 
     private function behavior(ImageTransform $transform): ImageTransformBehavior
@@ -279,7 +254,6 @@ class ImageTransformTest extends Unit
 
         return $behavior;
     }
-
 }
 
 class TestImageTransformer extends ImageTransformer
@@ -300,6 +274,64 @@ class UrlTestImageTransformer extends ImageTransformer
         $behavior = $imageTransform->getBehavior('cloud');
 
         return (string) \League\Uri\Components\Query::fromVariable($behavior->toOptions($gravity));
+    }
+}
+
+class TransformUrlAsset extends Asset
+{
+    public function __construct(
+        private string $filenameValue,
+        private array $focalPointValue,
+    ) {
+        parent::__construct();
+        $this->kind = self::KIND_IMAGE;
+    }
+
+    public function getHasFocalPoint(): bool
+    {
+        return true;
+    }
+
+    public function getFocalPoint(bool $asCss = false): array|string|null
+    {
+        if ($asCss) {
+            return ($this->focalPointValue['x'] * 100) . '% ' . ($this->focalPointValue['y'] * 100) . '%';
+        }
+
+        return $this->focalPointValue;
+    }
+
+    public function getFilename(bool $withExtension = true): string
+    {
+        return $this->filenameValue;
+    }
+
+    public function getPath(?string $filename = null): string
+    {
+        return 'tests/' . ($filename ?? $this->filenameValue);
+    }
+
+    public function getMimeType(mixed $transform = null): ?string
+    {
+        return 'image/jpeg';
+    }
+
+    public function getVolume(): Volume
+    {
+        return new Volume([
+            'fs' => new class() extends AssetsFs {
+                public function init(): void
+                {
+                    parent::init();
+                    $this->useLocalFs = false;
+                }
+
+                public function getRootUrl(): ?string
+                {
+                    return 'https://cdn.craft.cloud/assets/';
+                }
+            },
+        ]);
     }
 }
 

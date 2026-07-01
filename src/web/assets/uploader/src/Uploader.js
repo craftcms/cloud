@@ -156,13 +156,6 @@ Craft.CloudUploader = Craft.BaseUploader.extend(
           lastModified: file.lastModified,
         });
 
-        const image = await this.getImage(file);
-
-        if (image) {
-          const {width, height} = image;
-          Object.assign(formData, {width, height});
-        }
-
         response = await axios.post(this.settings.url, formData);
         this.element.dispatchEvent(
           new CustomEvent('fileuploaddone', {detail: response.data}),
@@ -185,20 +178,6 @@ Craft.CloudUploader = Craft.BaseUploader.extend(
     handleChange: function (event) {
       this.uploadFiles(event.target.files);
       this.$fileInput.val('');
-    },
-
-    getImage: async function (file) {
-      const image = new Image();
-
-      try {
-        image.src = URL.createObjectURL(file);
-        await image.decode();
-        URL.revokeObjectURL(image.src);
-      } catch {
-        return null;
-      }
-
-      return image;
     },
 
     destroy: function () {

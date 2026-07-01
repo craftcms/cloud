@@ -5,6 +5,7 @@ namespace craft\cloud\imagetransforms;
 use Craft;
 use craft\base\Component;
 use craft\base\imagetransforms\ImageTransformerInterface;
+use craft\cloud\fs\AssetsFs;
 use craft\cloud\Module;
 use craft\elements\Asset;
 use craft\helpers\Assets;
@@ -27,15 +28,6 @@ class ImageTransformer extends Component implements ImageTransformerInterface
 
     public function getTransformUrl(Asset $asset, ImageTransform $imageTransform, bool $immediately): string
     {
-        if (version_compare(Craft::$app->version, '5.0', '>=')) {
-            // @phpstan-ignore argument.type, arguments.count (Craft 5 compatibility)
-            $assetUrl = Html::encodeSpaces(Assets::generateUrl($asset));
-        } else {
-            $fs = $asset->getVolume()->getTransformFs();
-            // @phpstan-ignore argument.type, arguments.count (Craft 4 compatibility)
-            $assetUrl = Html::encodeSpaces(Assets::generateUrl($fs, $asset));
-        }
-
         $mimeType = $asset->getMimeType();
 
         if ($mimeType === 'image/gif' && !Craft::$app->getConfig()->getGeneral()->transformGifs) {
@@ -56,7 +48,7 @@ class ImageTransformer extends Component implements ImageTransformerInterface
 
         // @phpstan-ignore-next-line method.notFound
         $query = Query::fromVariable($imageTransform->toOptions($gravity));
-        $uri = Modifier::wrap(Uri::new($assetUrl))
+        $uri = Modifier::wrap($this->getAssetUri($asset))
             ->mergeQuery($query)
             ->unwrap();
 
@@ -75,5 +67,33 @@ class ImageTransformer extends Component implements ImageTransformerInterface
         }
 
         return $asset->getFocalPoint();
+    }
+
+    private function getAssetUri(Asset $asset): Uri
+    {
+        $assetFs = $asset->getVolume()->getFs();
+
+        if (version_compare(Craft::$app->version, '5.0', '>=')) {
+            // @phpstan-ignore argument.type, arguments.count (Craft 5 compatibility)
+            $url = Assets::generateUrl($asset);
+        } else {
+            $transformFs = $asset->getVolume()->getTransformFs();
+
+            // @phpstan-ignore argument.type, arguments.count (Craft 4 compatibility)
+            $url = Assets::generateUrl($transformFs, $asset);
+        }
+
+        $uri = Uri::new(Html::encodeSpaces($url));
+
+        if (!$assetFs instanceof AssetsFs || $assetFs->useLocalFs) {
+            return $uri;
+        }
+
+        // Craft's asset revision query isn't needed for Cloud transforms,
+        // regardless of the revAssetUrls config setting.
+        return Uri::new((string) Modifier::wrap($uri)
+            ->removeQueryParameters('v')
+            ->removeEmptyQueryPairs()
+            ->unwrap());
     }
 }
