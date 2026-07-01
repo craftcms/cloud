@@ -89,10 +89,9 @@ class ImageTransformer extends Component implements ImageTransformerInterface
             return $uri;
         }
 
-        $query = Query::fromUri($uri)
-            ->withoutParameters('v')
-            ->value();
-
-        return $uri->withQuery($query === '' ? null : $query);
+        return Uri::new((string) Modifier::wrap($uri)
+            ->removeQueryParameters('v')
+            ->removeEmptyQueryPairs()
+            ->unwrap());
     }
 }
