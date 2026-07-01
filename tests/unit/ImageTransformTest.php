@@ -116,8 +116,8 @@ class ImageTransformTest extends Unit
             'height' => 750,
         ]);
 
-        $firstAsset = $this->makeTransformUrlAsset(1, 'first.jpg', 3402, 4253, ['x' => 0.57, 'y' => 0.7707]);
-        $secondAsset = $this->makeTransformUrlAsset(2, 'second.jpg', 3402, 4253, ['x' => 0.4631, 'y' => 0.308]);
+        $firstAsset = $this->makeTransformUrlAsset('first.jpg', ['x' => 0.57, 'y' => 0.7707]);
+        $secondAsset = $this->makeTransformUrlAsset('second.jpg', ['x' => 0.4631, 'y' => 0.308]);
 
         $transformer = new UrlTestImageTransformer();
 
@@ -134,7 +134,7 @@ class ImageTransformTest extends Unit
     public function testTransformUrlSigningUsesSharedUrlSigner(): void
     {
         $transformer = new UrlTestImageTransformer();
-        $asset = $this->makeTransformUrlAsset(1, 'test.jpg', 100, 100, ['x' => 0.5, 'y' => 0.5]);
+        $asset = $this->makeTransformUrlAsset('test.jpg', ['x' => 0.5, 'y' => 0.5]);
         $transform = new ImageTransform(['width' => 100, 'height' => 100]);
 
         $signedUrl = $transformer->getTransformUrl($asset, $transform, true);
@@ -152,7 +152,7 @@ class ImageTransformTest extends Unit
             $generalConfig->revAssetUrls = true;
 
             $transformer = new UrlTestImageTransformer();
-            $asset = $this->makeTransformUrlAsset(1, 'test image.jpg', 100, 100, ['x' => 0.5, 'y' => 0.5]);
+            $asset = $this->makeTransformUrlAsset('test image.jpg', ['x' => 0.5, 'y' => 0.5]);
             $transform = new ImageTransform(['width' => 100, 'height' => 100]);
 
             $signedUrl = $transformer->getTransformUrl($asset, $transform, true);
@@ -241,9 +241,9 @@ class ImageTransformTest extends Unit
         };
     }
 
-    private function makeTransformUrlAsset(int $id, string $filename, int $width, int $height, array $focalPoint): Asset
+    private function makeTransformUrlAsset(string $filename, array $focalPoint): Asset
     {
-        return new TransformUrlAsset($id, $filename, $width, $height, $focalPoint);
+        return new TransformUrlAsset($filename, $focalPoint);
     }
 
     private function behavior(ImageTransform $transform): ImageTransformBehavior
@@ -280,14 +280,10 @@ class UrlTestImageTransformer extends ImageTransformer
 class TransformUrlAsset extends Asset
 {
     public function __construct(
-        int $id,
         private string $filenameValue,
-        private int $widthValue,
-        private int $heightValue,
         private array $focalPointValue,
     ) {
         parent::__construct();
-        $this->id = $id;
         $this->kind = self::KIND_IMAGE;
     }
 
@@ -303,16 +299,6 @@ class TransformUrlAsset extends Asset
         }
 
         return $this->focalPointValue;
-    }
-
-    public function getWidth(array|string|ImageTransform|null $transform = null): ?int
-    {
-        return $this->widthValue;
-    }
-
-    public function getHeight(mixed $transform = null): ?int
-    {
-        return $this->heightValue;
     }
 
     public function getFilename(bool $withExtension = true): string
@@ -332,29 +318,20 @@ class TransformUrlAsset extends Asset
 
     public function getVolume(): Volume
     {
-        return new RemoteCloudAssetsVolume();
-    }
-}
+        return new Volume([
+            'fs' => new class() extends AssetsFs {
+                public function init(): void
+                {
+                    parent::init();
+                    $this->useLocalFs = false;
+                }
 
-class RemoteCloudAssetsVolume extends Volume
-{
-    public function getFs(): AssetsFs
-    {
-        return new RemoteCloudAssetsFs();
-    }
-}
-
-class RemoteCloudAssetsFs extends AssetsFs
-{
-    public function init(): void
-    {
-        parent::init();
-        $this->useLocalFs = false;
-    }
-
-    public function getRootUrl(): ?string
-    {
-        return 'https://cdn.craft.cloud/assets/';
+                public function getRootUrl(): ?string
+                {
+                    return 'https://cdn.craft.cloud/assets/';
+                }
+            },
+        ]);
     }
 }
 
