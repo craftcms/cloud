@@ -116,8 +116,8 @@ class ImageTransformTest extends Unit
             'height' => 750,
         ]);
 
-        $firstAsset = $this->makeUrlAssetStub(1, 'first.jpg', 3402, 4253, ['x' => 0.57, 'y' => 0.7707]);
-        $secondAsset = $this->makeUrlAssetStub(2, 'second.jpg', 3402, 4253, ['x' => 0.4631, 'y' => 0.308]);
+        $firstAsset = $this->makeTransformUrlAsset(1, 'first.jpg', 3402, 4253, ['x' => 0.57, 'y' => 0.7707]);
+        $secondAsset = $this->makeTransformUrlAsset(2, 'second.jpg', 3402, 4253, ['x' => 0.4631, 'y' => 0.308]);
 
         $transformer = new UrlTestImageTransformer();
 
@@ -134,7 +134,7 @@ class ImageTransformTest extends Unit
     public function testTransformUrlSigningUsesSharedUrlSigner(): void
     {
         $transformer = new UrlTestImageTransformer();
-        $asset = $this->makeUrlAssetStub(1, 'test.jpg', 100, 100, ['x' => 0.5, 'y' => 0.5]);
+        $asset = $this->makeTransformUrlAsset(1, 'test.jpg', 100, 100, ['x' => 0.5, 'y' => 0.5]);
         $transform = new ImageTransform(['width' => 100, 'height' => 100]);
 
         $signedUrl = $transformer->getTransformUrl($asset, $transform, true);
@@ -152,7 +152,7 @@ class ImageTransformTest extends Unit
             $generalConfig->revAssetUrls = true;
 
             $transformer = new UrlTestImageTransformer();
-            $asset = $this->makeUrlAssetStub(1, 'test image.jpg', 100, 100, ['x' => 0.5, 'y' => 0.5]);
+            $asset = $this->makeTransformUrlAsset(1, 'test image.jpg', 100, 100, ['x' => 0.5, 'y' => 0.5]);
             $transform = new ImageTransform(['width' => 100, 'height' => 100]);
 
             $signedUrl = $transformer->getTransformUrl($asset, $transform, true);
@@ -241,87 +241,9 @@ class ImageTransformTest extends Unit
         };
     }
 
-    private function makeUrlAssetStub(int $id, string $filename, int $width, int $height, array $focalPoint): Asset
+    private function makeTransformUrlAsset(int $id, string $filename, int $width, int $height, array $focalPoint): Asset
     {
-        return new class($id, $filename, $width, $height, $focalPoint, $this->makeCloudAssetsVolume()) extends Asset {
-            public function __construct(
-                int $id,
-                private string $filenameValue,
-                private int $widthValue,
-                private int $heightValue,
-                private array $focalPointValue,
-                private Volume $volumeValue,
-            ) {
-                parent::__construct();
-                $this->id = $id;
-                $this->kind = self::KIND_IMAGE;
-            }
-
-            public function getHasFocalPoint(): bool
-            {
-                return true;
-            }
-
-            public function getFocalPoint(bool $asCss = false): array|string|null
-            {
-                if ($asCss) {
-                    return ($this->focalPointValue['x'] * 100) . '% ' . ($this->focalPointValue['y'] * 100) . '%';
-                }
-
-                return $this->focalPointValue;
-            }
-
-            public function getWidth(array|string|\craft\models\ImageTransform|null $transform = null): ?int
-            {
-                return $this->widthValue;
-            }
-
-            public function getHeight(mixed $transform = null): ?int
-            {
-                return $this->heightValue;
-            }
-
-            public function getFilename(bool $withExtension = true): string
-            {
-                return $this->filenameValue;
-            }
-
-            public function getPath(?string $filename = null): string
-            {
-                return 'tests/' . ($filename ?? $this->filenameValue);
-            }
-
-            public function getMimeType(mixed $transform = null): ?string
-            {
-                return 'image/jpeg';
-            }
-
-            public function getVolume(): Volume
-            {
-                return $this->volumeValue;
-            }
-        };
-    }
-
-    private function makeCloudAssetsVolume(): Volume
-    {
-        return new class() extends Volume {
-            public function getFs(): AssetsFs
-            {
-                return new class() extends AssetsFs {
-                    public function init(): void
-                    {
-                        parent::init();
-                        $this->useLocalFs = false;
-                    }
-
-                    public function getRootUrl(): ?string
-                    {
-                        return 'https://cdn.craft.cloud/assets/';
-                    }
-                };
-            }
-        };
+        return new TransformUrlAsset($id, $filename, $width, $height, $focalPoint);
     }
 
     private function behavior(ImageTransform $transform): ImageTransformBehavior
@@ -352,6 +274,87 @@ class UrlTestImageTransformer extends ImageTransformer
         $behavior = $imageTransform->getBehavior('cloud');
 
         return (string) \League\Uri\Components\Query::fromVariable($behavior->toOptions($gravity));
+    }
+}
+
+class TransformUrlAsset extends Asset
+{
+    public function __construct(
+        int $id,
+        private string $filenameValue,
+        private int $widthValue,
+        private int $heightValue,
+        private array $focalPointValue,
+    ) {
+        parent::__construct();
+        $this->id = $id;
+        $this->kind = self::KIND_IMAGE;
+    }
+
+    public function getHasFocalPoint(): bool
+    {
+        return true;
+    }
+
+    public function getFocalPoint(bool $asCss = false): array|string|null
+    {
+        if ($asCss) {
+            return ($this->focalPointValue['x'] * 100) . '% ' . ($this->focalPointValue['y'] * 100) . '%';
+        }
+
+        return $this->focalPointValue;
+    }
+
+    public function getWidth(array|string|ImageTransform|null $transform = null): ?int
+    {
+        return $this->widthValue;
+    }
+
+    public function getHeight(mixed $transform = null): ?int
+    {
+        return $this->heightValue;
+    }
+
+    public function getFilename(bool $withExtension = true): string
+    {
+        return $this->filenameValue;
+    }
+
+    public function getPath(?string $filename = null): string
+    {
+        return 'tests/' . ($filename ?? $this->filenameValue);
+    }
+
+    public function getMimeType(mixed $transform = null): ?string
+    {
+        return 'image/jpeg';
+    }
+
+    public function getVolume(): Volume
+    {
+        return new RemoteCloudAssetsVolume();
+    }
+}
+
+class RemoteCloudAssetsVolume extends Volume
+{
+    public function getFs(): AssetsFs
+    {
+        return new RemoteCloudAssetsFs();
+    }
+}
+
+class RemoteCloudAssetsFs extends AssetsFs
+{
+    public function init(): void
+    {
+        parent::init();
+        $this->useLocalFs = false;
+    }
+
+    public function getRootUrl(): ?string
+    {
+        return 'https://cdn.craft.cloud/assets/';
     }
 }
 
