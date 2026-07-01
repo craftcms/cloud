@@ -71,34 +71,29 @@ class ImageTransformer extends Component implements ImageTransformerInterface
 
     private function getAssetUrl(Asset $asset): string
     {
-        $fs = $asset->getVolume()->getFs();
+        $assetFs = $asset->getVolume()->getFs();
+        $disableRevAssetUrls = $assetFs instanceof AssetsFs && !$assetFs->useLocalFs;
+        $generalConfig = Craft::$app->getConfig()->getGeneral();
+        $revAssetUrls = $generalConfig->revAssetUrls;
 
-        if ($fs instanceof AssetsFs && !$fs->useLocalFs) {
-            $generalConfig = Craft::$app->getConfig()->getGeneral();
-            $revAssetUrls = $generalConfig->revAssetUrls;
-
-            try {
+        try {
+            if ($disableRevAssetUrls) {
                 $generalConfig->revAssetUrls = false;
+            }
 
-                return $this->generateAssetUrl($asset);
-            } finally {
+            if (version_compare(Craft::$app->version, '5.0', '>=')) {
+                // @phpstan-ignore argument.type, arguments.count (Craft 5 compatibility)
+                return Html::encodeSpaces(Assets::generateUrl($asset));
+            }
+
+            $transformFs = $asset->getVolume()->getTransformFs();
+
+            // @phpstan-ignore argument.type, arguments.count (Craft 4 compatibility)
+            return Html::encodeSpaces(Assets::generateUrl($transformFs, $asset));
+        } finally {
+            if ($disableRevAssetUrls) {
                 $generalConfig->revAssetUrls = $revAssetUrls;
             }
         }
-
-        return $this->generateAssetUrl($asset);
-    }
-
-    private function generateAssetUrl(Asset $asset): string
-    {
-        if (version_compare(Craft::$app->version, '5.0', '>=')) {
-            // @phpstan-ignore argument.type, arguments.count (Craft 5 compatibility)
-            return Html::encodeSpaces(Assets::generateUrl($asset));
-        }
-
-        $fs = $asset->getVolume()->getTransformFs();
-
-        // @phpstan-ignore argument.type, arguments.count (Craft 4 compatibility)
-        return Html::encodeSpaces(Assets::generateUrl($fs, $asset));
     }
 }
