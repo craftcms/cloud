@@ -158,6 +158,7 @@ class ImageTransformTest extends Unit
             $signedUrl = $transformer->getTransformUrl($asset, $transform, true);
             $parameters = Query::fromUri($signedUrl)->parameters();
 
+            $this->assertStringNotContainsString('?&', $signedUrl);
             $this->assertArrayNotHasKey('v', $parameters);
             $this->assertSame('100', $parameters['height']);
             $this->assertSame('100', $parameters['width']);

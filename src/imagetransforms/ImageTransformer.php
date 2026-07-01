@@ -48,7 +48,7 @@ class ImageTransformer extends Component implements ImageTransformerInterface
 
         // @phpstan-ignore-next-line method.notFound
         $query = Query::fromVariable($imageTransform->toOptions($gravity));
-        $uri = Modifier::wrap(Uri::new($this->getAssetUrl($asset)))
+        $uri = Modifier::wrap($this->getAssetUri($asset))
             ->mergeQuery($query)
             ->unwrap();
 
@@ -69,31 +69,30 @@ class ImageTransformer extends Component implements ImageTransformerInterface
         return $asset->getFocalPoint();
     }
 
-    private function getAssetUrl(Asset $asset): string
+    private function getAssetUri(Asset $asset): Uri
     {
         $assetFs = $asset->getVolume()->getFs();
-        $disableRevAssetUrls = $assetFs instanceof AssetsFs && !$assetFs->useLocalFs;
-        $generalConfig = Craft::$app->getConfig()->getGeneral();
-        $revAssetUrls = $generalConfig->revAssetUrls;
 
-        try {
-            if ($disableRevAssetUrls) {
-                $generalConfig->revAssetUrls = false;
-            }
-
-            if (version_compare(Craft::$app->version, '5.0', '>=')) {
-                // @phpstan-ignore argument.type, arguments.count (Craft 5 compatibility)
-                return Html::encodeSpaces(Assets::generateUrl($asset));
-            }
-
+        if (version_compare(Craft::$app->version, '5.0', '>=')) {
+            // @phpstan-ignore argument.type, arguments.count (Craft 5 compatibility)
+            $url = Assets::generateUrl($asset);
+        } else {
             $transformFs = $asset->getVolume()->getTransformFs();
 
             // @phpstan-ignore argument.type, arguments.count (Craft 4 compatibility)
-            return Html::encodeSpaces(Assets::generateUrl($transformFs, $asset));
-        } finally {
-            if ($disableRevAssetUrls) {
-                $generalConfig->revAssetUrls = $revAssetUrls;
-            }
+            $url = Assets::generateUrl($transformFs, $asset);
         }
+
+        $uri = Uri::new(Html::encodeSpaces($url));
+
+        if (!$assetFs instanceof AssetsFs || $assetFs->useLocalFs) {
+            return $uri;
+        }
+
+        $query = Query::fromUri($uri)
+            ->withoutParameters('v')
+            ->value();
+
+        return $uri->withQuery($query === '' ? null : $query);
     }
 }
