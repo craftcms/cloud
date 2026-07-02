@@ -2,11 +2,8 @@
 
 ## 2026-06-30
 - Released version 3.4.3 of the `craftcms/cloud` package.
-  - Fixed a bug where uploaded assets might not have their dimensions reported accurately.
-
-## 2026-06-30
-- Released version 3.4.2 of the `craftcms/cloud` package.
   - Released support for [request signing](https://craftcms.com/docs/cloud/request-signing.html).
+  - Fixed a bug where uploaded assets might not have their dimensions reported accurately.
 
 ## 2026-06-18
 - Released version 3.4.1 of the `craftcms/cloud` package.
