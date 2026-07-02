@@ -1,8 +1,18 @@
 # Release Notes for Craft Cloud ⛅️
 
+## 2026-06-30
+- Released version 3.4.3 of the `craftcms/cloud` package.
+  - Fixed a bug where uploaded assets might not have their dimensions reported accurately.
+
+## 2026-06-30
+- Released version 3.4.2 of the `craftcms/cloud` package.
+  - Released support for [request signing](https://craftcms.com/docs/cloud/request-signing.html).
+
 ## 2026-06-18
 - Released version 3.4.1 of the `craftcms/cloud` package.
   - Required version 1.0+ of `craftcms/http-message-signatures`.
+- Release version 1.111.0 of the Cloud API.
+  - Sensitive environment variables can be revealed in the Console UI, now.
 
 ## 2026-05-19
 - Added Sweden and the United Kingdom as two new regions.
@@ -10,13 +20,12 @@
 ## 2026-05-15
 - Released version 1.100.0 of the Cloud API.
   - The craft-cloud.yaml file is now validated against a [published JSON schema](https://api.craft.cloud/schemas/craft-cloud.schema.json).
-  - 
 
 ## 2026-05-01
 - All Craft Cloud projects are now running [Bref 3](https://bref.sh/news/03-bref-3.0).
 - Added support for PHP 8.5.
 - Removed support for PHP 8.1.
-- Released version 1.30.0 of the Cloud Gateway Worker.
+- Released version 1.32.0 of the Cloud Gateway Worker.
   - We now retry AWS origin errors with an exponential backoff.
   - It is easier to track Cloudflare Ray IDs in Orange 2 Orange scenarios.
 
