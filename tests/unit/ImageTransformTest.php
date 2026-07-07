@@ -17,6 +17,7 @@ use craft\models\ImageTransform;
 use craft\models\Volume;
 use League\Uri\Components\Query;
 use ReflectionProperty;
+use yii\base\NotSupportedException;
 
 class ImageTransformTest extends Unit
 {
@@ -174,7 +175,15 @@ class ImageTransformTest extends Unit
     {
         $transformer = new ImageTransformer();
 
-        $signedUrl = $transformer->getPdfThumbUrl($this->makePdfAssetStub(), 320, 320);
+        $signedUrl = $transformer->getTransformUrl(
+            $this->makePdfAssetStub(),
+            new ImageTransform([
+                'width' => 320,
+                'height' => 320,
+                'mode' => 'crop',
+            ]),
+            true,
+        );
         $parameters = Query::fromUri($signedUrl)->parameters();
 
         $this->assertStringContainsString('/tests/document.pdf?', $signedUrl);
@@ -190,13 +199,17 @@ class ImageTransformTest extends Unit
     {
         $transformer = new ImageTransformer();
 
-        $signedUrl = $transformer->getPdfTransformUrl($this->makePdfAssetStub(), [
-            'width' => 640.4,
-            'height' => 480.4,
-            'format' => 'webp',
-            'mode' => 'fit',
-            'upscale' => false,
-        ]);
+        $signedUrl = $transformer->getTransformUrl(
+            $this->makePdfAssetStub(),
+            [
+                'width' => 640.4,
+                'height' => 480.4,
+                'format' => 'webp',
+                'mode' => 'fit',
+                'upscale' => false,
+            ],
+            true,
+        );
         $parameters = Query::fromUri($signedUrl)->parameters();
 
         $this->assertStringContainsString('/tests/document.pdf?', $signedUrl);
@@ -208,16 +221,13 @@ class ImageTransformTest extends Unit
         $this->assertTrue(CloudModule::getInstance()->getUrlSigner()->verify($signedUrl));
     }
 
-    public function testPdfUrlsOnlyApplyToCloudPdfs(): void
+    public function testPdfTransformsRequireCloudAssets(): void
     {
         $transformer = new ImageTransformer();
-        $imageAsset = $this->makeTransformUrlAsset('test.jpg', ['x' => 0.5, 'y' => 0.5]);
-        $localPdfAsset = $this->makePdfAssetStub(false);
 
-        $this->assertNull($transformer->getPdfTransformUrl($imageAsset, ['width' => 100]));
-        $this->assertNull($transformer->getPdfThumbUrl($imageAsset, 100, 100));
-        $this->assertNull($transformer->getPdfTransformUrl($localPdfAsset, ['width' => 100]));
-        $this->assertNull($transformer->getPdfThumbUrl($localPdfAsset, 100, 100));
+        $this->expectException(NotSupportedException::class);
+
+        $transformer->getTransformUrl($this->makePdfAssetStub(false), ['width' => 100], true);
     }
 
     public function testEditImageActionUsesNativeTransforms(): void

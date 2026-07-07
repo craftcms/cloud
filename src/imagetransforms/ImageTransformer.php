@@ -27,8 +27,20 @@ class ImageTransformer extends Component implements ImageTransformerInterface
     // Source asset extensions Cloudflare Images can accept for transformations.
     public const SUPPORTED_IMAGE_FORMATS = ['png', 'jpg', 'jpeg', 'gif', 'webp', 'svg', 'avif', 'heic'];
 
-    public function getTransformUrl(Asset $asset, ImageTransform $imageTransform, bool $immediately): string
+    public function getTransformUrl(Asset $asset, mixed $imageTransform, bool $immediately): string
     {
+        if (!$imageTransform instanceof ImageTransform) {
+            $imageTransform = $this->normalizeTransform($imageTransform);
+        }
+
+        if (!$imageTransform instanceof ImageTransform) {
+            throw new NotSupportedException('Invalid image transform.');
+        }
+
+        if ($asset->kind === Asset::KIND_PDF) {
+            return $this->getPdfTransformUrl($asset, $imageTransform);
+        }
+
         $mimeType = $asset->getMimeType();
 
         if ($mimeType === 'image/gif' && !Craft::$app->getConfig()->getGeneral()->transformGifs) {
@@ -49,22 +61,12 @@ class ImageTransformer extends Component implements ImageTransformerInterface
         return Module::getInstance()->getUrlSigner()->sign((string) $uri);
     }
 
-    public function getPdfTransformUrl(Asset $asset, mixed $transform): ?string
+    private function getPdfTransformUrl(Asset $asset, ImageTransform $imageTransform): string
     {
-        if ($asset->kind !== Asset::KIND_PDF) {
-            return null;
-        }
-
         $assetFs = $this->getAssetCdnFs($asset);
 
         if (!$assetFs) {
-            return null;
-        }
-
-        $imageTransform = $this->normalizeTransform($transform);
-
-        if (!$imageTransform) {
-            return null;
+            throw new NotSupportedException('PDF transforms are only supported for Cloud assets.');
         }
 
         $options = $this->getTransformOptions($imageTransform);
@@ -76,15 +78,6 @@ class ImageTransformer extends Component implements ImageTransformerInterface
             ->unwrap();
 
         return Module::getInstance()->getUrlSigner()->sign((string) $uri);
-    }
-
-    public function getPdfThumbUrl(Asset $asset, int $width, int $height): ?string
-    {
-        return $this->getPdfTransformUrl($asset, new ImageTransform([
-            'width' => $width,
-            'height' => $height,
-            'mode' => 'crop',
-        ]));
     }
 
     public function invalidateAssetTransforms(Asset $asset): void

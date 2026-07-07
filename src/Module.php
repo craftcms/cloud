@@ -125,11 +125,23 @@ class Module extends \yii\base\Module implements \yii\base\BootstrapInterface
                 Asset::class,
                 Asset::EVENT_BEFORE_DEFINE_URL,
                 function(DefineAssetUrlEvent $event) {
-                    if ($event->url !== null) {
+                    if ($event->url !== null || $event->asset->kind !== Asset::KIND_PDF) {
                         return;
                     }
 
-                    $event->url = (new ImageTransformer())->getPdfTransformUrl($event->asset, $event->transform);
+                    if (!$event->transform) {
+                        return;
+                    }
+
+                    try {
+                        $event->url = (new ImageTransformer())->getTransformUrl(
+                            $event->asset,
+                            $event->transform,
+                            true,
+                        );
+                    } catch (NotSupportedException) {
+                        return;
+                    }
                 }
             );
 
@@ -137,11 +149,23 @@ class Module extends \yii\base\Module implements \yii\base\BootstrapInterface
                 AssetsService::class,
                 AssetsService::EVENT_DEFINE_THUMB_URL,
                 function(DefineAssetThumbUrlEvent $event) {
-                    if ($event->url !== null) {
+                    if ($event->url !== null || $event->asset->kind !== Asset::KIND_PDF) {
                         return;
                     }
 
-                    $event->url = (new ImageTransformer())->getPdfThumbUrl($event->asset, $event->width, $event->height);
+                    try {
+                        $event->url = (new ImageTransformer())->getTransformUrl(
+                            $event->asset,
+                            new CraftImageTransform([
+                                'width' => $event->width,
+                                'height' => $event->height,
+                                'mode' => 'crop',
+                            ]),
+                            true,
+                        );
+                    } catch (NotSupportedException) {
+                        return;
+                    }
                 }
             );
 
