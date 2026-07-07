@@ -27,16 +27,8 @@ class ImageTransformer extends Component implements ImageTransformerInterface
     // Source asset extensions Cloudflare Images can accept for transformations.
     public const SUPPORTED_IMAGE_FORMATS = ['png', 'jpg', 'jpeg', 'gif', 'webp', 'svg', 'avif', 'heic'];
 
-    public function getTransformUrl(Asset $asset, mixed $imageTransform, bool $immediately): string
+    public function getTransformUrl(Asset $asset, ImageTransform $imageTransform, bool $immediately): string
     {
-        if (!$imageTransform instanceof ImageTransform) {
-            $imageTransform = $this->normalizeTransform($imageTransform);
-        }
-
-        if (!$imageTransform instanceof ImageTransform) {
-            throw new NotSupportedException('Invalid image transform.');
-        }
-
         $behavior = $imageTransform->getBehavior('cloud');
 
         if (!$behavior instanceof ImageTransformBehavior) {
@@ -100,7 +92,7 @@ class ImageTransformer extends Component implements ImageTransformerInterface
         return $asset->getFocalPoint();
     }
 
-    private function normalizeTransform(mixed $transform): ?ImageTransform
+    public function normalizeTransform(mixed $transform): ?ImageTransform
     {
         if (is_array($transform)) {
             foreach (['width', 'height'] as $attribute) {

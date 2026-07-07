@@ -133,10 +133,17 @@ class Module extends \yii\base\Module implements \yii\base\BootstrapInterface
                         return;
                     }
 
+                    $transformer = new ImageTransformer();
+                    $imageTransform = $transformer->normalizeTransform($event->transform);
+
+                    if (!$imageTransform) {
+                        return;
+                    }
+
                     try {
-                        $event->url = (new ImageTransformer())->getTransformUrl(
+                        $event->url = $transformer->getTransformUrl(
                             $event->asset,
-                            $event->transform,
+                            $imageTransform,
                             true,
                         );
                     } catch (NotSupportedException) {

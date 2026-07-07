@@ -198,16 +198,18 @@ class ImageTransformTest extends Unit
     public function testPdfTransformUrlUsesSignedRasterTransform(): void
     {
         $transformer = new ImageTransformer();
+        $imageTransform = $transformer->normalizeTransform([
+            'width' => 640.4,
+            'height' => 480.4,
+            'format' => 'webp',
+            'mode' => 'fit',
+            'upscale' => false,
+        ]);
 
+        $this->assertInstanceOf(ImageTransform::class, $imageTransform);
         $signedUrl = $transformer->getTransformUrl(
             $this->makePdfAssetStub(),
-            [
-                'width' => 640.4,
-                'height' => 480.4,
-                'format' => 'webp',
-                'mode' => 'fit',
-                'upscale' => false,
-            ],
+            $imageTransform,
             true,
         );
         $parameters = Query::fromUri($signedUrl)->parameters();
@@ -224,10 +226,12 @@ class ImageTransformTest extends Unit
     public function testPdfTransformsRequireCloudAssets(): void
     {
         $transformer = new ImageTransformer();
+        $imageTransform = $transformer->normalizeTransform(['width' => 100]);
 
+        $this->assertInstanceOf(ImageTransform::class, $imageTransform);
         $this->expectException(NotSupportedException::class);
 
-        $transformer->getTransformUrl($this->makePdfAssetStub(false), ['width' => 100], true);
+        $transformer->getTransformUrl($this->makePdfAssetStub(false), $imageTransform, true);
     }
 
     public function testEditImageActionUsesNativeTransforms(): void
