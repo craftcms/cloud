@@ -11,12 +11,10 @@ use craft\cloud\imagetransforms\ImageTransformer;
 use craft\cloud\Module as CloudModule;
 use craft\cloud\signing\UrlSigner;
 use craft\elements\Asset;
-use craft\events\GenerateTransformEvent;
 use craft\fs\Local;
 use craft\models\ImageTransform;
 use craft\models\Volume;
 use League\Uri\Components\Query;
-use ReflectionProperty;
 use yii\base\NotSupportedException;
 
 class ImageTransformTest extends Unit
@@ -239,42 +237,17 @@ class ImageTransformTest extends Unit
         $transformer->getTransformUrl($this->makePdfAssetStub(true, true), ['width' => 100], true);
     }
 
-    public function testEditImageActionUsesNativeTransforms(): void
+    public function testLocalCloudFsIsNotSignedByCloudTransformer(): void
     {
-        $module = new TestCloudModule('cloud-test');
-        $event = new GenerateTransformEvent([
-            'asset' => new TransformDecisionAsset(),
-            'transform' => new ImageTransform(['width' => 100]),
-        ]);
-        $request = Craft::$app->getRequest();
-        $isActionRequest = $request->getIsActionRequest();
-        $actionSegments = $request->getActionSegments();
+        $transformer = new ImageTransformer();
 
-        try {
-            $request->setIsActionRequest(true);
-            $this->setActionSegments(['assets', 'edit-image']);
-            $this->assertFalse($module->usesAssetCdnTransform($event));
+        $this->expectException(NotSupportedException::class);
 
-            $this->setActionSegments(['assets', 'generate-transform']);
-            $this->assertTrue($module->usesAssetCdnTransform($event));
-
-            $request->setIsActionRequest(false);
-            $this->setActionSegments(null);
-            $this->assertTrue($module->usesAssetCdnTransform($event));
-        } finally {
-            $request->setIsActionRequest($isActionRequest);
-            $this->setActionSegments($actionSegments);
-        }
-    }
-
-    public function testLocalCloudFsUsesNativeTransforms(): void
-    {
-        $event = new GenerateTransformEvent([
-            'asset' => new TransformDecisionAsset(true),
-            'transform' => new ImageTransform(['width' => 100]),
-        ]);
-
-        $this->assertFalse((new TestCloudModule('cloud-test'))->usesAssetCdnTransform($event));
+        $transformer->getTransformUrl(
+            $this->makeTransformUrlAsset('local.jpg', ['x' => 0.5, 'y' => 0.5], true),
+            new ImageTransform(['width' => 100]),
+            true,
+        );
     }
 
     public function testSupportedInputFormatsMatchCloudflareImages(): void
@@ -289,13 +262,6 @@ class ImageTransformTest extends Unit
             'avif',
             'heic',
         ], ImageTransformer::SUPPORTED_IMAGE_FORMATS);
-    }
-
-    private function setActionSegments(?array $actionSegments): void
-    {
-        $property = new ReflectionProperty(Craft::$app->getRequest(), '_actionSegments');
-        $property->setAccessible(true);
-        $property->setValue(Craft::$app->getRequest(), $actionSegments);
     }
 
     private function makeAssetStub(array $focalPoint): Asset
@@ -322,9 +288,9 @@ class ImageTransformTest extends Unit
         };
     }
 
-    private function makeTransformUrlAsset(string $filename, array $focalPoint): Asset
+    private function makeTransformUrlAsset(string $filename, array $focalPoint, bool $useLocalFs = false): Asset
     {
-        return new TransformUrlAsset($filename, $focalPoint);
+        return new TransformUrlAsset($filename, $focalPoint, $useLocalFs);
     }
 
     private function makePdfAssetStub(bool $useAssetCdn = true, bool $useLocalFs = false): Asset
@@ -427,6 +393,7 @@ class TransformUrlAsset extends Asset
     public function __construct(
         private string $filenameValue,
         private array $focalPointValue,
+        private bool $useLocalFs = false,
     ) {
         parent::__construct();
         $this->kind = self::KIND_IMAGE;
@@ -464,11 +431,16 @@ class TransformUrlAsset extends Asset
     public function getVolume(): Volume
     {
         return new Volume([
-            'fs' => new class() extends AssetsFs {
+            'fs' => new class($this->useLocalFs) extends AssetsFs {
+                public function __construct(private bool $assetUseLocalFs)
+                {
+                    parent::__construct();
+                }
+
                 public function init(): void
                 {
                     parent::init();
-                    $this->useLocalFs = false;
+                    $this->useLocalFs = $this->assetUseLocalFs;
                 }
 
                 public function getRootUrl(): ?string
@@ -477,47 +449,5 @@ class TransformUrlAsset extends Asset
                 }
             },
         ]);
-    }
-}
-
-class TestCloudModule extends CloudModule
-{
-    public function usesAssetCdnTransform(GenerateTransformEvent $event): bool
-    {
-        return $this->shouldUseAssetCdnTransform($event);
-    }
-}
-
-class TransformDecisionAsset extends Asset
-{
-    public function __construct(private bool $useLocalFs = false)
-    {
-        parent::__construct();
-    }
-
-    public function getVolume(): Volume
-    {
-        return new class($this->useLocalFs) extends Volume {
-            public function __construct(private bool $useLocalFs)
-            {
-                parent::__construct();
-            }
-
-            public function getFs(): AssetsFs
-            {
-                return new class($this->useLocalFs) extends AssetsFs {
-                    public function __construct(private bool $assetUseLocalFs)
-                    {
-                        parent::__construct();
-                    }
-
-                    public function init(): void
-                    {
-                        parent::init();
-                        $this->useLocalFs = $this->assetUseLocalFs;
-                    }
-                };
-            }
-        };
     }
 }

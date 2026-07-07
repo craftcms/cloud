@@ -105,7 +105,15 @@ class Module extends \yii\base\Module implements \yii\base\BootstrapInterface
                 Asset::class,
                 Asset::EVENT_BEFORE_GENERATE_TRANSFORM,
                 function(GenerateTransformEvent $event) {
-                    if (!$this->shouldUseAssetCdnTransform($event)) {
+                    if (!$event->transform) {
+                        return;
+                    }
+
+                    // Keep the image editor preview in native source-pixel coordinates.
+                    if (
+                        Craft::$app instanceof WebApplication &&
+                        Craft::$app->getRequest()->getActionSegments() === ['assets', 'edit-image']
+                    ) {
                         return;
                     }
 
@@ -116,7 +124,7 @@ class Module extends \yii\base\Module implements \yii\base\BootstrapInterface
                             true,
                         );
                     } catch (NotSupportedException) {
-                        Craft::info("Transforms not supported for {$event->asset->getPath()}", __METHOD__);
+                        return;
                     }
                 }
             );
@@ -173,23 +181,6 @@ class Module extends \yii\base\Module implements \yii\base\BootstrapInterface
                 $app->getView()->registerAssetBundle(UploaderAsset::class);
             }
         }
-    }
-
-    protected function shouldUseAssetCdnTransform(GenerateTransformEvent $event): bool
-    {
-        $assetFs = $event->asset?->fs;
-
-        if (!$event->transform || !$assetFs instanceof AssetsFs || $assetFs->useLocalFs) {
-            return false;
-        }
-
-        if (!(Craft::$app instanceof WebApplication)) {
-            return true;
-        }
-
-        // The image editor reads raw source pixels for save/crop math, so keep
-        // its preview in the same coordinate space as the original asset.
-        return Craft::$app->getRequest()->getActionSegments() !== ['assets', 'edit-image'];
     }
 
     public function getConfig(): Config
