@@ -107,7 +107,7 @@ class ImageTransformer extends Component implements ImageTransformerInterface
             // @phpstan-ignore argument.type, arguments.count (Craft 5 compatibility)
             $url = Assets::generateUrl($asset);
         } else {
-            $fs = $asset->getVolume()->getTransformFs();
+            $fs = $asset->getVolume()->getFs();
 
             // @phpstan-ignore argument.type, arguments.count (Craft 4 compatibility)
             $url = Assets::generateUrl($fs, $asset);
