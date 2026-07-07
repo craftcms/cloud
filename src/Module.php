@@ -15,6 +15,8 @@ use craft\cloud\web\assets\uploader\UploaderAsset;
 use craft\cloud\web\ResponseEventHandler;
 use craft\console\Application as ConsoleApplication;
 use craft\elements\Asset;
+use craft\events\DefineAssetThumbUrlEvent;
+use craft\events\DefineAssetUrlEvent;
 use craft\events\DefineBehaviorsEvent;
 use craft\events\DefineRulesEvent;
 use craft\events\GenerateTransformEvent;
@@ -24,6 +26,7 @@ use craft\helpers\App;
 use craft\helpers\ConfigHelper;
 use craft\log\MonologTarget;
 use craft\models\ImageTransform as CraftImageTransform;
+use craft\services\Assets as AssetsService;
 use craft\services\Fs as FsService;
 use craft\services\ImageTransforms;
 use craft\web\Application as WebApplication;
@@ -115,6 +118,30 @@ class Module extends \yii\base\Module implements \yii\base\BootstrapInterface
                     } catch (NotSupportedException) {
                         Craft::info("Transforms not supported for {$event->asset->getPath()}", __METHOD__);
                     }
+                }
+            );
+
+            Event::on(
+                Asset::class,
+                Asset::EVENT_BEFORE_DEFINE_URL,
+                function(DefineAssetUrlEvent $event) {
+                    if ($event->url !== null) {
+                        return;
+                    }
+
+                    $event->url = (new ImageTransformer())->getPdfTransformUrl($event->asset, $event->transform);
+                }
+            );
+
+            Event::on(
+                AssetsService::class,
+                AssetsService::EVENT_DEFINE_THUMB_URL,
+                function(DefineAssetThumbUrlEvent $event) {
+                    if ($event->url !== null) {
+                        return;
+                    }
+
+                    $event->url = (new ImageTransformer())->getPdfThumbUrl($event->asset, $event->width, $event->height);
                 }
             );
 

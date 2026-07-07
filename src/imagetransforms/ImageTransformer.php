@@ -10,6 +10,7 @@ use craft\cloud\Module;
 use craft\elements\Asset;
 use craft\helpers\Assets;
 use craft\helpers\Html;
+use craft\helpers\ImageTransforms as ImageTransformsHelper;
 use craft\models\ImageTransform;
 use League\Uri\Components\Query;
 use League\Uri\Modifier;
@@ -38,21 +39,52 @@ class ImageTransformer extends Component implements ImageTransformerInterface
             throw new NotSupportedException('SVG files shouldn’t be transformed.');
         }
 
-        $behavior = $imageTransform->getBehavior('cloud');
-
-        if (!$behavior instanceof ImageTransformBehavior) {
-            throw new \RuntimeException('Cloud image transform behavior is not attached.');
-        }
-
         $gravity = $this->applyAssetFocalPointGravity($asset, $imageTransform);
 
-        // @phpstan-ignore-next-line method.notFound
-        $query = Query::fromVariable($imageTransform->toOptions($gravity));
+        $query = Query::fromVariable($this->getTransformOptions($imageTransform, $gravity));
         $uri = Modifier::wrap($this->getAssetUri($asset))
             ->mergeQuery($query)
             ->unwrap();
 
         return Module::getInstance()->getUrlSigner()->sign((string) $uri);
+    }
+
+    public function getPdfTransformUrl(Asset $asset, mixed $transform): ?string
+    {
+        if ($asset->kind !== Asset::KIND_PDF) {
+            return null;
+        }
+
+        $assetFs = $this->getAssetCdnFs($asset);
+
+        if (!$assetFs) {
+            return null;
+        }
+
+        $imageTransform = $this->normalizeTransform($transform);
+
+        if (!$imageTransform) {
+            return null;
+        }
+
+        $options = $this->getTransformOptions($imageTransform);
+        $options['format'] ??= 'auto';
+
+        $query = Query::fromVariable($options);
+        $uri = Modifier::wrap($this->getAssetUri($asset, $assetFs))
+            ->mergeQuery($query)
+            ->unwrap();
+
+        return Module::getInstance()->getUrlSigner()->sign((string) $uri);
+    }
+
+    public function getPdfThumbUrl(Asset $asset, int $width, int $height): ?string
+    {
+        return $this->getPdfTransformUrl($asset, new ImageTransform([
+            'width' => $width,
+            'height' => $height,
+            'mode' => 'crop',
+        ]));
     }
 
     public function invalidateAssetTransforms(Asset $asset): void
@@ -69,9 +101,33 @@ class ImageTransformer extends Component implements ImageTransformerInterface
         return $asset->getFocalPoint();
     }
 
-    private function getAssetUri(Asset $asset): Uri
+    private function getTransformOptions(ImageTransform $imageTransform, array|string|null $gravity = null): array
     {
-        $assetFs = $asset->getVolume()->getFs();
+        $behavior = $imageTransform->getBehavior('cloud');
+
+        if (!$behavior instanceof ImageTransformBehavior) {
+            throw new \RuntimeException('Cloud image transform behavior is not attached.');
+        }
+
+        return $behavior->toOptions($gravity);
+    }
+
+    private function normalizeTransform(mixed $transform): ?ImageTransform
+    {
+        if (is_array($transform)) {
+            foreach (['width', 'height'] as $attribute) {
+                if (isset($transform[$attribute])) {
+                    $transform[$attribute] = round((float)$transform[$attribute]);
+                }
+            }
+        }
+
+        return ImageTransformsHelper::normalizeTransform($transform);
+    }
+
+    private function getAssetUri(Asset $asset, ?AssetsFs $assetFs = null): Uri
+    {
+        $assetFs ??= $this->getAssetCdnFs($asset);
 
         if (version_compare(Craft::$app->version, '5.0', '>=')) {
             // @phpstan-ignore argument.type, arguments.count (Craft 5 compatibility)
@@ -85,7 +141,7 @@ class ImageTransformer extends Component implements ImageTransformerInterface
 
         $uri = Uri::new(Html::encodeSpaces($url));
 
-        if (!$assetFs instanceof AssetsFs || $assetFs->useLocalFs) {
+        if (!$assetFs) {
             return $uri;
         }
 
@@ -95,5 +151,16 @@ class ImageTransformer extends Component implements ImageTransformerInterface
             ->removeQueryParameters('v')
             ->removeEmptyQueryPairs()
             ->unwrap());
+    }
+
+    private function getAssetCdnFs(Asset $asset): ?AssetsFs
+    {
+        $assetFs = $asset->getVolume()->getFs();
+
+        if (!$assetFs instanceof AssetsFs || $assetFs->useLocalFs) {
+            return null;
+        }
+
+        return $assetFs;
     }
 }
