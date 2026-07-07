@@ -261,13 +261,20 @@ class ImageTransformTest extends Unit
             $request->setIsActionRequest(false);
             $this->setActionSegments(null);
             $this->assertTrue($module->usesAssetCdnTransform($event));
-
-            $event->asset = new TransformDecisionAsset(true);
-            $this->assertFalse($module->usesAssetCdnTransform($event));
         } finally {
             $request->setIsActionRequest($isActionRequest);
             $this->setActionSegments($actionSegments);
         }
+    }
+
+    public function testLocalCloudFsUsesNativeTransforms(): void
+    {
+        $event = new GenerateTransformEvent([
+            'asset' => new TransformDecisionAsset(true),
+            'transform' => new ImageTransform(['width' => 100]),
+        ]);
+
+        $this->assertFalse((new TestCloudModule('cloud-test'))->usesAssetCdnTransform($event));
     }
 
     public function testSupportedInputFormatsMatchCloudflareImages(): void
