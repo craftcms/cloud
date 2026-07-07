@@ -11,10 +11,12 @@ use craft\cloud\imagetransforms\ImageTransformer;
 use craft\cloud\Module as CloudModule;
 use craft\cloud\signing\UrlSigner;
 use craft\elements\Asset;
+use craft\events\GenerateTransformEvent;
 use craft\fs\Local;
 use craft\models\ImageTransform;
 use craft\models\Volume;
 use League\Uri\Components\Query;
+use ReflectionProperty;
 use yii\base\NotSupportedException;
 
 class ImageTransformTest extends Unit
@@ -169,6 +171,40 @@ class ImageTransformTest extends Unit
         }
     }
 
+    public function testEditImageActionUsesNativeTransforms(): void
+    {
+        $module = new TestCloudModule('cloud-test');
+        $event = new GenerateTransformEvent([
+            'asset' => new TransformDecisionAsset(),
+            'transform' => new ImageTransform(['width' => 100]),
+        ]);
+        $localEvent = new GenerateTransformEvent([
+            'asset' => $this->makeTransformUrlAsset('local.jpg', ['x' => 0.5, 'y' => 0.5], true),
+            'transform' => new ImageTransform(['width' => 100]),
+        ]);
+        $request = Craft::$app->getRequest();
+        $isActionRequest = $request->getIsActionRequest();
+        $actionSegments = $request->getActionSegments();
+
+        try {
+            $this->assertFalse($module->usesAssetCdnTransform($localEvent));
+
+            $request->setIsActionRequest(true);
+            $this->setActionSegments(['assets', 'edit-image']);
+            $this->assertFalse($module->usesAssetCdnTransform($event));
+
+            $this->setActionSegments(['assets', 'generate-transform']);
+            $this->assertTrue($module->usesAssetCdnTransform($event));
+
+            $request->setIsActionRequest(false);
+            $this->setActionSegments(null);
+            $this->assertTrue($module->usesAssetCdnTransform($event));
+        } finally {
+            $request->setIsActionRequest($isActionRequest);
+            $this->setActionSegments($actionSegments);
+        }
+    }
+
     public function testPdfThumbUrlUsesSignedRasterTransform(): void
     {
         $transformer = new ImageTransformer();
@@ -262,6 +298,13 @@ class ImageTransformTest extends Unit
             'avif',
             'heic',
         ], ImageTransformer::SUPPORTED_IMAGE_FORMATS);
+    }
+
+    private function setActionSegments(?array $actionSegments): void
+    {
+        $property = new ReflectionProperty(Craft::$app->getRequest(), '_actionSegments');
+        $property->setAccessible(true);
+        $property->setValue(Craft::$app->getRequest(), $actionSegments);
     }
 
     private function makeAssetStub(array $focalPoint): Asset
@@ -385,6 +428,33 @@ class UrlTestImageTransformer extends ImageTransformer
         $behavior = $imageTransform->getBehavior('cloud');
 
         return (string) \League\Uri\Components\Query::fromVariable($behavior->toOptions($gravity));
+    }
+}
+
+class TestCloudModule extends CloudModule
+{
+    public function usesAssetCdnTransform(GenerateTransformEvent $event): bool
+    {
+        return $this->shouldUseAssetCdnTransform($event);
+    }
+}
+
+class TransformDecisionAsset extends Asset
+{
+    public function getVolume(): Volume
+    {
+        return new class() extends Volume {
+            public function getFs(): AssetsFs
+            {
+                return new class() extends AssetsFs {
+                    public function init(): void
+                    {
+                        parent::init();
+                        $this->useLocalFs = false;
+                    }
+                };
+            }
+        };
     }
 }
 

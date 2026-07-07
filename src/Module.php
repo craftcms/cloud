@@ -105,15 +105,7 @@ class Module extends \yii\base\Module implements \yii\base\BootstrapInterface
                 Asset::class,
                 Asset::EVENT_BEFORE_GENERATE_TRANSFORM,
                 function(GenerateTransformEvent $event) {
-                    if (!$event->transform) {
-                        return;
-                    }
-
-                    // Keep the image editor preview in native source-pixel coordinates.
-                    if (
-                        Craft::$app instanceof WebApplication &&
-                        Craft::$app->getRequest()->getActionSegments() === ['assets', 'edit-image']
-                    ) {
+                    if (!$this->shouldUseAssetCdnTransform($event)) {
                         return;
                     }
 
@@ -133,11 +125,12 @@ class Module extends \yii\base\Module implements \yii\base\BootstrapInterface
                 Asset::class,
                 Asset::EVENT_BEFORE_DEFINE_URL,
                 function(DefineAssetUrlEvent $event) {
-                    if ($event->url !== null || $event->asset->kind !== Asset::KIND_PDF) {
-                        return;
-                    }
-
-                    if (!$event->transform) {
+                    if (
+                        $event->url !== null ||
+                        $event->asset->kind !== Asset::KIND_PDF ||
+                        !$event->transform ||
+                        !$this->isRemoteCloudAsset($event->asset)
+                    ) {
                         return;
                     }
 
@@ -157,7 +150,11 @@ class Module extends \yii\base\Module implements \yii\base\BootstrapInterface
                 AssetsService::class,
                 AssetsService::EVENT_DEFINE_THUMB_URL,
                 function(DefineAssetThumbUrlEvent $event) {
-                    if ($event->url !== null || $event->asset->kind !== Asset::KIND_PDF) {
+                    if (
+                        $event->url !== null ||
+                        $event->asset->kind !== Asset::KIND_PDF ||
+                        !$this->isRemoteCloudAsset($event->asset)
+                    ) {
                         return;
                     }
 
@@ -181,6 +178,27 @@ class Module extends \yii\base\Module implements \yii\base\BootstrapInterface
                 $app->getView()->registerAssetBundle(UploaderAsset::class);
             }
         }
+    }
+
+    protected function shouldUseAssetCdnTransform(GenerateTransformEvent $event): bool
+    {
+        if (!$event->transform || !$this->isRemoteCloudAsset($event->asset)) {
+            return false;
+        }
+
+        if (!(Craft::$app instanceof WebApplication)) {
+            return true;
+        }
+
+        // The image editor reads raw source pixels for save/crop math.
+        return Craft::$app->getRequest()->getActionSegments() !== ['assets', 'edit-image'];
+    }
+
+    private function isRemoteCloudAsset(Asset $asset): bool
+    {
+        $assetFs = $asset->getVolume()->getFs();
+
+        return $assetFs instanceof AssetsFs && !$assetFs->useLocalFs;
     }
 
     public function getConfig(): Config
