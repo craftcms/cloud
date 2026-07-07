@@ -10,6 +10,7 @@ use craft\cloud\Module;
 use craft\elements\Asset;
 use craft\helpers\Assets;
 use craft\helpers\Html;
+use craft\helpers\ImageTransforms as ImageTransformsHelper;
 use craft\models\ImageTransform;
 use League\Uri\Components\Query;
 use League\Uri\Modifier;
@@ -26,16 +27,18 @@ class ImageTransformer extends Component implements ImageTransformerInterface
     // Source asset extensions Cloudflare Images can accept for transformations.
     public const SUPPORTED_IMAGE_FORMATS = ['png', 'jpg', 'jpeg', 'gif', 'webp', 'svg', 'avif', 'heic'];
 
-    public function getTransformUrl(Asset $asset, ImageTransform $imageTransform, bool $immediately): string
+    public function getTransformUrl(Asset $asset, mixed $transform, bool $immediately): string
     {
-        $mimeType = $asset->getMimeType();
+        $imageTransform = $this->normalizeTransform($transform);
 
-        if ($mimeType === 'image/gif' && !Craft::$app->getConfig()->getGeneral()->transformGifs) {
-            throw new NotSupportedException('GIF files shouldn’t be transformed.');
+        if (!$imageTransform) {
+            throw new NotSupportedException('Invalid image transform.');
         }
 
-        if ($mimeType === 'image/svg+xml' && !Craft::$app->getConfig()->getGeneral()->transformSvgs) {
-            throw new NotSupportedException('SVG files shouldn’t be transformed.');
+        $assetFs = $asset->getVolume()->getFs();
+
+        if (!$assetFs instanceof AssetsFs || $assetFs->useLocalFs) {
+            throw new NotSupportedException('Cloud transforms are only supported for Cloud assets.');
         }
 
         $behavior = $imageTransform->getBehavior('cloud');
@@ -44,12 +47,28 @@ class ImageTransformer extends Component implements ImageTransformerInterface
             throw new \RuntimeException('Cloud image transform behavior is not attached.');
         }
 
-        $gravity = $this->applyAssetFocalPointGravity($asset, $imageTransform);
+        if ($asset->kind !== Asset::KIND_PDF) {
+            $mimeType = $asset->getMimeType();
 
-        // @phpstan-ignore-next-line method.notFound
-        $query = Query::fromVariable($imageTransform->toOptions($gravity));
-        $uri = Modifier::wrap($this->getAssetUri($asset))
-            ->mergeQuery($query)
+            if ($mimeType === 'image/gif' && !Craft::$app->getConfig()->getGeneral()->transformGifs) {
+                throw new NotSupportedException('GIF files shouldn’t be transformed.');
+            }
+
+            if ($mimeType === 'image/svg+xml' && !Craft::$app->getConfig()->getGeneral()->transformSvgs) {
+                throw new NotSupportedException('SVG files shouldn’t be transformed.');
+            }
+        }
+
+        $options = $behavior->toOptions($this->applyAssetFocalPointGravity($asset, $imageTransform));
+
+        if ($asset->kind === Asset::KIND_PDF) {
+            $options['format'] ??= 'auto';
+        }
+
+        $uri = Modifier::wrap($this->createBaseUri($asset))
+            ->mergeQuery(Query::fromVariable($options))
+            ->removeQueryParameters('v')
+            ->removeEmptyQueryPairs()
             ->unwrap();
 
         return Module::getInstance()->getUrlSigner()->sign((string) $uri);
@@ -69,31 +88,31 @@ class ImageTransformer extends Component implements ImageTransformerInterface
         return $asset->getFocalPoint();
     }
 
-    private function getAssetUri(Asset $asset): Uri
+    private function normalizeTransform(mixed $transform): ?ImageTransform
     {
-        $assetFs = $asset->getVolume()->getFs();
+        if (is_array($transform)) {
+            foreach (['width', 'height'] as $attribute) {
+                if (isset($transform[$attribute])) {
+                    $transform[$attribute] = round((float)$transform[$attribute]);
+                }
+            }
+        }
 
+        return ImageTransformsHelper::normalizeTransform($transform);
+    }
+
+    private function createBaseUri(Asset $asset): Uri
+    {
         if (version_compare(Craft::$app->version, '5.0', '>=')) {
             // @phpstan-ignore argument.type, arguments.count (Craft 5 compatibility)
             $url = Assets::generateUrl($asset);
         } else {
-            $transformFs = $asset->getVolume()->getTransformFs();
+            $fs = $asset->getVolume()->getFs();
 
             // @phpstan-ignore argument.type, arguments.count (Craft 4 compatibility)
-            $url = Assets::generateUrl($transformFs, $asset);
+            $url = Assets::generateUrl($fs, $asset);
         }
 
-        $uri = Uri::new(Html::encodeSpaces($url));
-
-        if (!$assetFs instanceof AssetsFs || $assetFs->useLocalFs) {
-            return $uri;
-        }
-
-        // Craft's asset revision query isn't needed for Cloud transforms,
-        // regardless of the revAssetUrls config setting.
-        return Uri::new((string) Modifier::wrap($uri)
-            ->removeQueryParameters('v')
-            ->removeEmptyQueryPairs()
-            ->unwrap());
+        return Uri::new(Html::encodeSpaces($url));
     }
 }

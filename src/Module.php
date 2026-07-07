@@ -15,6 +15,8 @@ use craft\cloud\web\assets\uploader\UploaderAsset;
 use craft\cloud\web\ResponseEventHandler;
 use craft\console\Application as ConsoleApplication;
 use craft\elements\Asset;
+use craft\events\DefineAssetThumbUrlEvent;
+use craft\events\DefineAssetUrlEvent;
 use craft\events\DefineBehaviorsEvent;
 use craft\events\DefineRulesEvent;
 use craft\events\GenerateTransformEvent;
@@ -24,6 +26,7 @@ use craft\helpers\App;
 use craft\helpers\ConfigHelper;
 use craft\log\MonologTarget;
 use craft\models\ImageTransform as CraftImageTransform;
+use craft\services\Assets as AssetsService;
 use craft\services\Fs as FsService;
 use craft\services\ImageTransforms;
 use craft\web\Application as WebApplication;
@@ -113,7 +116,60 @@ class Module extends \yii\base\Module implements \yii\base\BootstrapInterface
                             true,
                         );
                     } catch (NotSupportedException) {
-                        Craft::info("Transforms not supported for {$event->asset->getPath()}", __METHOD__);
+                        return;
+                    }
+                }
+            );
+
+            Event::on(
+                Asset::class,
+                Asset::EVENT_BEFORE_DEFINE_URL,
+                function(DefineAssetUrlEvent $event) {
+                    if (
+                        $event->url !== null ||
+                        $event->asset->kind !== Asset::KIND_PDF ||
+                        !$event->transform ||
+                        !$this->isRemoteCloudAsset($event->asset)
+                    ) {
+                        return;
+                    }
+
+                    try {
+                        $event->url = (new ImageTransformer())->getTransformUrl(
+                            $event->asset,
+                            $event->transform,
+                            true,
+                        );
+                    } catch (NotSupportedException) {
+                        return;
+                    }
+                }
+            );
+
+            Event::on(
+                AssetsService::class,
+                AssetsService::EVENT_DEFINE_THUMB_URL,
+                function(DefineAssetThumbUrlEvent $event) {
+                    if (
+                        $event->url !== null ||
+                        $event->asset->kind !== Asset::KIND_PDF ||
+                        !$this->isRemoteCloudAsset($event->asset)
+                    ) {
+                        return;
+                    }
+
+                    try {
+                        $event->url = (new ImageTransformer())->getTransformUrl(
+                            $event->asset,
+                            new CraftImageTransform([
+                                'width' => $event->width,
+                                'height' => $event->height,
+                                'mode' => 'crop',
+                            ]),
+                            true,
+                        );
+                    } catch (NotSupportedException) {
+                        return;
                     }
                 }
             );
@@ -126,7 +182,7 @@ class Module extends \yii\base\Module implements \yii\base\BootstrapInterface
 
     protected function shouldUseAssetCdnTransform(GenerateTransformEvent $event): bool
     {
-        if (!$event->transform || !$event->asset?->fs instanceof AssetsFs) {
+        if (!$event->transform || !$this->isRemoteCloudAsset($event->asset)) {
             return false;
         }
 
@@ -134,9 +190,15 @@ class Module extends \yii\base\Module implements \yii\base\BootstrapInterface
             return true;
         }
 
-        // The image editor reads raw source pixels for save/crop math, so keep
-        // its preview in the same coordinate space as the original asset.
+        // The image editor reads raw source pixels for save/crop math.
         return Craft::$app->getRequest()->getActionSegments() !== ['assets', 'edit-image'];
+    }
+
+    private function isRemoteCloudAsset(Asset $asset): bool
+    {
+        $assetFs = $asset->getVolume()->getFs();
+
+        return $assetFs instanceof AssetsFs && !$assetFs->useLocalFs;
     }
 
     public function getConfig(): Config
