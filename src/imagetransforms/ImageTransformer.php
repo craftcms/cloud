@@ -37,8 +37,14 @@ class ImageTransformer extends Component implements ImageTransformerInterface
             throw new NotSupportedException('Invalid image transform.');
         }
 
+        $behavior = $imageTransform->getBehavior('cloud');
+
+        if (!$behavior instanceof ImageTransformBehavior) {
+            throw new \RuntimeException('Cloud image transform behavior is not attached.');
+        }
+
         if ($asset->kind === Asset::KIND_PDF) {
-            return $this->getPdfTransformUrl($asset, $imageTransform);
+            return $this->getPdfTransformUrl($asset, $behavior);
         }
 
         $mimeType = $asset->getMimeType();
@@ -53,7 +59,7 @@ class ImageTransformer extends Component implements ImageTransformerInterface
 
         $gravity = $this->applyAssetFocalPointGravity($asset, $imageTransform);
 
-        $query = Query::fromVariable($this->getTransformOptions($imageTransform, $gravity));
+        $query = Query::fromVariable($behavior->toOptions($gravity));
         $uri = Modifier::wrap($this->getAssetUri($asset))
             ->mergeQuery($query)
             ->unwrap();
@@ -61,7 +67,7 @@ class ImageTransformer extends Component implements ImageTransformerInterface
         return Module::getInstance()->getUrlSigner()->sign((string) $uri);
     }
 
-    private function getPdfTransformUrl(Asset $asset, ImageTransform $imageTransform): string
+    private function getPdfTransformUrl(Asset $asset, ImageTransformBehavior $behavior): string
     {
         $assetFs = $this->getAssetCdnFs($asset);
 
@@ -69,7 +75,7 @@ class ImageTransformer extends Component implements ImageTransformerInterface
             throw new NotSupportedException('PDF transforms are only supported for Cloud assets.');
         }
 
-        $options = $this->getTransformOptions($imageTransform);
+        $options = $behavior->toOptions();
         $options['format'] ??= 'auto';
 
         $query = Query::fromVariable($options);
@@ -92,17 +98,6 @@ class ImageTransformer extends Component implements ImageTransformerInterface
         }
 
         return $asset->getFocalPoint();
-    }
-
-    private function getTransformOptions(ImageTransform $imageTransform, array|string|null $gravity = null): array
-    {
-        $behavior = $imageTransform->getBehavior('cloud');
-
-        if (!$behavior instanceof ImageTransformBehavior) {
-            throw new \RuntimeException('Cloud image transform behavior is not attached.');
-        }
-
-        return $behavior->toOptions($gravity);
     }
 
     private function normalizeTransform(mixed $transform): ?ImageTransform
