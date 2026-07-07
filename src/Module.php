@@ -133,17 +133,10 @@ class Module extends \yii\base\Module implements \yii\base\BootstrapInterface
                         return;
                     }
 
-                    $transformer = new ImageTransformer();
-                    $imageTransform = $transformer->normalizeTransform($event->transform);
-
-                    if (!$imageTransform) {
-                        return;
-                    }
-
                     try {
-                        $event->url = $transformer->getTransformUrl(
+                        $event->url = (new ImageTransformer())->getTransformUrl(
                             $event->asset,
-                            $imageTransform,
+                            $event->transform,
                             true,
                         );
                     } catch (NotSupportedException) {
@@ -184,7 +177,9 @@ class Module extends \yii\base\Module implements \yii\base\BootstrapInterface
 
     protected function shouldUseAssetCdnTransform(GenerateTransformEvent $event): bool
     {
-        if (!$event->transform || !$event->asset?->fs instanceof AssetsFs) {
+        $assetFs = $event->asset?->fs;
+
+        if (!$event->transform || !$assetFs instanceof AssetsFs || $assetFs->useLocalFs) {
             return false;
         }
 
