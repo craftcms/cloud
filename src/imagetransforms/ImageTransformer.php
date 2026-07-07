@@ -36,7 +36,13 @@ class ImageTransformer extends Component implements ImageTransformerInterface
         }
 
         if ($asset->kind === Asset::KIND_PDF) {
-            return $this->getPdfTransformUrl($asset, $behavior);
+            $assetFs = $this->getAssetCdnFs($asset);
+
+            if (!$assetFs) {
+                throw new NotSupportedException('PDF transforms are only supported for Cloud assets.');
+            }
+
+            return $this->getPdfTransformUrl($asset, $assetFs, $behavior);
         }
 
         $mimeType = $asset->getMimeType();
@@ -59,14 +65,8 @@ class ImageTransformer extends Component implements ImageTransformerInterface
         return Module::getInstance()->getUrlSigner()->sign((string) $uri);
     }
 
-    private function getPdfTransformUrl(Asset $asset, ImageTransformBehavior $behavior): string
+    private function getPdfTransformUrl(Asset $asset, AssetsFs $assetFs, ImageTransformBehavior $behavior): string
     {
-        $assetFs = $this->getAssetCdnFs($asset);
-
-        if (!$assetFs) {
-            throw new NotSupportedException('PDF transforms are only supported for Cloud assets.');
-        }
-
         $options = $behavior->toOptions();
         $options['format'] ??= 'auto';
 
