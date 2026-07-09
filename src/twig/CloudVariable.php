@@ -44,7 +44,13 @@ class CloudVariable extends ServiceLocator
             return null;
         }
 
-        $imageTransform = ImageTransforms::normalizeTransform($transform);
+        $transformForAttributes = $transform;
+
+        if (is_array($transformForAttributes)) {
+            unset($transformForAttributes['page']);
+        }
+
+        $imageTransform = ImageTransforms::normalizeTransform($transformForAttributes);
         $attributes = [
             'src' => $url,
             'alt' => $asset->alt ?? $asset->getFilename(),

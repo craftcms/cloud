@@ -244,7 +244,7 @@ class ImageTransformTest extends Unit
                 'height' => 480.4,
                 'format' => 'webp',
                 'mode' => 'fit',
-                'page' => 2,
+                'page' => '2',
                 'upscale' => false,
             ],
             true,
@@ -282,7 +282,7 @@ class ImageTransformTest extends Unit
                 $this->makePdfAssetStub(),
                 [
                     'transform' => 'thumb',
-                    'page' => 2,
+                    'page' => '2',
                 ],
                 true,
             );
@@ -314,7 +314,7 @@ class ImageTransformTest extends Unit
     public function testCloudGetImgRendersSignedPdfTransform(): void
     {
         $transform = [
-            'page' => 1,
+            'page' => '1',
             'width' => 320,
             'height' => 240,
         ];
