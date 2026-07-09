@@ -3,7 +3,8 @@
 namespace craft\cloud\web;
 
 use Craft;
-use Illuminate\Support\Collection;
+use craft\helpers\App;
+use craft\helpers\Template;
 use samdark\log\PsrMessage;
 use yii\web\DbSession;
 
@@ -19,9 +20,10 @@ class Session extends DbSession
             return;
         }
 
-        Craft::info(new PsrMessage('Session opened during request', [
-            'stack' => $this->filteredStackTrace(),
-        ]), __METHOD__);
+        Craft::info(new PsrMessage(
+            'Session opened during request',
+            $this->sessionLogContext(App::backtrace(8)),
+        ), __METHOD__);
     }
 
     public function close()
@@ -34,32 +36,49 @@ class Session extends DbSession
             return;
         }
 
-        Craft::info(new PsrMessage('Session saved during request', [
-            'stack' => $this->filteredStackTrace(),
-        ]), __METHOD__);
+        Craft::info(new PsrMessage(
+            'Session saved during request',
+            $this->sessionLogContext(App::backtrace(8)),
+        ), __METHOD__);
     }
 
-    private function filteredStackTrace(int $limit = 8): array
+    private function sessionLogContext(string $stack, int $limit = 8): array
     {
-        return Collection::make(debug_backtrace(DEBUG_BACKTRACE_IGNORE_ARGS, $limit + 2))
-            ->reject(fn(array $frame) => ($frame['class'] ?? null) === self::class)
-            ->map(function(array $frame) {
-                $callable = Collection::make([
-                    $frame['class'] ?? null,
-                    $frame['type'] ?? null,
-                    $frame['function'],
-                ])->filter()->implode('');
+        $context = [
+            'stack' => $stack,
+        ];
 
-                $location = Collection::make([
-                    $frame['file'] ?? null,
-                    $frame['line'] ?? null,
-                ])->filter()->implode(':');
+        foreach (debug_backtrace(DEBUG_BACKTRACE_IGNORE_ARGS, $limit + 2) as $frame) {
+            $file = $frame['file'] ?? null;
 
-                return trim("$callable $location");
-            })
-            ->filter()
-            ->take($limit)
-            ->values()
-            ->all();
+            if ($file === null) {
+                continue;
+            }
+
+            $template = Template::resolveTemplatePathAndLine($file, $frame['line'] ?? null);
+
+            if ($template === false) {
+                continue;
+            }
+
+            [$path, $line] = $template;
+
+            if ($path === null) {
+                continue;
+            }
+
+            $resolved = [
+                'path' => $path,
+            ];
+
+            if ($line !== null) {
+                $resolved['line'] = $line;
+            }
+
+            $context['template'] = $resolved;
+            break;
+        }
+
+        return $context;
     }
 }
