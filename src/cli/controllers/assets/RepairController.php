@@ -6,11 +6,6 @@ use craft\cloud\cli\controllers\AssetsController;
 
 class RepairController extends AssetsController
 {
-    /**
-     * @inheritdoc
-     */
-    public $defaultAction = 'dimensions';
-
     public function actionDimensions(): int
     {
         return $this->actionRepairDimensions();

@@ -27,18 +27,12 @@ class AssetsController extends Controller
     {
         return array_merge(parent::options($actionID), match ($actionID) {
             'replace-metadata',
-            'repair',
             'repair-dimensions',
             'repair-metadata',
             'dimensions',
             'metadata' => ['volume', 'assetId'],
             default => []
         });
-    }
-
-    public function actionRepair(): int
-    {
-        return $this->actionRepairDimensions();
     }
 
     public function actionRepairDimensions(): int
