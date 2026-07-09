@@ -283,6 +283,7 @@ class ImageTransformTest extends Unit
                 [
                     'transform' => 'thumb',
                     'page' => '2',
+                    'zoom' => 1.25,
                 ],
                 true,
             );
@@ -315,6 +316,7 @@ class ImageTransformTest extends Unit
         $this->assertSame('320', $parameters['width']);
         $this->assertSame('320', $parameters['height']);
         $this->assertSame('2', $parameters['page']);
+        $this->assertSame('1.25', $parameters['zoom']);
         $this->assertArrayNotHasKey('page', $invalidPageParameters);
         $this->assertArrayNotHasKey('page', $zeroPageParameters);
         $this->assertTrue(CloudModule::getInstance()->getUrlSigner()->verify($signedUrl));

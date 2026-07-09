@@ -90,7 +90,7 @@ class ImageTransformer extends Component implements ImageTransformerInterface
 
     private function normalizeTransform(mixed $transform): ?ImageTransform
     {
-        $page = null;
+        $cloudOptions = [];
 
         if (is_array($transform)) {
             foreach (['width', 'height'] as $attribute) {
@@ -99,27 +99,43 @@ class ImageTransformer extends Component implements ImageTransformerInterface
                 }
             }
 
-            if (array_key_exists('page', $transform)) {
-                $normalizedPage = is_int($transform['page']) || is_string($transform['page'])
-                    ? filter_var($transform['page'], FILTER_VALIDATE_INT)
+            foreach ((new \ReflectionClass(ImageTransformBehavior::class))->getProperties(\ReflectionProperty::IS_PUBLIC) as $property) {
+                if ($property->getDeclaringClass()->getName() !== ImageTransformBehavior::class) {
+                    continue;
+                }
+
+                $name = $property->getName();
+
+                if (!array_key_exists($name, $transform)) {
+                    continue;
+                }
+
+                $cloudOptions[$name] = $transform[$name];
+                unset($transform[$name]);
+            }
+
+            if (array_key_exists('page', $cloudOptions)) {
+                $normalizedPage = is_int($cloudOptions['page']) || is_string($cloudOptions['page'])
+                    ? filter_var($cloudOptions['page'], FILTER_VALIDATE_INT)
                     : false;
 
                 if ($normalizedPage !== false && $normalizedPage >= 1) {
-                    $page = $normalizedPage;
+                    $cloudOptions['page'] = $normalizedPage;
+                } else {
+                    unset($cloudOptions['page']);
                 }
-
-                unset($transform['page']);
             }
         }
 
-        $imageTransform = ImageTransformsHelper::normalizeTransform($transform);
+        $imageTransform = ImageTransformsHelper::normalizeTransform($transform)
+            ?? ($cloudOptions ? Craft::createObject(ImageTransform::class) : null);
 
-        if ($imageTransform && $page !== null) {
+        if ($imageTransform && $cloudOptions) {
             $imageTransform = clone $imageTransform;
             $behavior = $imageTransform->getBehavior('cloud');
 
             if ($behavior instanceof ImageTransformBehavior) {
-                $behavior->page = $page;
+                Craft::configure($behavior, $cloudOptions);
             }
         }
 
