@@ -562,19 +562,23 @@ abstract class Fs extends FlysystemFs
         }
 
         try {
-            $contents = stream_get_contents($stream);
+            if (!in_array(strtolower($extension), ['svg', 'avif', 'heic', 'heif'], true)) {
+                $imageSize = Image::imageSizeByStream($stream);
+            } else {
+                $contents = stream_get_contents($stream);
 
-            if (!is_string($contents) || $contents === '') {
-                return null;
+                if (!is_string($contents) || $contents === '') {
+                    return null;
+                }
+
+                $imageSize = $this->getRasterImageDimensions($contents);
+
+                if ($imageSize === false) {
+                    $imageSize = $this->getFallbackImageDimensions($contents, $extension);
+                }
             }
 
-            $imageSize = $this->getRasterImageDimensions($contents);
-
-            if ($imageSize === false) {
-                $imageSize = $this->getFallbackImageDimensions($contents, $extension);
-            }
-
-            if ($imageSize === null || !isset($imageSize[0], $imageSize[1])) {
+            if ($imageSize === false || $imageSize === null || !isset($imageSize[0], $imageSize[1])) {
                 return null;
             }
 
