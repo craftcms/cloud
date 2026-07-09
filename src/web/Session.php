@@ -21,7 +21,7 @@ class Session extends DbSession
         }
 
         Craft::info(new PsrMessage(
-            'Session opened during request',
+            'Session opened',
             $this->sessionLogContext(App::backtrace(8)),
         ), __METHOD__);
     }
@@ -37,7 +37,7 @@ class Session extends DbSession
         }
 
         Craft::info(new PsrMessage(
-            'Session saved during request',
+            'Session closed',
             $this->sessionLogContext(App::backtrace(8)),
         ), __METHOD__);
     }
