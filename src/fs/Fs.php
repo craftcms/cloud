@@ -552,19 +552,29 @@ abstract class Fs extends FlysystemFs
     {
         $stream = $this->getFileStreamRange($uriPath, 0, $bytes - 1);
 
-        return $this->getImageDimensionsFromStream($stream);
+        return $this->getImageDimensionsFromStream($stream, pathinfo($uriPath, PATHINFO_EXTENSION));
     }
 
-    private function getImageDimensionsFromStream($stream): ?array
+    private function getImageDimensionsFromStream($stream, string $extension): ?array
     {
         if (!is_resource($stream)) {
             return null;
         }
 
         try {
-            $imageSize = Image::imageSizeByStream($stream);
+            $contents = stream_get_contents($stream);
 
-            if ($imageSize === false || !isset($imageSize[0], $imageSize[1])) {
+            if (!is_string($contents) || $contents === '') {
+                return null;
+            }
+
+            $imageSize = $this->getRasterImageDimensions($contents);
+
+            if ($imageSize === false) {
+                $imageSize = $this->getFallbackImageDimensions($contents, $extension);
+            }
+
+            if ($imageSize === null || !isset($imageSize[0], $imageSize[1])) {
                 return null;
             }
 
@@ -579,6 +589,129 @@ abstract class Fs extends FlysystemFs
                 fclose($stream);
             }
         }
+    }
+
+    private function getRasterImageDimensions(string $contents): array|false
+    {
+        $stream = $this->stringStream($contents);
+
+        if (!is_resource($stream)) {
+            return false;
+        }
+
+        try {
+            return Image::imageSizeByStream($stream);
+        } finally {
+            fclose($stream);
+        }
+    }
+
+    private function getFallbackImageDimensions(string $contents, string $extension): ?array
+    {
+        // ponytail: older Craft fallback; newer Craft handles these in Image::imageSizeByStream().
+        return match (strtolower($extension)) {
+            'svg' => stripos($contents, '<svg') === false ? null : Image::parseSvgSize($contents),
+            'avif', 'heic', 'heif' => $this->getIsoBaseMediaFileImageDimensions($contents),
+            default => null,
+        };
+    }
+
+    private function getIsoBaseMediaFileImageDimensions(string $contents): ?array
+    {
+        if (strlen($contents) < 16 || substr($contents, 4, 4) !== 'ftyp') {
+            return null;
+        }
+
+        $ftypSize = min($this->readUint32($contents, 0), strlen($contents));
+
+        if ($ftypSize < 16) {
+            return null;
+        }
+
+        $brands = [substr($contents, 8, 4)];
+
+        for ($offset = 16; $offset + 4 <= $ftypSize; $offset += 4) {
+            $brands[] = substr($contents, $offset, 4);
+        }
+
+        if (!array_intersect($brands, ['avif', 'heic', 'heif', 'mif1', 'msf1'])) {
+            return null;
+        }
+
+        return $this->findIsoBaseMediaFileImageDimensions($contents, $ftypSize, strlen($contents));
+    }
+
+    private function findIsoBaseMediaFileImageDimensions(string $contents, int $start, int $end, int $depth = 0): ?array
+    {
+        if ($depth > 8) {
+            return null;
+        }
+
+        for ($offset = $start; $offset + 8 <= $end;) {
+            $boxSize = $this->readUint32($contents, $offset);
+            $boxType = substr($contents, $offset + 4, 4);
+            $headerSize = 8;
+
+            if ($boxSize === 1) {
+                if ($offset + 16 > $end) {
+                    return null;
+                }
+
+                $boxSize = $this->readUint64($contents, $offset + 8);
+                $headerSize = 16;
+            } elseif ($boxSize === 0) {
+                $boxSize = $end - $offset;
+            }
+
+            if ($boxSize < $headerSize || $offset + $boxSize > $end) {
+                return null;
+            }
+
+            $boxEnd = $offset + $boxSize;
+            $dataStart = $offset + $headerSize;
+
+            if ($boxType === 'ispe' && $dataStart + 12 <= $boxEnd) {
+                $width = $this->readUint32($contents, $dataStart + 4);
+                $height = $this->readUint32($contents, $dataStart + 8);
+
+                return $width > 0 && $height > 0 ? [$width, $height] : null;
+            }
+
+            if (in_array($boxType, ['meta', 'iprp', 'ipco'], true)) {
+                $dimensions = $this->findIsoBaseMediaFileImageDimensions(
+                    $contents,
+                    $boxType === 'meta' ? $dataStart + 4 : $dataStart,
+                    $boxEnd,
+                    $depth + 1,
+                );
+
+                if ($dimensions !== null) {
+                    return $dimensions;
+                }
+            }
+
+            $offset = $boxEnd;
+        }
+
+        return null;
+    }
+
+    private function readUint32(string $contents, int $offset): int
+    {
+        $data = unpack('Nvalue', substr($contents, $offset, 4));
+
+        return (int)$data['value'];
+    }
+
+    private function readUint64(string $contents, int $offset): int
+    {
+        $data = unpack('Nhigh/Nlow', substr($contents, $offset, 8));
+
+        if ($data['high'] > 0x7FFFFFFF) {
+            return PHP_INT_MAX;
+        }
+
+        return ($data['high'] << 32) | $data['low'];
     }
 
     /**

@@ -112,6 +112,26 @@ class AssetsControllerTest extends Unit
         $this->assertSame(3, $fs->readCount);
     }
 
+    public function testUploadedImageDimensionsReadSvgDimensions(): void
+    {
+        $fs = new HeaderTestFs();
+        $fs->header = '<svg xmlns="http://www.w3.org/2000/svg" width="640" height="480"></svg>';
+
+        $this->assertSame([640, 480], $fs->getImageDimensions('upload.svg'));
+        $this->assertSame(1, $fs->readCount);
+    }
+
+    public function testUploadedImageDimensionsReadHeifImageSpatialExtents(): void
+    {
+        foreach (['avif' => 'avif', 'heic' => 'heic'] as $extension => $brand) {
+            $fs = new HeaderTestFs();
+            $fs->header = $this->isoBaseMediaFileImage($brand, 4032, 3024);
+
+            $this->assertSame([4032, 3024], $fs->getImageDimensions("upload.{$extension}"));
+            $this->assertSame(1, $fs->readCount);
+        }
+    }
+
     public function testUploadedImageDimensionsStopAfterBoundedRanges(): void
     {
         $fs = new FullStreamHeaderTestFs();
@@ -123,6 +143,23 @@ class AssetsControllerTest extends Unit
         $this->assertNull($fs->getImageDimensions('upload.jpeg'));
         $this->assertSame(4, $fs->readCount);
         $this->assertSame(0, $fs->streamReadCount);
+    }
+
+    private function isoBaseMediaFileImage(string $brand, int $width, int $height): string
+    {
+        return $this->isoBaseMediaFileBox('ftyp', "{$brand}\0\0\0\0{$brand}")
+            . $this->isoBaseMediaFileBox('meta', "\0\0\0\0"
+                . $this->isoBaseMediaFileBox('iprp',
+                    $this->isoBaseMediaFileBox('ipco',
+                        $this->isoBaseMediaFileBox('ispe', "\0\0\0\0" . pack('N', $width) . pack('N', $height)),
+                    ),
+                ),
+            );
+    }
+
+    private function isoBaseMediaFileBox(string $type, string $contents): string
+    {
+        return pack('N', strlen($contents) + 8) . $type . $contents;
     }
 
     private function invokeVolumeSubpath(Volume $volume): string
