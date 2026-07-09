@@ -1,10 +1,9 @@
 <?php
 
-namespace craft\cloud\cli\controllers;
+namespace craft\cloud\cli\controllers\assets;
 
 use Craft;
 use craft\cloud\fs\Fs;
-use craft\console\Controller;
 use craft\db\Table;
 use craft\elements\Asset;
 use craft\helpers\FileHelper;
@@ -13,13 +12,8 @@ use yii\base\Exception;
 use yii\console\ExitCode;
 use yii\helpers\Console;
 
-class AssetsController extends Controller
+trait AssetRepairTrait
 {
-    private const CRAFT_STREAM_DIMENSION_FIX_VERSION = [
-        '4' => '4.18.4',
-        '5' => '5.10.9',
-    ];
-
     /**
      * @var array<string>|null
      */
@@ -33,8 +27,7 @@ class AssetsController extends Controller
     public function options($actionID): array
     {
         return array_merge(parent::options($actionID), match ($actionID) {
-            'replace-metadata',
-            'repair-metadata',
+            'index',
             'missing',
             'metadata' => ['volume', 'assetId'],
             default => []
@@ -110,7 +103,7 @@ class AssetsController extends Controller
         return ExitCode::OK;
     }
 
-    public function actionRepairMetadata(): int
+    protected function repairAssetObjectMetadataForAssets(): int
     {
         $assets = Asset::find()
             ->volume($this->volume)
@@ -125,16 +118,6 @@ class AssetsController extends Controller
         }
 
         return ExitCode::OK;
-    }
-
-    public function actionReplaceMetadata(): int
-    {
-        $this->stdout(
-            'Deprecated: use `cloud/assets/repair/metadata` to repair object metadata instead.' . PHP_EOL,
-            Console::FG_YELLOW,
-        );
-
-        return $this->actionRepairMetadata();
     }
 
     /**
@@ -199,7 +182,7 @@ class AssetsController extends Controller
     protected function warnIfCraftStreamDimensionFixMissing(): void
     {
         $craftVersion = Craft::$app->getVersion();
-        $fixedVersion = self::CRAFT_STREAM_DIMENSION_FIX_VERSION[explode('.', $craftVersion)[0] ?? ''] ?? null;
+        $fixedVersion = $this->fixedCraftStreamDimensionVersion($craftVersion);
 
         if ($fixedVersion === null || version_compare($craftVersion, $fixedVersion, '>=')) {
             return;
@@ -227,5 +210,13 @@ class AssetsController extends Controller
         ];
 
         $fs->replaceMetadata($path, $config);
+    }
+
+    private function fixedCraftStreamDimensionVersion(string $craftVersion): ?string
+    {
+        return [
+            '4' => '4.18.4',
+            '5' => '5.10.9',
+        ][explode('.', $craftVersion)[0] ?? ''] ?? null;
     }
 }

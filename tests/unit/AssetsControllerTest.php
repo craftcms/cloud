@@ -4,11 +4,15 @@ namespace craft\cloud\tests\unit;
 
 use Codeception\Test\Unit;
 use Craft;
+use craft\cloud\cli\controllers\assets\RepairController;
+use craft\cloud\cli\controllers\assets\ReplaceMetadataController;
 use craft\cloud\controllers\AssetsController;
 use craft\cloud\fs\Fs;
+use craft\console\Controller as ConsoleController;
 use craft\elements\Asset;
 use craft\models\Volume;
 use ReflectionMethod;
+use yii\base\Module as BaseModule;
 use yii\web\BadRequestHttpException;
 
 class AssetsControllerTest extends Unit
@@ -125,6 +129,36 @@ class AssetsControllerTest extends Unit
         $this->assertSame(0, $fs->streamReadCount);
     }
 
+    public function testCliAssetsRepairRoutesResolveThroughYiiModule(): void
+    {
+        $module = new BaseModule('cloud');
+        $module->controllerNamespace = 'craft\\cloud\\cli\\controllers';
+
+        $this->assertCliRoute($module, 'assets/repair', RepairController::class, '', 'missing');
+        $this->assertCliRoute($module, 'assets/repair/missing', RepairController::class, 'missing');
+        $this->assertCliRoute($module, 'assets/repair/metadata', RepairController::class, 'metadata');
+        $this->assertCliRoute($module, 'assets/replace-metadata', ReplaceMetadataController::class, '', 'index');
+    }
+
+    public function testCliAssetsCommandsDoNotExposeTopLevelOrUnreleasedRoutes(): void
+    {
+        $module = new BaseModule('cloud');
+        $module->controllerNamespace = 'craft\\cloud\\cli\\controllers';
+
+        $this->assertFalse($module->createController('assets'));
+        $this->assertFalse($module->createController('assets/repair-metadata'));
+    }
+
+    public function testCliAssetsCommandsExposeAssetFilters(): void
+    {
+        $repairController = new RepairController('assets/repair', Craft::$app);
+        $replaceMetadataController = new ReplaceMetadataController('assets/replace-metadata', Craft::$app);
+
+        $this->assertCliAssetFilterOptions($repairController, 'missing');
+        $this->assertCliAssetFilterOptions($repairController, 'metadata');
+        $this->assertCliAssetFilterOptions($replaceMetadataController, 'index');
+    }
+
     private function invokeVolumeSubpath(Volume $volume): string
     {
         $controller = new AssetsController('cloud-assets', Craft::$app);
@@ -132,6 +166,38 @@ class AssetsControllerTest extends Unit
         $method->setAccessible(true);
 
         return $method->invoke($controller, $volume);
+    }
+
+    /**
+     * @param class-string $controllerClass
+     */
+    private function assertCliRoute(
+        BaseModule $module,
+        string $route,
+        string $controllerClass,
+        string $actionId,
+        ?string $effectiveActionId = null,
+    ): void {
+        $result = $module->createController($route);
+
+        $this->assertIsArray($result);
+
+        [$controller, $resolvedActionId] = $result;
+        $this->assertInstanceOf($controllerClass, $controller);
+        $this->assertSame($actionId, $resolvedActionId);
+
+        $action = $controller->createAction($resolvedActionId);
+
+        $this->assertNotNull($action);
+        $this->assertSame($effectiveActionId ?? $actionId, $action->id);
+    }
+
+    private function assertCliAssetFilterOptions(ConsoleController $controller, string $actionId): void
+    {
+        $options = $controller->options($actionId);
+
+        $this->assertContains('volume', $options);
+        $this->assertContains('assetId', $options);
     }
 }
 

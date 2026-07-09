@@ -2,20 +2,13 @@
 
 namespace craft\cloud\cli\controllers\assets;
 
-use craft\cloud\cli\controllers\AssetsController;
+use craft\console\Controller;
 
-class RepairController extends AssetsController
+class RepairController extends Controller
 {
+    use AssetRepairTrait;
+
     public $defaultAction = 'missing';
-
-    public function createAction($id)
-    {
-        if (!in_array($id, ['missing', 'metadata'], true)) {
-            return null;
-        }
-
-        return parent::createAction($id);
-    }
 
     public function actionMissing(): int
     {
@@ -24,6 +17,6 @@ class RepairController extends AssetsController
 
     public function actionMetadata(): int
     {
-        return $this->actionRepairMetadata();
+        return $this->repairAssetObjectMetadataForAssets();
     }
 }
