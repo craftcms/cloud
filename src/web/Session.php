@@ -60,7 +60,17 @@ class Session extends DbSession
         return Collection::make(GuzzleUtils::headersFromLines(headers_list()))
             ->filter(fn(array $values, string $name) => Collection::make($trackedHeaders)
                 ->contains(fn(string $trackedHeader) => strcasecmp($trackedHeader, $name) === 0))
+            ->map(fn(array $values, string $name) => $this->loggableHeaderValues($name, $values))
             ->all();
+    }
+
+    private function loggableHeaderValues(string $name, array $values): array
+    {
+        if (strcasecmp($name, 'Set-Cookie') !== 0) {
+            return $values;
+        }
+
+        return array_fill(0, count($values), '[redacted]');
     }
 
     private function filteredStackTrace(int $limit = 8): array
