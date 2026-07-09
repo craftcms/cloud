@@ -91,6 +91,7 @@ class ImageTransformer extends Component implements ImageTransformerInterface
     private function normalizeTransform(mixed $transform): ?ImageTransform
     {
         $cloudOptions = [];
+        static $cloudOptionProperties = null;
 
         if (is_array($transform)) {
             foreach (['width', 'height'] as $attribute) {
@@ -99,11 +100,12 @@ class ImageTransformer extends Component implements ImageTransformerInterface
                 }
             }
 
-            foreach ((new \ReflectionClass(ImageTransformBehavior::class))->getProperties(\ReflectionProperty::IS_PUBLIC) as $property) {
-                if ($property->getDeclaringClass()->getName() !== ImageTransformBehavior::class) {
-                    continue;
-                }
+            $cloudOptionProperties ??= array_filter(
+                (new \ReflectionClass(ImageTransformBehavior::class))->getProperties(\ReflectionProperty::IS_PUBLIC),
+                fn(\ReflectionProperty $property) => $property->getDeclaringClass()->getName() === ImageTransformBehavior::class,
+            );
 
+            foreach ($cloudOptionProperties as $property) {
                 $name = $property->getName();
 
                 if (!array_key_exists($name, $transform)) {
