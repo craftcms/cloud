@@ -14,6 +14,11 @@ use yii\helpers\Console;
 
 class AssetsController extends Controller
 {
+    private const CRAFT_STREAM_DIMENSION_FIX_VERSION = [
+        '4' => '4.18.4',
+        '5' => '5.10.9',
+    ];
+
     /**
      * @var array<string>|null
      */
@@ -38,28 +43,32 @@ class AssetsController extends Controller
 
     public function actionRepairDimensions(): int
     {
+        $this->warnIfCraftStreamDimensionFixMissing();
+
         $repaired = 0;
         $skipped = 0;
 
-        Asset::find()
+        $assets = Asset::find()
             ->volume($this->volume)
             ->id($this->assetId)
             ->kind(Asset::KIND_IMAGE)
-            ->andWhere(['or', ['assets.width' => null], ['assets.height' => null]])
-            ->each(function(Asset $asset) use (&$repaired, &$skipped) {
-                $path = $asset->getPath();
+            ->andWhere(['or', ['assets.width' => null], ['assets.height' => null]]);
 
-                $dimensions = $this->repairAssetDimensions($asset);
+        foreach ($assets->each() as $asset) {
+            /** @var Asset $asset */
+            $path = $asset->getPath();
 
-                if ($dimensions === null) {
-                    $skipped++;
-                    $this->stdout("Skipped `{$path}`: dimensions could not be determined." . PHP_EOL, Console::FG_YELLOW);
-                    return;
-                }
+            $dimensions = $this->repairAssetDimensions($asset);
 
-                $repaired++;
-                $this->stdout("Repaired `{$path}`: {$dimensions[0]}x{$dimensions[1]}." . PHP_EOL, Console::FG_GREEN);
-            });
+            if ($dimensions === null) {
+                $skipped++;
+                $this->stdout("Skipped `{$path}`: dimensions could not be determined." . PHP_EOL, Console::FG_YELLOW);
+                continue;
+            }
+
+            $repaired++;
+            $this->stdout("Repaired `{$path}`: {$dimensions[0]}x{$dimensions[1]}." . PHP_EOL, Console::FG_GREEN);
+        }
 
         $this->stdout("Repaired {$repaired} asset" . ($repaired === 1 ? '' : 's') . '.' . PHP_EOL, Console::FG_GREEN);
 
@@ -72,15 +81,17 @@ class AssetsController extends Controller
 
     public function actionRepairMetadata(): int
     {
-        Asset::find()
+        $assets = Asset::find()
             ->volume($this->volume)
-            ->id($this->assetId)
-            ->each(function(Asset $asset) {
-                $this->do(
-                    "Repairing metadata for `{$asset->getPath()}`",
-                    fn() => $this->repairAssetMetadata($asset),
-                );
-            });
+            ->id($this->assetId);
+
+        foreach ($assets->each() as $asset) {
+            /** @var Asset $asset */
+            $this->do(
+                "Repairing metadata for `{$asset->getPath()}`",
+                fn() => $this->repairAssetMetadata($asset),
+            );
+        }
 
         return ExitCode::OK;
     }
@@ -123,6 +134,21 @@ class AssetsController extends Controller
         $asset->setHeight($dimensions[1]);
 
         return $dimensions;
+    }
+
+    protected function warnIfCraftStreamDimensionFixMissing(): void
+    {
+        $craftVersion = Craft::$app->getVersion();
+        $fixedVersion = self::CRAFT_STREAM_DIMENSION_FIX_VERSION[explode('.', $craftVersion)[0] ?? ''] ?? null;
+
+        if ($fixedVersion === null || version_compare($craftVersion, $fixedVersion, '>=')) {
+            return;
+        }
+
+        $this->stdout(
+            "Craft CMS {$fixedVersion}+ includes image stream dimension fixes for WebP, AVIF, and HEIC/HEIF. Upgrade Craft CMS if `repair/dimensions` still skips those assets." . PHP_EOL,
+            Console::FG_YELLOW,
+        );
     }
 
     protected function repairAssetMetadata(Asset $asset): void
