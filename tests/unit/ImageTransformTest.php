@@ -10,13 +10,16 @@ use craft\cloud\imagetransforms\ImageTransformBehavior;
 use craft\cloud\imagetransforms\ImageTransformer;
 use craft\cloud\Module as CloudModule;
 use craft\cloud\signing\UrlSigner;
+use craft\cloud\twig\CloudVariable;
 use craft\elements\Asset;
 use craft\events\GenerateTransformEvent;
 use craft\fs\Local;
+use craft\helpers\Template;
 use craft\models\ImageTransform;
 use craft\models\Volume;
 use League\Uri\Components\Query;
 use ReflectionProperty;
+use Twig\Markup;
 use yii\base\NotSupportedException;
 
 class ImageTransformTest extends Unit
@@ -240,6 +243,7 @@ class ImageTransformTest extends Unit
                 'height' => 480.4,
                 'format' => 'webp',
                 'mode' => 'fit',
+                'page' => 2,
                 'upscale' => false,
             ],
             true,
@@ -251,8 +255,53 @@ class ImageTransformTest extends Unit
         $this->assertSame('640', $parameters['width']);
         $this->assertSame('480', $parameters['height']);
         $this->assertSame('scale-down', $parameters['fit']);
-        $this->assertArrayNotHasKey('page', $parameters);
+        $this->assertSame('2', $parameters['page']);
         $this->assertTrue(CloudModule::getInstance()->getUrlSigner()->verify($signedUrl));
+    }
+
+    public function testCloudGetImgDelegatesToNativeImageRendering(): void
+    {
+        $asset = new DelegatingImageAsset();
+        $transform = ['width' => 100];
+        $sizes = ['1x', '2x'];
+
+        $img = (new CloudVariable())->getImg($asset, $transform, $sizes);
+
+        $this->assertSame('<img src="delegated">', (string) $img);
+        $this->assertSame($transform, $asset->receivedTransform);
+        $this->assertSame($sizes, $asset->receivedSizes);
+    }
+
+    public function testCloudGetImgRendersSignedPdfTransform(): void
+    {
+        $transform = [
+            'page' => 1,
+            'width' => 320,
+            'height' => 240,
+        ];
+
+        $img = (new CloudVariable())->getImg(new SignedPdfImageAsset(), $transform);
+        $src = $this->imgSrc($img);
+        $parameters = Query::fromUri($src)->parameters();
+
+        $this->assertStringStartsWith('<img ', (string) $img);
+        $this->assertStringContainsString('width="320"', (string) $img);
+        $this->assertStringContainsString('height="240"', (string) $img);
+        $this->assertStringContainsString('alt="document.pdf"', (string) $img);
+        $this->assertStringContainsString('/tests/document.pdf?', $src);
+        $this->assertSame('auto', $parameters['format']);
+        $this->assertSame('1', $parameters['page']);
+        $this->assertTrue(CloudModule::getInstance()->getUrlSigner()->verify($src));
+    }
+
+    public function testCloudGetImgRequiresPdfTransform(): void
+    {
+        $this->assertNull((new CloudVariable())->getImg(new UnsignedPdfImageAsset()));
+    }
+
+    public function testCloudGetImgDoesNotRenderUnsignedPdfUrl(): void
+    {
+        $this->assertNull((new CloudVariable())->getImg(new UnsignedPdfImageAsset(), ['page' => 1]));
     }
 
     public function testPdfTransformsRequireCloudAssets(): void
@@ -408,6 +457,14 @@ class ImageTransformTest extends Unit
 
         return $behavior;
     }
+
+    private function imgSrc(?Markup $img): string
+    {
+        $this->assertNotNull($img);
+        $this->assertSame(1, preg_match('/\bsrc="([^"]+)"/', (string) $img, $matches));
+
+        return html_entity_decode($matches[1], ENT_QUOTES | ENT_HTML5);
+    }
 }
 
 class TestImageTransformer extends ImageTransformer
@@ -455,6 +512,83 @@ class TransformDecisionAsset extends Asset
                 };
             }
         };
+    }
+}
+
+class DelegatingImageAsset extends Asset
+{
+    public mixed $receivedTransform = null;
+    public ?array $receivedSizes = null;
+
+    public function __construct()
+    {
+        parent::__construct();
+        $this->kind = self::KIND_IMAGE;
+    }
+
+    public function getImg(mixed $transform = null, ?array $sizes = null): ?Markup
+    {
+        $this->receivedTransform = $transform;
+        $this->receivedSizes = $sizes;
+
+        return Template::raw('<img src="delegated">');
+    }
+}
+
+class SignedPdfImageAsset extends Asset
+{
+    public function __construct()
+    {
+        parent::__construct();
+        $this->kind = self::KIND_PDF;
+        $this->folderPath = 'tests/';
+    }
+
+    public function getFilename(bool $withExtension = true): string
+    {
+        return 'document.pdf';
+    }
+
+    public function getPath(?string $filename = null): string
+    {
+        return 'tests/' . ($filename ?? 'document.pdf');
+    }
+
+    public function getUrl(mixed $transform = null, ?bool $immediately = null): ?string
+    {
+        return (new ImageTransformer())->getTransformUrl($this, $transform, true);
+    }
+
+    public function getVolume(): Volume
+    {
+        return new Volume([
+            'fs' => new class() extends AssetsFs {
+                public function init(): void
+                {
+                    parent::init();
+                    $this->useLocalFs = false;
+                }
+
+                public function getRootUrl(): ?string
+                {
+                    return 'https://cdn.craft.cloud/assets/';
+                }
+            },
+        ]);
+    }
+}
+
+class UnsignedPdfImageAsset extends Asset
+{
+    public function __construct()
+    {
+        parent::__construct();
+        $this->kind = self::KIND_PDF;
+    }
+
+    public function getUrl(mixed $transform = null, ?bool $immediately = null): ?string
+    {
+        return 'https://cdn.craft.cloud/assets/document.pdf?page=1&format=auto';
     }
 }
 
