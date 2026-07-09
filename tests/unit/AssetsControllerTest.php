@@ -128,43 +128,14 @@ class AssetsControllerTest extends Unit
         $this->assertSame(0, $fs->streamReadCount);
     }
 
-    public function testCliAssetsRepairCommandDefaultsToMissingDataRepair(): void
-    {
-        $controller = new RepairController('assets/repair', Craft::$app);
-
-        $this->assertSame('missing', $controller->defaultAction);
-        $this->assertNotNull($controller->createAction($controller->defaultAction));
-    }
-
-    public function testCliAssetsRepairCommandExposesRepairActions(): void
-    {
-        $controller = new RepairController('assets/repair', Craft::$app);
-
-        $this->assertNotNull($controller->createAction('missing'));
-        $this->assertNotNull($controller->createAction('metadata'));
-        $this->assertNull($controller->createAction('replace-metadata'));
-        $this->assertNull($controller->createAction('repair-metadata'));
-    }
-
     public function testCliAssetsRepairRoutesResolveThroughYiiModule(): void
     {
         $module = new BaseModule('cloud');
         $module->controllerNamespace = 'craft\\cloud\\cli\\controllers';
 
-        $result = $module->createController('assets/repair');
-
-        $this->assertIsArray($result);
-        [$controller, $actionId] = $result;
-        $this->assertInstanceOf(CliAssetsController::class, $controller);
-        $this->assertSame('repair', $actionId);
-        $this->assertNotNull($controller->createAction($actionId));
-
-        $result = $module->createController('assets/repair/metadata');
-
-        $this->assertIsArray($result);
-        [$controller, $actionId] = $result;
-        $this->assertInstanceOf(RepairController::class, $controller);
-        $this->assertSame('metadata', $actionId);
+        $this->assertCliRoute($module, 'assets/repair', CliAssetsController::class, 'repair');
+        $this->assertCliRoute($module, 'assets/repair/missing', RepairController::class, 'missing');
+        $this->assertCliRoute($module, 'assets/repair/metadata', RepairController::class, 'metadata');
     }
 
     public function testCliAssetsCommandExposesRepairEntryAndDeprecatedReplaceAlias(): void
@@ -185,6 +156,21 @@ class AssetsControllerTest extends Unit
         $method->setAccessible(true);
 
         return $method->invoke($controller, $volume);
+    }
+
+    /**
+     * @param class-string $controllerClass
+     */
+    private function assertCliRoute(BaseModule $module, string $route, string $controllerClass, string $actionId): void
+    {
+        $result = $module->createController($route);
+
+        $this->assertIsArray($result);
+
+        [$controller, $resolvedActionId] = $result;
+        $this->assertInstanceOf($controllerClass, $controller);
+        $this->assertSame($actionId, $resolvedActionId);
+        $this->assertNotNull($controller->createAction($resolvedActionId));
     }
 }
 

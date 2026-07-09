@@ -6,8 +6,6 @@ use craft\cloud\cli\controllers\AssetsController;
 
 class RepairController extends AssetsController
 {
-    public $defaultAction = 'missing';
-
     public function createAction($id)
     {
         if (!in_array($id, ['missing', 'metadata'], true)) {
