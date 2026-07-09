@@ -34,11 +34,16 @@ class AssetsController extends Controller
     {
         return array_merge(parent::options($actionID), match ($actionID) {
             'replace-metadata',
-            'repair-metadata',
+            'repair',
             'missing',
             'metadata' => ['volume', 'assetId'],
             default => []
         });
+    }
+
+    public function actionRepair(): int
+    {
+        return $this->repairMissingAssetData();
     }
 
     protected function repairMissingAssetData(): int
@@ -110,7 +115,7 @@ class AssetsController extends Controller
         return ExitCode::OK;
     }
 
-    public function actionRepairMetadata(): int
+    protected function repairAssetObjectMetadataForAssets(): int
     {
         $assets = Asset::find()
             ->volume($this->volume)
@@ -134,7 +139,7 @@ class AssetsController extends Controller
             Console::FG_YELLOW,
         );
 
-        return $this->actionRepairMetadata();
+        return $this->repairAssetObjectMetadataForAssets();
     }
 
     /**

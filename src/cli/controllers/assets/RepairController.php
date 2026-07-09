@@ -24,6 +24,6 @@ class RepairController extends AssetsController
 
     public function actionMetadata(): int
     {
-        return $this->actionRepairMetadata();
+        return $this->repairAssetObjectMetadataForAssets();
     }
 }

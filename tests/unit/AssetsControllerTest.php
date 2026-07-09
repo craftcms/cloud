@@ -4,11 +4,14 @@ namespace craft\cloud\tests\unit;
 
 use Codeception\Test\Unit;
 use Craft;
+use craft\cloud\cli\controllers\assets\RepairController;
+use craft\cloud\cli\controllers\AssetsController as CliAssetsController;
 use craft\cloud\controllers\AssetsController;
 use craft\cloud\fs\Fs;
 use craft\elements\Asset;
 use craft\models\Volume;
 use ReflectionMethod;
+use yii\base\Module as BaseModule;
 use yii\web\BadRequestHttpException;
 
 class AssetsControllerTest extends Unit
@@ -123,6 +126,56 @@ class AssetsControllerTest extends Unit
         $this->assertNull($fs->getImageDimensions('upload.jpeg'));
         $this->assertSame(4, $fs->readCount);
         $this->assertSame(0, $fs->streamReadCount);
+    }
+
+    public function testCliAssetsRepairCommandDefaultsToMissingDataRepair(): void
+    {
+        $controller = new RepairController('assets/repair', Craft::$app);
+
+        $this->assertSame('missing', $controller->defaultAction);
+        $this->assertNotNull($controller->createAction($controller->defaultAction));
+    }
+
+    public function testCliAssetsRepairCommandExposesRepairActions(): void
+    {
+        $controller = new RepairController('assets/repair', Craft::$app);
+
+        $this->assertNotNull($controller->createAction('missing'));
+        $this->assertNotNull($controller->createAction('metadata'));
+        $this->assertNull($controller->createAction('replace-metadata'));
+        $this->assertNull($controller->createAction('repair-metadata'));
+    }
+
+    public function testCliAssetsRepairRoutesResolveThroughYiiModule(): void
+    {
+        $module = new BaseModule('cloud');
+        $module->controllerNamespace = 'craft\\cloud\\cli\\controllers';
+
+        $result = $module->createController('assets/repair');
+
+        $this->assertIsArray($result);
+        [$controller, $actionId] = $result;
+        $this->assertInstanceOf(CliAssetsController::class, $controller);
+        $this->assertSame('repair', $actionId);
+        $this->assertNotNull($controller->createAction($actionId));
+
+        $result = $module->createController('assets/repair/metadata');
+
+        $this->assertIsArray($result);
+        [$controller, $actionId] = $result;
+        $this->assertInstanceOf(RepairController::class, $controller);
+        $this->assertSame('metadata', $actionId);
+    }
+
+    public function testCliAssetsCommandExposesRepairEntryAndDeprecatedReplaceAlias(): void
+    {
+        $controller = new CliAssetsController('assets', Craft::$app);
+
+        $this->assertNotNull($controller->createAction('repair'));
+        $this->assertNotNull($controller->createAction('replace-metadata'));
+        $this->assertNull($controller->createAction('missing'));
+        $this->assertNull($controller->createAction('metadata'));
+        $this->assertNull($controller->createAction('repair-metadata'));
     }
 
     private function invokeVolumeSubpath(Volume $volume): string
