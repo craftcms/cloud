@@ -26,22 +26,4 @@ class Session extends DbSession
             ],
         ), __METHOD__);
     }
-
-    public function close()
-    {
-        $wasActive = $this->getIsActive();
-
-        parent::close();
-
-        if (!$wasActive || $this->getIsActive()) {
-            return;
-        }
-
-        Craft::info(new PsrMessage(
-            'Session closed',
-            [
-                'stack' => App::backtrace(8),
-            ],
-        ), __METHOD__);
-    }
 }
