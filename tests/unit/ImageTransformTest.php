@@ -295,19 +295,31 @@ class ImageTransformTest extends Unit
                 ],
                 true,
             );
+
+            $zeroPageUrl = (new ImageTransformer())->getTransformUrl(
+                $this->makePdfAssetStub(),
+                [
+                    'transform' => 'thumb',
+                    'page' => '0',
+                ],
+                true,
+            );
         } finally {
             $transformsProperty->setValue($imageTransforms, $previousTransforms);
         }
 
         $parameters = Query::fromUri($signedUrl)->parameters();
         $invalidPageParameters = Query::fromUri($invalidPageUrl)->parameters();
+        $zeroPageParameters = Query::fromUri($zeroPageUrl)->parameters();
 
         $this->assertSame('320', $parameters['width']);
         $this->assertSame('320', $parameters['height']);
         $this->assertSame('2', $parameters['page']);
         $this->assertArrayNotHasKey('page', $invalidPageParameters);
+        $this->assertArrayNotHasKey('page', $zeroPageParameters);
         $this->assertTrue(CloudModule::getInstance()->getUrlSigner()->verify($signedUrl));
         $this->assertTrue(CloudModule::getInstance()->getUrlSigner()->verify($invalidPageUrl));
+        $this->assertTrue(CloudModule::getInstance()->getUrlSigner()->verify($zeroPageUrl));
     }
 
     public function testCloudGetImgDelegatesToNativeImageRendering(): void

@@ -104,21 +104,18 @@ class ImageTransformer extends Component implements ImageTransformerInterface
                     ? filter_var($transform['page'], FILTER_VALIDATE_INT)
                     : false;
 
-                if ($normalizedPage !== false) {
-                    $transform['page'] = $normalizedPage;
-                } else {
-                    unset($transform['page']);
+                if ($normalizedPage !== false && $normalizedPage >= 1) {
+                    $page = $normalizedPage;
                 }
-            }
 
-            if (array_key_exists('transform', $transform) && array_key_exists('page', $transform)) {
-                $page = $transform['page'];
+                unset($transform['page']);
             }
         }
 
         $imageTransform = ImageTransformsHelper::normalizeTransform($transform);
 
         if ($imageTransform && $page !== null) {
+            $imageTransform = clone $imageTransform;
             $behavior = $imageTransform->getBehavior('cloud');
 
             if ($behavior instanceof ImageTransformBehavior) {
