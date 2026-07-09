@@ -8,12 +8,39 @@
     return window.Craft?.CloudAssetThumbFallback;
   }
 
-  function isPdfThumbSrcset(srcset) {
-    return /\.pdf(?:[?\s,]|$)/i.test(srcset);
+  function getFirstSrcsetUrl(srcset) {
+    return srcset.match(/^\s*([^,\s]+)/)?.[1] || null;
+  }
+
+  function getExtension(url) {
+    try {
+      return new URL(url, window.location.href).pathname
+        .match(/\.([a-z0-9_]+)$/i)?.[1]
+        ?.toLowerCase();
+    } catch (error) {
+      return null;
+    }
+  }
+
+  function getIconUrl(image, thumb, iconUrlsByExtension) {
+    const sourceUrl =
+      image.currentSrc ||
+      image.src ||
+      getFirstSrcsetUrl(thumb.dataset.srcset || '');
+    const extension = sourceUrl ? getExtension(sourceUrl) : null;
+
+    if (
+      !extension ||
+      !Object.prototype.hasOwnProperty.call(iconUrlsByExtension, extension)
+    ) {
+      return null;
+    }
+
+    return iconUrlsByExtension[extension];
   }
 
   function applyFallback(image, thumb, iconUrl) {
-    image.dataset.cloudPdfThumbFallback = 'true';
+    image.dataset.cloudAssetThumbFallback = 'true';
     thumb.dataset.srcset = iconUrl;
     thumb.removeAttribute('data-animated');
     image.removeAttribute('data-animated');
@@ -34,20 +61,23 @@
       const image = event.target;
 
       if (
-        !settings?.pdfIconUrl ||
+        !settings?.iconUrlsByExtension ||
         !(image instanceof HTMLImageElement) ||
-        image.dataset.cloudPdfThumbFallback === 'true'
+        image.dataset.cloudAssetThumbFallback === 'true'
       ) {
         return;
       }
 
       const thumb = image.closest(thumbSelector);
+      const iconUrl = thumb
+        ? getIconUrl(image, thumb, settings.iconUrlsByExtension)
+        : null;
 
-      if (!thumb || !isPdfThumbSrcset(thumb.dataset.srcset || '')) {
+      if (!thumb || !iconUrl) {
         return;
       }
 
-      applyFallback(image, thumb, settings.pdfIconUrl);
+      applyFallback(image, thumb, iconUrl);
     },
     true,
   );

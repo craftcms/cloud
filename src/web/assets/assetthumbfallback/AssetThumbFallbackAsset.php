@@ -28,12 +28,26 @@ class AssetThumbFallbackAsset extends AssetBundle
         parent::registerAssetFiles($view);
 
         $settings = Json::encode([
-            'pdfIconUrl' => AssetsHelper::iconUrl('pdf'),
+            'iconUrlsByExtension' => $this->iconUrlsByExtension(),
         ]);
 
         $view->registerJs(<<<JS
 window.Craft = window.Craft || {};
 window.Craft.CloudAssetThumbFallback = {$settings};
 JS, View::POS_HEAD);
+    }
+
+    private function iconUrlsByExtension(): array
+    {
+        $iconUrlsByExtension = [];
+
+        foreach (AssetsHelper::getFileKinds() as $fileKind) {
+            foreach ($fileKind['extensions'] ?? [] as $extension) {
+                $extension = strtolower($extension);
+                $iconUrlsByExtension[$extension] = AssetsHelper::iconUrl($extension);
+            }
+        }
+
+        return $iconUrlsByExtension;
     }
 }
