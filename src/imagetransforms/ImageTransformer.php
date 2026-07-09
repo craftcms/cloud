@@ -90,15 +90,99 @@ class ImageTransformer extends Component implements ImageTransformerInterface
 
     private function normalizeTransform(mixed $transform): ?ImageTransform
     {
+        $cloudOptions = [];
+
         if (is_array($transform)) {
             foreach (['width', 'height'] as $attribute) {
                 if (isset($transform[$attribute])) {
                     $transform[$attribute] = round((float)$transform[$attribute]);
                 }
             }
+
+            foreach ($this->cloudProperties() as $property) {
+                $name = $property->getName();
+
+                if (!array_key_exists($name, $transform)) {
+                    continue;
+                }
+
+                [$valid, $value] = $this->normalizeCloudOption($property, $transform[$name]);
+
+                if ($valid) {
+                    $cloudOptions[$name] = $value;
+                }
+
+                unset($transform[$name]);
+            }
         }
 
-        return ImageTransformsHelper::normalizeTransform($transform);
+        $imageTransform = ImageTransformsHelper::normalizeTransform($transform)
+            ?? ($cloudOptions ? Craft::createObject(ImageTransform::class) : null);
+
+        if ($imageTransform && $cloudOptions) {
+            $imageTransform = clone $imageTransform;
+            $behavior = $imageTransform->getBehavior('cloud');
+
+            if ($behavior instanceof ImageTransformBehavior) {
+                Craft::configure($behavior, $cloudOptions);
+            }
+        }
+
+        return $imageTransform;
+    }
+
+    private function cloudProperties(): array
+    {
+        static $properties = null;
+
+        return $properties ??= array_filter(
+            (new \ReflectionClass(ImageTransformBehavior::class))->getProperties(\ReflectionProperty::IS_PUBLIC),
+            fn(\ReflectionProperty $property) => $property->getDeclaringClass()->getName() === ImageTransformBehavior::class,
+        );
+    }
+
+    private function normalizeCloudOption(\ReflectionProperty $property, mixed $value): array
+    {
+        if ($value === null) {
+            return [true, null];
+        }
+
+        $type = $property->getType();
+        $types = $type instanceof \ReflectionUnionType
+            ? array_map(fn(\ReflectionNamedType $type) => $type->getName(), $type->getTypes())
+            : ($type instanceof \ReflectionNamedType ? [$type->getName()] : []);
+
+        if (in_array('int', $types, true)) {
+            $value = is_int($value) || is_string($value)
+                ? filter_var($value, FILTER_VALIDATE_INT)
+                : false;
+
+            return [$value !== false && ($property->getName() !== 'page' || $value >= 1), $value];
+        }
+
+        if (in_array('float', $types, true)) {
+            $value = is_int($value) || is_float($value) || is_string($value)
+                ? filter_var($value, FILTER_VALIDATE_FLOAT)
+                : false;
+
+            return [$value !== false, $value];
+        }
+
+        if (in_array('bool', $types, true)) {
+            $value = filter_var($value, FILTER_VALIDATE_BOOL, FILTER_NULL_ON_FAILURE);
+
+            return [$value !== null, $value];
+        }
+
+        if (in_array('string', $types, true) || in_array('array', $types, true)) {
+            return [
+                (in_array('string', $types, true) && is_string($value)) ||
+                (in_array('array', $types, true) && is_array($value)),
+                $value,
+            ];
+        }
+
+        return [true, $value];
     }
 
     private function createBaseUri(Asset $asset): Uri

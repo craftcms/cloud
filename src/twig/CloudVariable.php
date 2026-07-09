@@ -9,6 +9,9 @@ namespace craft\cloud\twig;
 
 use craft\cloud\Helper;
 use craft\cloud\Module;
+use craft\elements\Asset;
+use craft\helpers\Html;
+use craft\helpers\ImageTransforms;
 use craft\helpers\Template;
 use Twig\Markup;
 use yii\di\ServiceLocator;
@@ -23,6 +26,49 @@ class CloudVariable extends ServiceLocator
     public function isCraftCloud(): bool
     {
         return Helper::isCraftCloud();
+    }
+
+    public function getImg(Asset $asset, mixed $transform = null, ?array $sizes = null): ?Markup
+    {
+        if ($asset->kind !== Asset::KIND_PDF) {
+            return $asset->getImg($transform, $sizes);
+        }
+
+        if (!$transform) {
+            return null;
+        }
+
+        $url = $asset->getUrl($transform);
+
+        if (!$url || !Module::getInstance()->getUrlSigner()->verify($url)) {
+            return null;
+        }
+
+        $transformForAttributes = $transform;
+
+        if (is_array($transformForAttributes)) {
+            $transformForAttributes = array_intersect_key($transformForAttributes, array_flip([
+                'height',
+                'transform',
+                'width',
+            ]));
+        }
+
+        $imageTransform = ImageTransforms::normalizeTransform($transformForAttributes);
+        $attributes = [
+            'src' => $url,
+            'alt' => $asset->alt ?? $asset->getFilename(),
+        ];
+
+        if ($imageTransform?->width !== null) {
+            $attributes['width'] = $imageTransform->width;
+        }
+
+        if ($imageTransform?->height !== null) {
+            $attributes['height'] = $imageTransform->height;
+        }
+
+        return Template::raw(Html::tag('img', '', $attributes));
     }
 
     public function enableEsi(): void

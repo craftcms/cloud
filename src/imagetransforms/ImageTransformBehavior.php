@@ -79,6 +79,11 @@ class ImageTransformBehavior extends Behavior
     public ?string $metadata = null;
 
     /**
+     * @var int|null PDF page number.
+     */
+    public ?int $page = null;
+
+    /**
      * @var int|null
      */
     public ?int $rotate = null;
