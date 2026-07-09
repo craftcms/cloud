@@ -638,67 +638,225 @@ abstract class Fs extends FlysystemFs
             return null;
         }
 
-        return $this->findIsoBaseMediaFileImageDimensions($contents, $ftypSize, strlen($contents));
-    }
+        for ($offset = $ftypSize, $end = strlen($contents); $offset + 8 <= $end;) {
+            $box = $this->isoBaseMediaFileBoxAt($contents, $offset, $end);
 
-    private function findIsoBaseMediaFileImageDimensions(string $contents, int $start, int $end, int $depth = 0): ?array
-    {
-        if ($depth > 8) {
-            return null;
-        }
-
-        for ($offset = $start; $offset + 8 <= $end;) {
-            $boxSize = $this->readUint32($contents, $offset);
-            $boxType = substr($contents, $offset + 4, 4);
-            $headerSize = 8;
-
-            if ($boxSize === 1) {
-                if ($offset + 16 > $end) {
-                    return null;
-                }
-
-                $boxSize = $this->readUint64($contents, $offset + 8);
-                $headerSize = 16;
-            } elseif ($boxSize === 0) {
-                $boxSize = $end - $offset;
-            }
-
-            if ($boxSize < $headerSize || $offset + $boxSize > $end) {
+            if ($box === null) {
                 return null;
             }
 
-            $boxEnd = $offset + $boxSize;
-            $dataStart = $offset + $headerSize;
-
-            if ($boxType === 'ispe' && $dataStart + 12 <= $boxEnd) {
-                $width = $this->readUint32($contents, $dataStart + 4);
-                $height = $this->readUint32($contents, $dataStart + 8);
-
-                return $width > 0 && $height > 0 ? [$width, $height] : null;
+            if ($box['type'] === 'meta') {
+                return $this->getIsoBaseMediaFileMetaDimensions($contents, $box['dataStart'] + 4, $box['end']);
             }
 
-            if (in_array($boxType, ['meta', 'iprp', 'ipco'], true)) {
-                $dimensions = $this->findIsoBaseMediaFileImageDimensions(
-                    $contents,
-                    $boxType === 'meta' ? $dataStart + 4 : $dataStart,
-                    $boxEnd,
-                    $depth + 1,
-                );
-
-                if ($dimensions !== null) {
-                    return $dimensions;
-                }
-            }
-
-            $offset = $boxEnd;
+            $offset = $box['end'];
         }
 
         return null;
     }
 
+    private function getIsoBaseMediaFileMetaDimensions(string $contents, int $start, int $end): ?array
+    {
+        $primaryItemId = null;
+        $propertyDimensions = [];
+        $ipma = null;
+
+        for ($offset = $start; $offset + 8 <= $end;) {
+            $box = $this->isoBaseMediaFileBoxAt($contents, $offset, $end);
+
+            if ($box === null) {
+                return null;
+            }
+
+            if ($box['type'] === 'pitm') {
+                $primaryItemId = $this->isoBaseMediaFilePrimaryItemId(
+                    substr($contents, $box['dataStart'], $box['contentSize']),
+                );
+            }
+
+            if ($box['type'] === 'iprp') {
+                for ($iprpOffset = $box['dataStart']; $iprpOffset + 8 <= $box['end'];) {
+                    $iprpBox = $this->isoBaseMediaFileBoxAt($contents, $iprpOffset, $box['end']);
+
+                    if ($iprpBox === null) {
+                        return null;
+                    }
+
+                    if ($iprpBox['type'] === 'ipco') {
+                        $propertyDimensions = $this->isoBaseMediaFilePropertyDimensions(
+                            $contents,
+                            $iprpBox['dataStart'],
+                            $iprpBox['end'],
+                        );
+                    }
+
+                    if ($iprpBox['type'] === 'ipma') {
+                        $ipma = substr($contents, $iprpBox['dataStart'], $iprpBox['contentSize']);
+                    }
+
+                    $iprpOffset = $iprpBox['end'];
+                }
+            }
+
+            $offset = $box['end'];
+        }
+
+        $dimensions = [];
+
+        if ($primaryItemId !== null && $ipma !== null) {
+            foreach ($this->isoBaseMediaFilePrimaryPropertyIndices($ipma, $primaryItemId) as $propertyIndex) {
+                if (isset($propertyDimensions[$propertyIndex])) {
+                    $dimensions[] = $propertyDimensions[$propertyIndex];
+                }
+            }
+        }
+
+        if (count($dimensions) === 1) {
+            return $dimensions[0];
+        }
+
+        if (count($dimensions) === 0 && count($propertyDimensions) === 1) {
+            return array_values($propertyDimensions)[0];
+        }
+
+        return null;
+    }
+
+    private function isoBaseMediaFilePrimaryItemId(string $contents): ?int
+    {
+        if (strlen($contents) < 6) {
+            return null;
+        }
+
+        $version = ord($contents[0]);
+
+        if ($version === 0) {
+            return $this->readUint16($contents, 4);
+        }
+
+        if ($version === 1 && strlen($contents) >= 8) {
+            return $this->readUint32($contents, 4);
+        }
+
+        return null;
+    }
+
+    private function isoBaseMediaFilePropertyDimensions(string $contents, int $start, int $end): array
+    {
+        $dimensions = [];
+        $propertyIndex = 1;
+
+        for ($offset = $start; $offset + 8 <= $end;) {
+            $box = $this->isoBaseMediaFileBoxAt($contents, $offset, $end);
+
+            if ($box === null) {
+                return [];
+            }
+
+            if ($box['type'] === 'ispe' && $box['contentSize'] >= 12) {
+                $width = $this->readUint32($contents, $box['dataStart'] + 4);
+                $height = $this->readUint32($contents, $box['dataStart'] + 8);
+
+                if ($width > 0 && $height > 0) {
+                    $dimensions[$propertyIndex] = [$width, $height];
+                }
+            }
+
+            $propertyIndex++;
+            $offset = $box['end'];
+        }
+
+        return $dimensions;
+    }
+
+    private function isoBaseMediaFilePrimaryPropertyIndices(string $contents, int $primaryItemId): array
+    {
+        if (strlen($contents) < 8) {
+            return [];
+        }
+
+        $version = ord($contents[0]);
+        $entryCount = $this->readUint32($contents, 4);
+        $offset = 8;
+
+        for ($i = 0; $i < $entryCount; $i++) {
+            $itemIdLength = $version < 1 ? 2 : 4;
+
+            if (strlen($contents) < $offset + $itemIdLength + 1) {
+                return [];
+            }
+
+            $itemId = $itemIdLength === 2
+                ? $this->readUint16($contents, $offset)
+                : $this->readUint32($contents, $offset);
+            $offset += $itemIdLength;
+
+            $associationCount = ord($contents[$offset]);
+            $offset++;
+            $propertyIndices = [];
+            $associationLength = $version < 1 ? 1 : 2;
+
+            for ($j = 0; $j < $associationCount; $j++) {
+                if (strlen($contents) < $offset + $associationLength) {
+                    return [];
+                }
+
+                $propertyIndex = $associationLength === 1
+                    ? ord($contents[$offset]) & 0x7F
+                    : $this->readUint16($contents, $offset) & 0x7FFF;
+                $offset += $associationLength;
+
+                if ($propertyIndex !== 0) {
+                    $propertyIndices[] = $propertyIndex;
+                }
+            }
+
+            if ($itemId === $primaryItemId) {
+                return $propertyIndices;
+            }
+        }
+
+        return [];
+    }
+
+    private function isoBaseMediaFileBoxAt(string $contents, int $offset, int $end): ?array
+    {
+        $boxSize = $this->readUint32($contents, $offset);
+        $headerSize = 8;
+
+        if ($boxSize === 1) {
+            if ($offset + 16 > $end) {
+                return null;
+            }
+
+            $boxSize = $this->readUint64($contents, $offset + 8);
+            $headerSize = 16;
+        } elseif ($boxSize === 0) {
+            $boxSize = $end - $offset;
+        }
+
+        if ($boxSize < $headerSize || $offset + $boxSize > $end) {
+            return null;
+        }
+
+        return [
+            'type' => substr($contents, $offset + 4, 4),
+            'dataStart' => $offset + $headerSize,
+            'contentSize' => $boxSize - $headerSize,
+            'end' => $offset + $boxSize,
+        ];
+    }
+
     private function readUint32(string $contents, int $offset): int
     {
         $data = unpack('Nvalue', substr($contents, $offset, 4));
+
+        return (int)$data['value'];
+    }
+
+    private function readUint16(string $contents, int $offset): int
+    {
+        $data = unpack('nvalue', substr($contents, $offset, 2));
 
         return (int)$data['value'];
     }

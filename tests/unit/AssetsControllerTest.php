@@ -132,6 +132,15 @@ class AssetsControllerTest extends Unit
         }
     }
 
+    public function testUploadedImageDimensionsUsePrimaryHeifImageSpatialExtents(): void
+    {
+        $fs = new HeaderTestFs();
+        $fs->header = $this->isoBaseMediaFileImageWithProperties('avif', [[10, 10], [4032, 3024]], [2]);
+
+        $this->assertSame([4032, 3024], $fs->getImageDimensions('upload.avif'));
+        $this->assertSame(1, $fs->readCount);
+    }
+
     public function testUploadedImageDimensionsStopAfterBoundedRanges(): void
     {
         $fs = new FullStreamHeaderTestFs();
@@ -147,14 +156,44 @@ class AssetsControllerTest extends Unit
 
     private function isoBaseMediaFileImage(string $brand, int $width, int $height): string
     {
+        return $this->isoBaseMediaFileImageWithProperties($brand, [[$width, $height]]);
+    }
+
+    private function isoBaseMediaFileImageWithProperties(
+        string $brand,
+        array $propertyDimensions,
+        array $primaryPropertyIndices = [],
+    ): string
+    {
+        $ipco = '';
+        foreach ($propertyDimensions as $dimensions) {
+            $ipco .= $this->isoBaseMediaFileBox(
+                'ispe',
+                "\0\0\0\0" . pack('N', $dimensions[0]) . pack('N', $dimensions[1]),
+            );
+        }
+
+        $iprp = $this->isoBaseMediaFileBox('ipco', $ipco);
+        if (!empty($primaryPropertyIndices)) {
+            $properties = implode('', array_map('chr', $primaryPropertyIndices));
+            $iprp .= $this->isoBaseMediaFileFullBox(
+                'ipma',
+                pack('NnC', 1, 1, count($primaryPropertyIndices)) . $properties,
+            );
+        }
+
         return $this->isoBaseMediaFileBox('ftyp', "{$brand}\0\0\0\0{$brand}")
-            . $this->isoBaseMediaFileBox('meta', "\0\0\0\0"
+            . $this->isoBaseMediaFileFullBox('meta',
+                $this->isoBaseMediaFileFullBox('pitm', pack('n', 1))
                 . $this->isoBaseMediaFileBox('iprp',
-                    $this->isoBaseMediaFileBox('ipco',
-                        $this->isoBaseMediaFileBox('ispe', "\0\0\0\0" . pack('N', $width) . pack('N', $height)),
-                    ),
+                    $iprp,
                 ),
             );
+    }
+
+    private function isoBaseMediaFileFullBox(string $type, string $contents): string
+    {
+        return $this->isoBaseMediaFileBox($type, "\0\0\0\0" . $contents);
     }
 
     private function isoBaseMediaFileBox(string $type, string $contents): string
