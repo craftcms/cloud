@@ -90,15 +90,31 @@ class ImageTransformer extends Component implements ImageTransformerInterface
 
     private function normalizeTransform(mixed $transform): ?ImageTransform
     {
+        $page = null;
+
         if (is_array($transform)) {
             foreach (['width', 'height'] as $attribute) {
                 if (isset($transform[$attribute])) {
                     $transform[$attribute] = round((float)$transform[$attribute]);
                 }
             }
+
+            if (array_key_exists('transform', $transform) && array_key_exists('page', $transform)) {
+                $page = $transform['page'];
+            }
         }
 
-        return ImageTransformsHelper::normalizeTransform($transform);
+        $imageTransform = ImageTransformsHelper::normalizeTransform($transform);
+
+        if ($imageTransform && $page !== null) {
+            $behavior = $imageTransform->getBehavior('cloud');
+
+            if ($behavior instanceof ImageTransformBehavior) {
+                $behavior->page = $page;
+            }
+        }
+
+        return $imageTransform;
     }
 
     private function createBaseUri(Asset $asset): Uri

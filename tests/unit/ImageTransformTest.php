@@ -5,6 +5,7 @@ namespace craft\cloud\tests\unit;
 use Codeception\Test\Unit;
 use Craft;
 use craft\base\FsInterface;
+use craft\base\MemoizableArray;
 use craft\cloud\fs\AssetsFs;
 use craft\cloud\imagetransforms\ImageTransformBehavior;
 use craft\cloud\imagetransforms\ImageTransformer;
@@ -255,6 +256,44 @@ class ImageTransformTest extends Unit
         $this->assertSame('640', $parameters['width']);
         $this->assertSame('480', $parameters['height']);
         $this->assertSame('scale-down', $parameters['fit']);
+        $this->assertSame('2', $parameters['page']);
+        $this->assertTrue(CloudModule::getInstance()->getUrlSigner()->verify($signedUrl));
+    }
+
+    public function testPdfTransformUrlPreservesPageWhenExtendingNamedTransform(): void
+    {
+        $imageTransforms = Craft::$app->getImageTransforms();
+        $transformsProperty = new ReflectionProperty($imageTransforms, '_transforms');
+        $transformsProperty->setAccessible(true);
+        $previousTransforms = $transformsProperty->getValue($imageTransforms);
+
+        try {
+            $transformsProperty->setValue($imageTransforms, new MemoizableArray([
+                new ImageTransform([
+                    'name' => 'Thumb',
+                    'handle' => 'thumb',
+                    'width' => 320,
+                    'height' => 320,
+                    'mode' => 'crop',
+                ]),
+            ]));
+
+            $signedUrl = (new ImageTransformer())->getTransformUrl(
+                $this->makePdfAssetStub(),
+                [
+                    'transform' => 'thumb',
+                    'page' => 2,
+                ],
+                true,
+            );
+        } finally {
+            $transformsProperty->setValue($imageTransforms, $previousTransforms);
+        }
+
+        $parameters = Query::fromUri($signedUrl)->parameters();
+
+        $this->assertSame('320', $parameters['width']);
+        $this->assertSame('320', $parameters['height']);
         $this->assertSame('2', $parameters['page']);
         $this->assertTrue(CloudModule::getInstance()->getUrlSigner()->verify($signedUrl));
     }
