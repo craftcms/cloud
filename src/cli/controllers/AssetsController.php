@@ -84,10 +84,9 @@ class AssetsController extends Controller
                 if ($dimensions === null) {
                     if (!$asset->getVolume()->getFs() instanceof Fs) {
                         $this->stdout("Skipped `{$path}` dimensions: volume filesystem is not supported." . PHP_EOL, Console::FG_YELLOW);
-                        continue;
+                    } else {
+                        $this->stdout("Skipped `{$path}` dimensions: could not be determined." . PHP_EOL, Console::FG_YELLOW);
                     }
-
-                    $this->stdout("Skipped `{$path}` dimensions: could not be determined." . PHP_EOL, Console::FG_YELLOW);
                 } else {
                     $changes[] = "{$dimensions[0]}x{$dimensions[1]}";
                 }
