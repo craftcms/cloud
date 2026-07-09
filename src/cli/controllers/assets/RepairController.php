@@ -6,18 +6,11 @@ use craft\cloud\cli\controllers\AssetsController;
 
 class RepairController extends AssetsController
 {
-    public function createAction($id)
-    {
-        if (!in_array($id, ['index', 'metadata'], true)) {
-            return null;
-        }
+    public $defaultAction = 'missing';
 
-        return parent::createAction($id);
-    }
-
-    public function actionIndex(): int
+    public function actionMissing(): int
     {
-        return $this->repairMissingAssetIndex();
+        return $this->repairMissingAssetData();
     }
 
     public function actionMetadata(): int

@@ -35,13 +35,13 @@ class AssetsController extends Controller
         return array_merge(parent::options($actionID), match ($actionID) {
             'replace-metadata',
             'repair-metadata',
-            'index',
+            'missing',
             'metadata' => ['volume', 'assetId'],
             default => []
         });
     }
 
-    protected function repairMissingAssetIndex(): int
+    protected function repairMissingAssetData(): int
     {
         $repaired = 0;
         $skipped = 0;
