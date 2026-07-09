@@ -47,8 +47,15 @@ class AssetsController extends Controller
             ->kind(Asset::KIND_IMAGE)
             ->andWhere(['or', ['assets.width' => null], ['assets.height' => null]])
             ->each(function(Asset $asset) use (&$repaired, &$skipped) {
-                $dimensions = $this->repairAssetDimensions($asset);
                 $path = $asset->getPath();
+
+                if (!$asset->getVolume()->getFs() instanceof Fs) {
+                    $skipped++;
+                    $this->stdout("Skipped `{$path}`: volume filesystem is not supported." . PHP_EOL, Console::FG_YELLOW);
+                    return;
+                }
+
+                $dimensions = $this->repairAssetDimensions($asset);
 
                 if ($dimensions === null) {
                     $skipped++;

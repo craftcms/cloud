@@ -605,6 +605,8 @@ abstract class Fs extends FlysystemFs
 
         try {
             return Image::imageSizeByStream($stream);
+        } catch (Throwable) {
+            return false;
         } finally {
             fclose($stream);
         }
