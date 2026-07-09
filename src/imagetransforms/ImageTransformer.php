@@ -99,7 +99,7 @@ class ImageTransformer extends Component implements ImageTransformerInterface
                 }
             }
 
-            foreach ($this->cloudOptionProperties() as $property) {
+            foreach ($this->cloudProperties() as $property) {
                 $name = $property->getName();
 
                 if (!array_key_exists($name, $transform)) {
@@ -131,7 +131,7 @@ class ImageTransformer extends Component implements ImageTransformerInterface
         return $imageTransform;
     }
 
-    private function cloudOptionProperties(): array
+    private function cloudProperties(): array
     {
         static $properties = null;
 
