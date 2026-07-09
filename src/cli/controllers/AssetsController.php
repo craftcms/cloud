@@ -8,6 +8,7 @@ use craft\console\Controller;
 use craft\db\Table;
 use craft\elements\Asset;
 use craft\helpers\FileHelper;
+use Throwable;
 use yii\base\Exception;
 use yii\console\ExitCode;
 use yii\helpers\Console;
@@ -35,8 +36,10 @@ class AssetsController extends Controller
             'replace-metadata',
             'repair-dimensions',
             'repair-metadata',
+            'repair-size',
             'dimensions',
-            'metadata' => ['volume', 'assetId'],
+            'metadata',
+            'size' => ['volume', 'assetId'],
             default => []
         });
     }
@@ -79,6 +82,40 @@ class AssetsController extends Controller
         return ExitCode::OK;
     }
 
+    public function actionRepairSize(): int
+    {
+        $repaired = 0;
+        $skipped = 0;
+
+        $assets = Asset::find()
+            ->volume($this->volume)
+            ->id($this->assetId)
+            ->andWhere(['assets.size' => null]);
+
+        foreach ($assets->each() as $asset) {
+            /** @var Asset $asset */
+            $path = $asset->getPath();
+            $size = $this->repairAssetSize($asset);
+
+            if ($size === null) {
+                $skipped++;
+                $this->stdout("Skipped `{$path}`: size could not be determined." . PHP_EOL, Console::FG_YELLOW);
+                continue;
+            }
+
+            $repaired++;
+            $this->stdout("Repaired `{$path}`: {$size} bytes." . PHP_EOL, Console::FG_GREEN);
+        }
+
+        $this->stdout("Repaired {$repaired} asset size" . ($repaired === 1 ? '' : 's') . '.' . PHP_EOL, Console::FG_GREEN);
+
+        if ($skipped > 0) {
+            $this->stdout("Skipped {$skipped} asset" . ($skipped === 1 ? '' : 's') . '.' . PHP_EOL, Console::FG_YELLOW);
+        }
+
+        return ExitCode::OK;
+    }
+
     public function actionRepairMetadata(): int
     {
         $assets = Asset::find()
@@ -88,8 +125,8 @@ class AssetsController extends Controller
         foreach ($assets->each() as $asset) {
             /** @var Asset $asset */
             $this->do(
-                "Repairing metadata for `{$asset->getPath()}`",
-                fn() => $this->repairAssetMetadata($asset),
+                "Repairing object metadata for `{$asset->getPath()}`",
+                fn() => $this->repairAssetObjectMetadata($asset),
             );
         }
 
@@ -99,7 +136,7 @@ class AssetsController extends Controller
     public function actionReplaceMetadata(): int
     {
         $this->stdout(
-            'Deprecated: use `cloud/assets/repair/metadata` instead.' . PHP_EOL,
+            'Deprecated: use `cloud/assets/repair/metadata` to repair object metadata instead.' . PHP_EOL,
             Console::FG_YELLOW,
         );
 
@@ -136,6 +173,25 @@ class AssetsController extends Controller
         return $dimensions;
     }
 
+    protected function repairAssetSize(Asset $asset): ?int
+    {
+        try {
+            $size = $asset->getVolume()->getFileSize($asset->getPath());
+        } catch (Throwable) {
+            return null;
+        }
+
+        Craft::$app->getDb()->createCommand()
+            ->update(Table::ASSETS, [
+                'size' => $size,
+            ], ['id' => $asset->id])
+            ->execute();
+
+        $asset->size = $size;
+
+        return $size;
+    }
+
     protected function warnIfCraftStreamDimensionFixMissing(): void
     {
         $craftVersion = Craft::$app->getVersion();
@@ -146,12 +202,12 @@ class AssetsController extends Controller
         }
 
         $this->stdout(
-            "Craft CMS {$fixedVersion}+ includes image stream dimension fixes for WebP, AVIF, and HEIC/HEIF. Upgrade Craft CMS if `repair/dimensions` still skips those assets." . PHP_EOL,
+            "Craft CMS {$fixedVersion}+ detects more image dimensions by stream; upgrade if skips persist." . PHP_EOL,
             Console::FG_YELLOW,
         );
     }
 
-    protected function repairAssetMetadata(Asset $asset): void
+    protected function repairAssetObjectMetadata(Asset $asset): void
     {
         $fs = $asset->getVolume()->getFs();
 
