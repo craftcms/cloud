@@ -5,9 +5,10 @@ namespace craft\cloud\tests\unit;
 use Codeception\Test\Unit;
 use Craft;
 use craft\cloud\cli\controllers\assets\RepairController;
-use craft\cloud\cli\controllers\AssetsController as CliAssetsController;
+use craft\cloud\cli\controllers\assets\ReplaceMetadataController;
 use craft\cloud\controllers\AssetsController;
 use craft\cloud\fs\Fs;
+use craft\console\Controller as ConsoleController;
 use craft\elements\Asset;
 use craft\models\Volume;
 use ReflectionMethod;
@@ -133,20 +134,29 @@ class AssetsControllerTest extends Unit
         $module = new BaseModule('cloud');
         $module->controllerNamespace = 'craft\\cloud\\cli\\controllers';
 
-        $this->assertCliRoute($module, 'assets/repair', CliAssetsController::class, 'repair');
+        $this->assertCliRoute($module, 'assets/repair', RepairController::class, '', 'missing');
         $this->assertCliRoute($module, 'assets/repair/missing', RepairController::class, 'missing');
         $this->assertCliRoute($module, 'assets/repair/metadata', RepairController::class, 'metadata');
+        $this->assertCliRoute($module, 'assets/replace-metadata', ReplaceMetadataController::class, '', 'index');
     }
 
-    public function testCliAssetsCommandExposesRepairEntryAndDeprecatedReplaceAlias(): void
+    public function testCliAssetsCommandsDoNotExposeTopLevelOrUnreleasedRoutes(): void
     {
-        $controller = new CliAssetsController('assets', Craft::$app);
+        $module = new BaseModule('cloud');
+        $module->controllerNamespace = 'craft\\cloud\\cli\\controllers';
 
-        $this->assertNotNull($controller->createAction('repair'));
-        $this->assertNotNull($controller->createAction('replace-metadata'));
-        $this->assertNull($controller->createAction('missing'));
-        $this->assertNull($controller->createAction('metadata'));
-        $this->assertNull($controller->createAction('repair-metadata'));
+        $this->assertFalse($module->createController('assets'));
+        $this->assertFalse($module->createController('assets/repair-metadata'));
+    }
+
+    public function testCliAssetsCommandsExposeAssetFilters(): void
+    {
+        $repairController = new RepairController('assets/repair', Craft::$app);
+        $replaceMetadataController = new ReplaceMetadataController('assets/replace-metadata', Craft::$app);
+
+        $this->assertCliAssetFilterOptions($repairController, 'missing');
+        $this->assertCliAssetFilterOptions($repairController, 'metadata');
+        $this->assertCliAssetFilterOptions($replaceMetadataController, 'index');
     }
 
     private function invokeVolumeSubpath(Volume $volume): string
@@ -161,8 +171,13 @@ class AssetsControllerTest extends Unit
     /**
      * @param class-string $controllerClass
      */
-    private function assertCliRoute(BaseModule $module, string $route, string $controllerClass, string $actionId): void
-    {
+    private function assertCliRoute(
+        BaseModule $module,
+        string $route,
+        string $controllerClass,
+        string $actionId,
+        ?string $effectiveActionId = null,
+    ): void {
         $result = $module->createController($route);
 
         $this->assertIsArray($result);
@@ -170,7 +185,19 @@ class AssetsControllerTest extends Unit
         [$controller, $resolvedActionId] = $result;
         $this->assertInstanceOf($controllerClass, $controller);
         $this->assertSame($actionId, $resolvedActionId);
-        $this->assertNotNull($controller->createAction($resolvedActionId));
+
+        $action = $controller->createAction($resolvedActionId);
+
+        $this->assertNotNull($action);
+        $this->assertSame($effectiveActionId ?? $actionId, $action->id);
+    }
+
+    private function assertCliAssetFilterOptions(ConsoleController $controller, string $actionId): void
+    {
+        $options = $controller->options($actionId);
+
+        $this->assertContains('volume', $options);
+        $this->assertContains('assetId', $options);
     }
 }
 
