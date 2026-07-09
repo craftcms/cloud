@@ -291,7 +291,7 @@ class ImageTransformTest extends Unit
                 $this->makePdfAssetStub(),
                 [
                     'transform' => 'thumb',
-                    'page' => 'foo',
+                    'page' => '1.5',
                 ],
                 true,
             );

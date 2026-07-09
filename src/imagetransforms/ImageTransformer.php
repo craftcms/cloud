@@ -100,8 +100,12 @@ class ImageTransformer extends Component implements ImageTransformerInterface
             }
 
             if (array_key_exists('page', $transform)) {
-                if (is_numeric($transform['page'])) {
-                    $transform['page'] = (int)$transform['page'];
+                $normalizedPage = is_int($transform['page']) || is_string($transform['page'])
+                    ? filter_var($transform['page'], FILTER_VALIDATE_INT)
+                    : false;
+
+                if ($normalizedPage !== false) {
+                    $transform['page'] = $normalizedPage;
                 } else {
                     unset($transform['page']);
                 }
