@@ -82,6 +82,11 @@ class AssetsController extends Controller
                 $dimensions = $this->repairAssetDimensions($asset);
 
                 if ($dimensions === null) {
+                    if (!$asset->getVolume()->getFs() instanceof Fs) {
+                        $this->stdout("Skipped `{$path}` dimensions: volume filesystem is not supported." . PHP_EOL, Console::FG_YELLOW);
+                        continue;
+                    }
+
                     $this->stdout("Skipped `{$path}` dimensions: could not be determined." . PHP_EOL, Console::FG_YELLOW);
                 } else {
                     $changes[] = "{$dimensions[0]}x{$dimensions[1]}";
