@@ -47,7 +47,11 @@ class CloudVariable extends ServiceLocator
         $transformForAttributes = $transform;
 
         if (is_array($transformForAttributes)) {
-            unset($transformForAttributes['page']);
+            $transformForAttributes = array_intersect_key($transformForAttributes, array_flip([
+                'height',
+                'transform',
+                'width',
+            ]));
         }
 
         $imageTransform = ImageTransforms::normalizeTransform($transformForAttributes);

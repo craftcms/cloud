@@ -174,6 +174,14 @@ class ImageTransformer extends Component implements ImageTransformerInterface
             return [$value !== null, $value];
         }
 
+        if (in_array('string', $types, true) || in_array('array', $types, true)) {
+            return [
+                (in_array('string', $types, true) && is_string($value)) ||
+                (in_array('array', $types, true) && is_array($value)),
+                $value,
+            ];
+        }
+
         return [true, $value];
     }
 

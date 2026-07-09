@@ -314,6 +314,16 @@ class ImageTransformTest extends Unit
                 ],
                 true,
             );
+
+            $invalidTypedOptionsUrl = (new ImageTransformer())->getTransformUrl(
+                $this->makePdfAssetStub(),
+                [
+                    'border' => 'red',
+                    'metadata' => 123,
+                    'transform' => 'thumb',
+                ],
+                true,
+            );
         } finally {
             $transformsProperty->setValue($imageTransforms, $previousTransforms);
         }
@@ -322,6 +332,7 @@ class ImageTransformTest extends Unit
         $invalidPageParameters = Query::fromUri($invalidPageUrl)->parameters();
         $zeroPageParameters = Query::fromUri($zeroPageUrl)->parameters();
         $invalidZoomParameters = Query::fromUri($invalidZoomUrl)->parameters();
+        $invalidTypedOptionsParameters = Query::fromUri($invalidTypedOptionsUrl)->parameters();
 
         $this->assertSame('320', $parameters['width']);
         $this->assertSame('320', $parameters['height']);
@@ -330,10 +341,13 @@ class ImageTransformTest extends Unit
         $this->assertArrayNotHasKey('page', $invalidPageParameters);
         $this->assertArrayNotHasKey('page', $zeroPageParameters);
         $this->assertArrayNotHasKey('zoom', $invalidZoomParameters);
+        $this->assertArrayNotHasKey('border', $invalidTypedOptionsParameters);
+        $this->assertArrayNotHasKey('metadata', $invalidTypedOptionsParameters);
         $this->assertTrue(CloudModule::getInstance()->getUrlSigner()->verify($signedUrl));
         $this->assertTrue(CloudModule::getInstance()->getUrlSigner()->verify($invalidPageUrl));
         $this->assertTrue(CloudModule::getInstance()->getUrlSigner()->verify($zeroPageUrl));
         $this->assertTrue(CloudModule::getInstance()->getUrlSigner()->verify($invalidZoomUrl));
+        $this->assertTrue(CloudModule::getInstance()->getUrlSigner()->verify($invalidTypedOptionsUrl));
     }
 
     public function testCloudGetImgDelegatesToNativeImageRendering(): void
@@ -355,6 +369,7 @@ class ImageTransformTest extends Unit
             'page' => '1',
             'width' => 320,
             'height' => 240,
+            'zoom' => 'foo',
         ];
 
         $img = (new CloudVariable())->getImg(new SignedPdfImageAsset(), $transform);
@@ -368,6 +383,7 @@ class ImageTransformTest extends Unit
         $this->assertStringContainsString('/tests/document.pdf?', $src);
         $this->assertSame('auto', $parameters['format']);
         $this->assertSame('1', $parameters['page']);
+        $this->assertArrayNotHasKey('zoom', $parameters);
         $this->assertTrue(CloudModule::getInstance()->getUrlSigner()->verify($src));
     }
 
