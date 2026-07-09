@@ -11,11 +11,13 @@ class Session extends DbSession
 {
     public function open()
     {
-        $wasActive = $this->getIsActive();
+        if ($this->getIsActive()) {
+            return;
+        }
 
         parent::open();
 
-        if ($wasActive || !$this->getIsActive()) {
+        if (session_status() !== PHP_SESSION_ACTIVE) {
             return;
         }
 
@@ -29,13 +31,11 @@ class Session extends DbSession
 
     public function close()
     {
-        $wasActive = $this->getIsActive();
-
-        parent::close();
-
-        if (!$wasActive) {
+        if (session_status() !== PHP_SESSION_ACTIVE) {
             return;
         }
+
+        parent::close();
 
         Craft::info(new PsrMessage(
             'Session closed',
