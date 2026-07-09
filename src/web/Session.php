@@ -3,7 +3,6 @@
 namespace craft\cloud\web;
 
 use Craft;
-use GuzzleHttp\Utils as GuzzleUtils;
 use Illuminate\Support\Collection;
 use samdark\log\PsrMessage;
 use yii\web\DbSession;
@@ -21,9 +20,6 @@ class Session extends DbSession
         }
 
         Craft::info(new PsrMessage('Session opened during request', [
-            'sessionStatus' => session_status(),
-            'sessionCacheLimiter' => session_cache_limiter() ?: null,
-            'nativeHeaders' => $this->nativeCacheHeaders(),
             'stack' => $this->filteredStackTrace(),
         ]), __METHOD__);
     }
@@ -39,38 +35,8 @@ class Session extends DbSession
         }
 
         Craft::info(new PsrMessage('Session saved during request', [
-            'sessionStatus' => session_status(),
-            'sessionCacheLimiter' => session_cache_limiter() ?: null,
-            'nativeHeaders' => $this->nativeCacheHeaders(),
             'stack' => $this->filteredStackTrace(),
         ]), __METHOD__);
-    }
-
-    private function nativeCacheHeaders(): array
-    {
-        $trackedHeaders = [
-            'Cache-Control',
-            'CDN-Cache-Control',
-            'Pragma',
-            'Expires',
-            'Set-Cookie',
-            'Surrogate-Control',
-        ];
-
-        return Collection::make(GuzzleUtils::headersFromLines(headers_list()))
-            ->filter(fn(array $values, string $name) => Collection::make($trackedHeaders)
-                ->contains(fn(string $trackedHeader) => strcasecmp($trackedHeader, $name) === 0))
-            ->map(fn(array $values, string $name) => $this->loggableHeaderValues($name, $values))
-            ->all();
-    }
-
-    private function loggableHeaderValues(string $name, array $values): array
-    {
-        if (strcasecmp($name, 'Set-Cookie') !== 0) {
-            return $values;
-        }
-
-        return array_fill(0, count($values), '[redacted]');
     }
 
     private function filteredStackTrace(int $limit = 8): array
