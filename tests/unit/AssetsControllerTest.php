@@ -141,6 +141,15 @@ class AssetsControllerTest extends Unit
         $this->assertSame(1, $fs->readCount);
     }
 
+    public function testUploadedImageDimensionsUseWidePrimaryHeifPropertyAssociations(): void
+    {
+        $fs = new HeaderTestFs();
+        $fs->header = $this->isoBaseMediaFileImageWithProperties('avif', [[10, 10], [4032, 3024]], [2], true);
+
+        $this->assertSame([4032, 3024], $fs->getImageDimensions('upload.avif'));
+        $this->assertSame(1, $fs->readCount);
+    }
+
     public function testUploadedImageDimensionsStopAfterBoundedRanges(): void
     {
         $fs = new FullStreamHeaderTestFs();
@@ -163,6 +172,7 @@ class AssetsControllerTest extends Unit
         string $brand,
         array $propertyDimensions,
         array $primaryPropertyIndices = [],
+        bool $wideAssociations = false,
     ): string
     {
         $ipco = '';
@@ -175,10 +185,13 @@ class AssetsControllerTest extends Unit
 
         $iprp = $this->isoBaseMediaFileBox('ipco', $ipco);
         if (!empty($primaryPropertyIndices)) {
-            $properties = implode('', array_map('chr', $primaryPropertyIndices));
+            $properties = $wideAssociations
+                ? implode('', array_map(fn(int $index) => pack('n', $index), $primaryPropertyIndices))
+                : implode('', array_map('chr', $primaryPropertyIndices));
             $iprp .= $this->isoBaseMediaFileFullBox(
                 'ipma',
                 pack('NnC', 1, 1, count($primaryPropertyIndices)) . $properties,
+                $wideAssociations ? 1 : 0,
             );
         }
 
@@ -191,9 +204,9 @@ class AssetsControllerTest extends Unit
             );
     }
 
-    private function isoBaseMediaFileFullBox(string $type, string $contents): string
+    private function isoBaseMediaFileFullBox(string $type, string $contents, int $flags = 0): string
     {
-        return $this->isoBaseMediaFileBox($type, "\0\0\0\0" . $contents);
+        return $this->isoBaseMediaFileBox($type, "\0" . substr(pack('N', $flags), 1) . $contents);
     }
 
     private function isoBaseMediaFileBox(string $type, string $contents): string

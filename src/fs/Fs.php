@@ -780,6 +780,7 @@ abstract class Fs extends FlysystemFs
         }
 
         $version = ord($contents[0]);
+        $flags = $this->readUint24($contents, 1);
         $entryCount = $this->readUint32($contents, 4);
         $offset = 8;
 
@@ -798,7 +799,7 @@ abstract class Fs extends FlysystemFs
             $associationCount = ord($contents[$offset]);
             $offset++;
             $propertyIndices = [];
-            $associationLength = $version < 1 ? 1 : 2;
+            $associationLength = ($flags & 1) === 1 ? 2 : 1;
 
             for ($j = 0; $j < $associationCount; $j++) {
                 if (strlen($contents) < $offset + $associationLength) {
@@ -863,6 +864,13 @@ abstract class Fs extends FlysystemFs
         $data = unpack('nvalue', substr($contents, $offset, 2));
 
         return (int)$data['value'];
+    }
+
+    private function readUint24(string $contents, int $offset): int
+    {
+        $data = unpack('C3', substr($contents, $offset, 3));
+
+        return ($data[1] << 16) | ($data[2] << 8) | $data[3];
     }
 
     private function readUint64(string $contents, int $offset): int
