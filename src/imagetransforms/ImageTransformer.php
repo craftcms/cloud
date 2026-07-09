@@ -90,7 +90,7 @@ class ImageTransformer extends Component implements ImageTransformerInterface
 
     private function normalizeTransform(mixed $transform): ?ImageTransform
     {
-        $cloudTransformOptions = [];
+        $cloudOptions = [];
 
         if (is_array($transform)) {
             foreach (['width', 'height'] as $attribute) {
@@ -109,7 +109,7 @@ class ImageTransformer extends Component implements ImageTransformerInterface
                 [$valid, $value] = $this->normalizeCloudOption($property, $transform[$name]);
 
                 if ($valid) {
-                    $cloudTransformOptions[$name] = $value;
+                    $cloudOptions[$name] = $value;
                 }
 
                 unset($transform[$name]);
@@ -117,14 +117,14 @@ class ImageTransformer extends Component implements ImageTransformerInterface
         }
 
         $imageTransform = ImageTransformsHelper::normalizeTransform($transform)
-            ?? ($cloudTransformOptions ? Craft::createObject(ImageTransform::class) : null);
+            ?? ($cloudOptions ? Craft::createObject(ImageTransform::class) : null);
 
-        if ($imageTransform && $cloudTransformOptions) {
+        if ($imageTransform && $cloudOptions) {
             $imageTransform = clone $imageTransform;
             $behavior = $imageTransform->getBehavior('cloud');
 
             if ($behavior instanceof ImageTransformBehavior) {
-                Craft::configure($behavior, $cloudTransformOptions);
+                Craft::configure($behavior, $cloudOptions);
             }
         }
 
