@@ -31,11 +31,15 @@ class Session extends DbSession
 
     public function close()
     {
-        if (session_status() !== PHP_SESSION_ACTIVE) {
+        if (!$this->getIsActive()) {
             return;
         }
 
         parent::close();
+
+        if (session_status() === PHP_SESSION_ACTIVE) {
+            return;
+        }
 
         Craft::info(new PsrMessage(
             'Session closed',
