@@ -11,13 +11,11 @@ class Session extends DbSession
 {
     public function open()
     {
-        if ($this->getIsActive()) {
-            return;
-        }
+        $wasActive = $this->getIsActive();
 
         parent::open();
 
-        if (session_status() !== PHP_SESSION_ACTIVE) {
+        if ($wasActive || !$this->getIsActive()) {
             return;
         }
 
@@ -31,13 +29,11 @@ class Session extends DbSession
 
     public function close()
     {
-        if (!$this->getIsActive()) {
-            return;
-        }
+        $wasActive = $this->getIsActive();
 
         parent::close();
 
-        if (session_status() === PHP_SESSION_ACTIVE) {
+        if (!$wasActive || $this->getIsActive()) {
             return;
         }
 
