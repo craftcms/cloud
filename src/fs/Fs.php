@@ -608,7 +608,7 @@ abstract class Fs extends FlysystemFs
 
     private function getFallbackImageDimensions(string $contents, string $extension): ?array
     {
-        // ponytail: older Craft fallback; newer Craft handles these in Image::imageSizeByStream().
+        // Older Craft fallback; newer Craft handles these in Image::imageSizeByStream().
         return match (strtolower($extension)) {
             'svg' => stripos($contents, '<svg') === false ? null : Image::parseSvgSize($contents),
             'avif', 'heic', 'heif' => $this->getIsoBaseMediaFileImageDimensions($contents),

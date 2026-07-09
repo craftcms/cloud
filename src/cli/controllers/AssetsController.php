@@ -8,6 +8,7 @@ use craft\console\Controller;
 use craft\db\Table;
 use craft\elements\Asset;
 use craft\helpers\FileHelper;
+use yii\base\Exception;
 use yii\console\ExitCode;
 use yii\helpers\Console;
 
@@ -37,28 +38,27 @@ class AssetsController extends Controller
 
     public function actionRepairDimensions(): int
     {
-        $assets = Asset::find()
+        $repaired = 0;
+        $skipped = 0;
+
+        Asset::find()
             ->volume($this->volume)
             ->id($this->assetId)
             ->kind(Asset::KIND_IMAGE)
             ->andWhere(['or', ['assets.width' => null], ['assets.height' => null]])
-            ->collect();
+            ->each(function(Asset $asset) use (&$repaired, &$skipped) {
+                $dimensions = $this->repairAssetDimensions($asset);
+                $path = $asset->getPath();
 
-        $repaired = 0;
-        $skipped = 0;
+                if ($dimensions === null) {
+                    $skipped++;
+                    $this->stdout("Skipped `{$path}`: dimensions could not be determined." . PHP_EOL, Console::FG_YELLOW);
+                    return;
+                }
 
-        $assets->each(function(Asset $asset) use (&$repaired, &$skipped) {
-            $dimensions = $this->repairAssetDimensions($asset);
-
-            if ($dimensions === null) {
-                $skipped++;
-                $this->stdout("Skipped `$asset->path`: dimensions could not be determined." . PHP_EOL, Console::FG_YELLOW);
-                return;
-            }
-
-            $repaired++;
-            $this->stdout("Repaired `$asset->path`: {$dimensions[0]}x{$dimensions[1]}." . PHP_EOL, Console::FG_GREEN);
-        });
+                $repaired++;
+                $this->stdout("Repaired `{$path}`: {$dimensions[0]}x{$dimensions[1]}." . PHP_EOL, Console::FG_GREEN);
+            });
 
         $this->stdout("Repaired {$repaired} asset" . ($repaired === 1 ? '' : 's') . '.' . PHP_EOL, Console::FG_GREEN);
 
@@ -71,17 +71,15 @@ class AssetsController extends Controller
 
     public function actionRepairMetadata(): int
     {
-        $assets = Asset::find()
+        Asset::find()
             ->volume($this->volume)
             ->id($this->assetId)
-            ->collect();
-
-        $assets->each(function(Asset $asset) {
-            $this->do(
-                "Repairing metadata for `$asset->path`",
-                fn() => $this->repairAssetMetadata($asset),
-            );
-        });
+            ->each(function(Asset $asset) {
+                $this->do(
+                    "Repairing metadata for `{$asset->getPath()}`",
+                    fn() => $this->repairAssetMetadata($asset),
+                );
+            });
 
         return ExitCode::OK;
     }
@@ -131,7 +129,7 @@ class AssetsController extends Controller
         $fs = $asset->getVolume()->getFs();
 
         if (!$fs instanceof Fs) {
-            return;
+            throw new Exception('Invalid filesystem type.');
         }
 
         $path = $asset->getPath();
