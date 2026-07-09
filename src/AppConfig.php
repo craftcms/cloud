@@ -9,6 +9,7 @@ use craft\cloud\fs\TmpFs;
 use craft\cloud\Helper as CloudHelper;
 use craft\cloud\queue\SqsQueue;
 use craft\cloud\web\AssetManager;
+use craft\cloud\web\Session;
 use craft\db\Table;
 use craft\debug\Module as DebugModule;
 use craft\fs\Temp;
@@ -17,7 +18,6 @@ use craft\log\MonologTarget;
 use craft\queue\Queue as CraftQueue;
 use yii\caching\ArrayCache;
 use yii\redis\Cache as RedisCache;
-use yii\web\DbSession;
 
 class AppConfig
 {
@@ -57,7 +57,7 @@ class AppConfig
             $config = App::sessionConfig();
 
             if ($this->tableExists(Table::PHPSESSIONS)) {
-                $config['class'] = DbSession::class;
+                $config['class'] = Session::class;
                 $config['sessionTable'] = Table::PHPSESSIONS;
             }
 
