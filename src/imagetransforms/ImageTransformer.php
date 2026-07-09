@@ -90,8 +90,7 @@ class ImageTransformer extends Component implements ImageTransformerInterface
 
     private function normalizeTransform(mixed $transform): ?ImageTransform
     {
-        $cloudOptions = [];
-        static $cloudOptionProperties = null;
+        $cloudTransformOptions = [];
 
         if (is_array($transform)) {
             foreach (['width', 'height'] as $attribute) {
@@ -100,12 +99,7 @@ class ImageTransformer extends Component implements ImageTransformerInterface
                 }
             }
 
-            $cloudOptionProperties ??= array_filter(
-                (new \ReflectionClass(ImageTransformBehavior::class))->getProperties(\ReflectionProperty::IS_PUBLIC),
-                fn(\ReflectionProperty $property) => $property->getDeclaringClass()->getName() === ImageTransformBehavior::class,
-            );
-
-            foreach ($cloudOptionProperties as $property) {
+            foreach ($this->cloudOptionProperties() as $property) {
                 $name = $property->getName();
 
                 if (!array_key_exists($name, $transform)) {
@@ -115,7 +109,7 @@ class ImageTransformer extends Component implements ImageTransformerInterface
                 [$valid, $value] = $this->normalizeCloudOption($property, $transform[$name]);
 
                 if ($valid) {
-                    $cloudOptions[$name] = $value;
+                    $cloudTransformOptions[$name] = $value;
                 }
 
                 unset($transform[$name]);
@@ -123,18 +117,28 @@ class ImageTransformer extends Component implements ImageTransformerInterface
         }
 
         $imageTransform = ImageTransformsHelper::normalizeTransform($transform)
-            ?? ($cloudOptions ? Craft::createObject(ImageTransform::class) : null);
+            ?? ($cloudTransformOptions ? Craft::createObject(ImageTransform::class) : null);
 
-        if ($imageTransform && $cloudOptions) {
+        if ($imageTransform && $cloudTransformOptions) {
             $imageTransform = clone $imageTransform;
             $behavior = $imageTransform->getBehavior('cloud');
 
             if ($behavior instanceof ImageTransformBehavior) {
-                Craft::configure($behavior, $cloudOptions);
+                Craft::configure($behavior, $cloudTransformOptions);
             }
         }
 
         return $imageTransform;
+    }
+
+    private function cloudOptionProperties(): array
+    {
+        static $properties = null;
+
+        return $properties ??= array_filter(
+            (new \ReflectionClass(ImageTransformBehavior::class))->getProperties(\ReflectionProperty::IS_PUBLIC),
+            fn(\ReflectionProperty $property) => $property->getDeclaringClass()->getName() === ImageTransformBehavior::class,
+        );
     }
 
     private function normalizeCloudOption(\ReflectionProperty $property, mixed $value): array
