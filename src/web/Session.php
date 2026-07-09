@@ -41,7 +41,7 @@ class Session extends DbSession
 
     private function filteredStackTrace(int $limit = 8): array
     {
-        return Collection::make(debug_backtrace(DEBUG_BACKTRACE_IGNORE_ARGS))
+        return Collection::make(debug_backtrace(DEBUG_BACKTRACE_IGNORE_ARGS, $limit + 2))
             ->reject(fn(array $frame) => ($frame['class'] ?? null) === self::class)
             ->map(function(array $frame) {
                 $callable = Collection::make([
