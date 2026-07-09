@@ -110,20 +110,13 @@ class ImageTransformer extends Component implements ImageTransformerInterface
                     continue;
                 }
 
-                $cloudOptions[$name] = $transform[$name];
-                unset($transform[$name]);
-            }
+                [$valid, $value] = $this->normalizeCloudOption($property, $transform[$name]);
 
-            if (array_key_exists('page', $cloudOptions)) {
-                $normalizedPage = is_int($cloudOptions['page']) || is_string($cloudOptions['page'])
-                    ? filter_var($cloudOptions['page'], FILTER_VALIDATE_INT)
-                    : false;
-
-                if ($normalizedPage !== false && $normalizedPage >= 1) {
-                    $cloudOptions['page'] = $normalizedPage;
-                } else {
-                    unset($cloudOptions['page']);
+                if ($valid) {
+                    $cloudOptions[$name] = $value;
                 }
+
+                unset($transform[$name]);
             }
         }
 
@@ -140,6 +133,42 @@ class ImageTransformer extends Component implements ImageTransformerInterface
         }
 
         return $imageTransform;
+    }
+
+    private function normalizeCloudOption(\ReflectionProperty $property, mixed $value): array
+    {
+        if ($value === null) {
+            return [true, null];
+        }
+
+        $type = $property->getType();
+        $types = $type instanceof \ReflectionUnionType
+            ? array_map(fn(\ReflectionNamedType $type) => $type->getName(), $type->getTypes())
+            : ($type instanceof \ReflectionNamedType ? [$type->getName()] : []);
+
+        if (in_array('int', $types, true)) {
+            $value = is_int($value) || is_string($value)
+                ? filter_var($value, FILTER_VALIDATE_INT)
+                : false;
+
+            return [$value !== false && ($property->getName() !== 'page' || $value >= 1), $value];
+        }
+
+        if (in_array('float', $types, true)) {
+            $value = is_int($value) || is_float($value) || is_string($value)
+                ? filter_var($value, FILTER_VALIDATE_FLOAT)
+                : false;
+
+            return [$value !== false, $value];
+        }
+
+        if (in_array('bool', $types, true)) {
+            $value = filter_var($value, FILTER_VALIDATE_BOOL, FILTER_NULL_ON_FAILURE);
+
+            return [$value !== null, $value];
+        }
+
+        return [true, $value];
     }
 
     private function createBaseUri(Asset $asset): Uri

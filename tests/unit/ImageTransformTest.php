@@ -283,7 +283,7 @@ class ImageTransformTest extends Unit
                 [
                     'transform' => 'thumb',
                     'page' => '2',
-                    'zoom' => 1.25,
+                    'zoom' => '1.25',
                 ],
                 true,
             );
@@ -305,6 +305,15 @@ class ImageTransformTest extends Unit
                 ],
                 true,
             );
+
+            $invalidZoomUrl = (new ImageTransformer())->getTransformUrl(
+                $this->makePdfAssetStub(),
+                [
+                    'transform' => 'thumb',
+                    'zoom' => 'foo',
+                ],
+                true,
+            );
         } finally {
             $transformsProperty->setValue($imageTransforms, $previousTransforms);
         }
@@ -312,6 +321,7 @@ class ImageTransformTest extends Unit
         $parameters = Query::fromUri($signedUrl)->parameters();
         $invalidPageParameters = Query::fromUri($invalidPageUrl)->parameters();
         $zeroPageParameters = Query::fromUri($zeroPageUrl)->parameters();
+        $invalidZoomParameters = Query::fromUri($invalidZoomUrl)->parameters();
 
         $this->assertSame('320', $parameters['width']);
         $this->assertSame('320', $parameters['height']);
@@ -319,9 +329,11 @@ class ImageTransformTest extends Unit
         $this->assertSame('1.25', $parameters['zoom']);
         $this->assertArrayNotHasKey('page', $invalidPageParameters);
         $this->assertArrayNotHasKey('page', $zeroPageParameters);
+        $this->assertArrayNotHasKey('zoom', $invalidZoomParameters);
         $this->assertTrue(CloudModule::getInstance()->getUrlSigner()->verify($signedUrl));
         $this->assertTrue(CloudModule::getInstance()->getUrlSigner()->verify($invalidPageUrl));
         $this->assertTrue(CloudModule::getInstance()->getUrlSigner()->verify($zeroPageUrl));
+        $this->assertTrue(CloudModule::getInstance()->getUrlSigner()->verify($invalidZoomUrl));
     }
 
     public function testCloudGetImgDelegatesToNativeImageRendering(): void
