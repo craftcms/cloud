@@ -6,18 +6,13 @@ use craft\cloud\cli\controllers\AssetsController;
 
 class RepairController extends AssetsController
 {
-    public function actionDimensions(): int
+    public function actionIndex(): int
     {
-        return $this->actionRepairDimensions();
+        return $this->repairMissingAssetIndex();
     }
 
     public function actionMetadata(): int
     {
         return $this->actionRepairMetadata();
-    }
-
-    public function actionSize(): int
-    {
-        return $this->actionRepairSize();
     }
 }

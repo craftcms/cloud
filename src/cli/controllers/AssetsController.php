@@ -34,80 +34,70 @@ class AssetsController extends Controller
     {
         return array_merge(parent::options($actionID), match ($actionID) {
             'replace-metadata',
-            'repair-dimensions',
             'repair-metadata',
-            'repair-size',
-            'dimensions',
-            'metadata',
-            'size' => ['volume', 'assetId'],
+            'index',
+            'metadata' => ['volume', 'assetId'],
             default => []
         });
     }
 
-    public function actionRepairDimensions(): int
+    protected function repairMissingAssetIndex(): int
     {
-        $this->warnIfCraftStreamDimensionFixMissing();
-
         $repaired = 0;
         $skipped = 0;
+        $warnedAboutDimensions = false;
 
         $assets = Asset::find()
             ->volume($this->volume)
             ->id($this->assetId)
-            ->kind(Asset::KIND_IMAGE)
-            ->andWhere(['or', ['assets.width' => null], ['assets.height' => null]]);
+            ->andWhere(['or',
+                ['assets.size' => null],
+                ['and',
+                    ['assets.kind' => Asset::KIND_IMAGE],
+                    ['or', ['assets.width' => null], ['assets.height' => null]],
+                ],
+            ]);
 
         foreach ($assets->each() as $asset) {
             /** @var Asset $asset */
             $path = $asset->getPath();
+            $changes = [];
 
-            $dimensions = $this->repairAssetDimensions($asset);
+            if ($asset->size === null) {
+                $size = $this->repairAssetSize($asset);
 
-            if ($dimensions === null) {
+                if ($size === null) {
+                    $this->stdout("Skipped `{$path}` size: could not be determined." . PHP_EOL, Console::FG_YELLOW);
+                } else {
+                    $changes[] = "{$size} bytes";
+                }
+            }
+
+            if ($asset->kind === Asset::KIND_IMAGE && ($asset->getWidth() === null || $asset->getHeight() === null)) {
+                if (!$warnedAboutDimensions) {
+                    $this->warnIfCraftStreamDimensionFixMissing();
+                    $warnedAboutDimensions = true;
+                }
+
+                $dimensions = $this->repairAssetDimensions($asset);
+
+                if ($dimensions === null) {
+                    $this->stdout("Skipped `{$path}` dimensions: could not be determined." . PHP_EOL, Console::FG_YELLOW);
+                } else {
+                    $changes[] = "{$dimensions[0]}x{$dimensions[1]}";
+                }
+            }
+
+            if ($changes === []) {
                 $skipped++;
-                $this->stdout("Skipped `{$path}`: dimensions could not be determined." . PHP_EOL, Console::FG_YELLOW);
                 continue;
             }
 
             $repaired++;
-            $this->stdout("Repaired `{$path}`: {$dimensions[0]}x{$dimensions[1]}." . PHP_EOL, Console::FG_GREEN);
+            $this->stdout("Repaired `{$path}`: " . implode(', ', $changes) . '.' . PHP_EOL, Console::FG_GREEN);
         }
 
         $this->stdout("Repaired {$repaired} asset" . ($repaired === 1 ? '' : 's') . '.' . PHP_EOL, Console::FG_GREEN);
-
-        if ($skipped > 0) {
-            $this->stdout("Skipped {$skipped} asset" . ($skipped === 1 ? '' : 's') . '.' . PHP_EOL, Console::FG_YELLOW);
-        }
-
-        return ExitCode::OK;
-    }
-
-    public function actionRepairSize(): int
-    {
-        $repaired = 0;
-        $skipped = 0;
-
-        $assets = Asset::find()
-            ->volume($this->volume)
-            ->id($this->assetId)
-            ->andWhere(['assets.size' => null]);
-
-        foreach ($assets->each() as $asset) {
-            /** @var Asset $asset */
-            $path = $asset->getPath();
-            $size = $this->repairAssetSize($asset);
-
-            if ($size === null) {
-                $skipped++;
-                $this->stdout("Skipped `{$path}`: size could not be determined." . PHP_EOL, Console::FG_YELLOW);
-                continue;
-            }
-
-            $repaired++;
-            $this->stdout("Repaired `{$path}`: {$size} bytes." . PHP_EOL, Console::FG_GREEN);
-        }
-
-        $this->stdout("Repaired {$repaired} asset size" . ($repaired === 1 ? '' : 's') . '.' . PHP_EOL, Console::FG_GREEN);
 
         if ($skipped > 0) {
             $this->stdout("Skipped {$skipped} asset" . ($skipped === 1 ? '' : 's') . '.' . PHP_EOL, Console::FG_YELLOW);
@@ -160,15 +150,25 @@ class AssetsController extends Controller
             return null;
         }
 
-        Craft::$app->getDb()->createCommand()
-            ->update(Table::ASSETS, [
-                'width' => $dimensions[0],
-                'height' => $dimensions[1],
-            ], ['id' => $asset->id])
-            ->execute();
+        $values = [];
 
-        $asset->setWidth($dimensions[0]);
-        $asset->setHeight($dimensions[1]);
+        if ($asset->getWidth() === null) {
+            $values['width'] = $dimensions[0];
+            $asset->setWidth($dimensions[0]);
+        }
+
+        if ($asset->getHeight() === null) {
+            $values['height'] = $dimensions[1];
+            $asset->setHeight($dimensions[1]);
+        }
+
+        if ($values === []) {
+            return $dimensions;
+        }
+
+        Craft::$app->getDb()->createCommand()
+            ->update(Table::ASSETS, $values, ['id' => $asset->id])
+            ->execute();
 
         return $dimensions;
     }
