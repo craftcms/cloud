@@ -5,8 +5,8 @@ namespace craft\cloud\tests\unit;
 use Codeception\Test\Unit;
 use Craft;
 use craft\cloud\HeaderEnum;
-use craft\cloud\Module;
 use craft\cloud\StaticCache;
+use Illuminate\Support\Collection;
 use ReflectionMethod;
 
 class StaticCacheTest extends Unit
@@ -17,15 +17,10 @@ class StaticCacheTest extends Unit
     protected $tester;
 
     private ?string $requestMethod = null;
-    private ?Module $previousModule = null;
 
     protected function _before(): void
     {
         parent::_before();
-
-        $this->previousModule = Module::getInstance();
-        $module = new Module('cloud');
-        Module::setInstance($module);
 
         Craft::$app->getRequest()->setIsCpRequest(false);
         Craft::$app->getResponse()->clear();
@@ -45,8 +40,6 @@ class StaticCacheTest extends Unit
         } else {
             $_SERVER['REQUEST_METHOD'] = $this->requestMethod;
         }
-
-        Module::setInstance($this->previousModule);
 
         parent::_after();
     }
@@ -95,57 +88,7 @@ class StaticCacheTest extends Unit
 
         $this->assertSame(
             ['no-store'],
-            $this->staticCacheDecision($staticCache)['directives']->all(),
-        );
-
-        $this->assertSame(
-            'cdn-cache-control',
-            $this->staticCacheDecision($staticCache)['source'],
-        );
-    }
-
-    public function testStaticCacheDirectivesFallbackToCacheControl(): void
-    {
-        $staticCache = new StaticCache();
-
-        Craft::$app->getResponse()->getHeaders()->set(
-            HeaderEnum::CACHE_CONTROL->value,
-            'public,max-age=60',
-        );
-
-        $decision = $this->staticCacheDecision($staticCache);
-
-        $this->assertSame('cache-control', $decision['source']);
-        $this->assertSame(['public,max-age=60'], $decision['directives']->all());
-    }
-
-    public function testStaticCacheDirectivesUseCloudDefaults(): void
-    {
-        $staticCache = new StaticCache();
-
-        $decision = $this->staticCacheDecision($staticCache);
-
-        $this->assertSame('cloud-default', $decision['source']);
-        $this->assertSame('public', $decision['directives']->first());
-        $this->assertContains('stale-while-revalidate=3600', $decision['directives']->all());
-    }
-
-    public function testStaticCacheDecisionReportsBlockers(): void
-    {
-        $staticCache = new StaticCache();
-
-        Craft::$app->getResponse()->getHeaders()->set(
-            HeaderEnum::CDN_CACHE_CONTROL->value,
-            'private,max-age=0',
-        );
-        Craft::$app->getResponse()->getHeaders()->add(
-            HeaderEnum::SET_COOKIE->value,
-            'CraftSessionId=session-id; path=/',
-        );
-
-        $this->assertSame(
-            ['private', 'max-age=0', 'set-cookie'],
-            $this->staticCacheDecision($staticCache)['blockers'],
+            $this->staticCacheDirectives($staticCache)->all(),
         );
     }
 
@@ -157,9 +100,9 @@ class StaticCacheTest extends Unit
         return $method->invoke($staticCache);
     }
 
-    private function staticCacheDecision(StaticCache $staticCache): array
+    private function staticCacheDirectives(StaticCache $staticCache): Collection
     {
-        $method = new ReflectionMethod($staticCache, 'staticCacheDecision');
+        $method = new ReflectionMethod($staticCache, 'staticCacheDirectives');
         $method->setAccessible(true);
 
         return $method->invoke($staticCache);

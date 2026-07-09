@@ -37,22 +37,6 @@ use yii\caching\TagDependency;
 class StaticCache extends \yii\base\Component
 {
     public const CDN_PREFIX = 'cdn:';
-
-    private const SOURCE_CDN_CACHE_CONTROL = 'cdn-cache-control';
-    private const SOURCE_CACHE_CONTROL = 'cache-control';
-    private const SOURCE_DEFAULT = 'cloud-default';
-    private const HEADER_PRAGMA = 'Pragma';
-    private const HEADER_EXPIRES = 'Expires';
-
-    private const TRACKED_HEADERS = [
-        HeaderEnum::CACHE_CONTROL->value,
-        HeaderEnum::CDN_CACHE_CONTROL->value,
-        self::HEADER_PRAGMA,
-        self::HEADER_EXPIRES,
-        HeaderEnum::SET_COOKIE->value,
-        HeaderEnum::SURROGATE_CONTROL->value,
-    ];
-
     private ?int $cacheDuration = null;
     private Collection $tags;
     private Collection $tagsToPurge;
@@ -229,16 +213,11 @@ class StaticCache extends \yii\base\Component
     private function addCacheHeadersToWebResponse(): void
     {
         $headers = Craft::$app->getResponse()->getHeaders();
-        $decision = $this->staticCacheDecision();
 
         $headers->setDefault(
             HeaderEnum::CDN_CACHE_CONTROL->value,
-            $decision['directives']->implode(','),
+            $this->staticCacheDirectives()->implode(','),
         );
-
-        Craft::info(new PsrMessage('Resolved static cache directives', [
-            'decision' => $decision,
-        ]), __METHOD__);
 
         // Capture and remove any existing headers, so we can prepare them
         $existingTagsFromHeader = Collection::make($headers->get(HeaderEnum::CACHE_TAG->value, first: false) ?? []);
@@ -330,9 +309,9 @@ class StaticCache extends \yii\base\Component
             $response->getIsOk();
     }
 
-    private function staticCacheDecision(): array
+    private function staticCacheDirectives(): Collection
     {
-        $syncedNativeHeaders = $this->syncNativeCacheHeaders();
+        $this->syncNativeCacheHeaders();
         $headers = Craft::$app->getResponse()->getHeaders();
 
         $cdnCacheControlDirectives = Collection::make($headers->get(
@@ -341,11 +320,7 @@ class StaticCache extends \yii\base\Component
         ) ?? []);
 
         if ($cdnCacheControlDirectives->isNotEmpty()) {
-            return $this->createStaticCacheDecision(
-                $cdnCacheControlDirectives,
-                self::SOURCE_CDN_CACHE_CONTROL,
-                $syncedNativeHeaders,
-            );
+            return $cdnCacheControlDirectives;
         }
 
         $cacheControlDirectives = Collection::make($headers->get(
@@ -354,32 +329,23 @@ class StaticCache extends \yii\base\Component
         ) ?? []);
 
         if ($cacheControlDirectives->isNotEmpty()) {
-            return $this->createStaticCacheDecision(
-                $cacheControlDirectives,
-                self::SOURCE_CACHE_CONTROL,
-                $syncedNativeHeaders,
-            );
+            return $cacheControlDirectives;
         }
 
         $this->cacheDuration = $this->cacheDuration ?? Module::getInstance()->getConfig()->staticCacheDuration;
         $swrDuration = Module::getInstance()->getConfig()->staticCacheStaleWhileRevalidateDuration;
 
-        return $this->createStaticCacheDecision(
-            Collection::make([
-                'public',
-                "max-age=$this->cacheDuration",
-                "stale-while-revalidate=$swrDuration",
-            ]),
-            self::SOURCE_DEFAULT,
-            $syncedNativeHeaders,
-        );
+        return Collection::make([
+            'public',
+            "max-age=$this->cacheDuration",
+            "stale-while-revalidate=$swrDuration",
+        ]);
     }
 
-    private function syncNativeCacheHeaders(): Collection
+    private function syncNativeCacheHeaders(): void
     {
         $headers = Craft::$app->getResponse()->getHeaders();
-        $nativeHeaders = Collection::make($this->nativeCacheHeaders());
-        $syncedNativeHeaders = Collection::make();
+        $nativeHeaders = Collection::make(GuzzleUtils::headersFromLines(headers_list()));
 
         foreach ([HeaderEnum::CDN_CACHE_CONTROL, HeaderEnum::CACHE_CONTROL] as $header) {
             $name = $header->value;
@@ -395,92 +361,7 @@ class StaticCache extends \yii\base\Component
             }
 
             $headers->set($name, $values);
-            $syncedNativeHeaders->push($name);
         }
-
-        return $syncedNativeHeaders;
-    }
-
-    private function createStaticCacheDecision(
-        Collection $directives,
-        string $source,
-        Collection $syncedNativeHeaders,
-    ): array {
-        $responseHeaders = $this->responseCacheHeaders();
-        $nativeHeaders = $this->nativeCacheHeaders();
-        $hasSetCookie = isset($responseHeaders[HeaderEnum::SET_COOKIE->value]) ||
-            isset($nativeHeaders[HeaderEnum::SET_COOKIE->value]);
-
-        return [
-            'source' => $source,
-            'directives' => $directives,
-            'blockers' => $this->cacheBlockers($directives, $hasSetCookie),
-            'responseHeaders' => $responseHeaders,
-            'nativeHeaders' => $nativeHeaders,
-            'syncedNativeHeaders' => $syncedNativeHeaders->values()->all(),
-            'hasSetCookie' => $hasSetCookie,
-            'sessionStatus' => session_status(),
-            'sessionCacheLimiter' => session_cache_limiter() ?: null,
-        ];
-    }
-
-    private function responseCacheHeaders(): array
-    {
-        return $this->trackedHeaders(Collection::make(Craft::$app->getResponse()->getHeaders()));
-    }
-
-    private function nativeCacheHeaders(): array
-    {
-        return $this->trackedHeaders(Collection::make(GuzzleUtils::headersFromLines(headers_list())));
-    }
-
-    private function trackedHeaders(Collection $headers): array
-    {
-        $trackedHeaders = [];
-
-        $headers->each(function(array $values, string $name) use (&$trackedHeaders) {
-            $canonicalName = $this->canonicalHeaderName($name);
-
-            if ($canonicalName === null) {
-                return;
-            }
-
-            $trackedHeaders[$canonicalName] = Collection::wrap($trackedHeaders[$canonicalName] ?? [])
-                ->merge($values)
-                ->map(fn($value) => (string) $value)
-                ->values()
-                ->all();
-        });
-
-        return $trackedHeaders;
-    }
-
-    private function canonicalHeaderName(string $name): ?string
-    {
-        foreach (self::TRACKED_HEADERS as $trackedHeader) {
-            if (strcasecmp($trackedHeader, $name) === 0) {
-                return $trackedHeader;
-            }
-        }
-
-        return null;
-    }
-
-    private function cacheBlockers(Collection $directives, bool $hasSetCookie): array
-    {
-        $blockers = $directives
-            ->flatMap(fn(string $value) => preg_split('/\s*,\s*/', $value) ?: [])
-            ->map(fn(string $value) => strtolower(trim($value)))
-            ->filter(function(string $directive) {
-                return in_array($directive, ['no-cache', 'no-store', 'private'], true) ||
-                    in_array($directive, ['max-age=0', 's-maxage=0'], true);
-            });
-
-        if ($hasSetCookie) {
-            $blockers->push('set-cookie');
-        }
-
-        return $blockers->unique()->values()->all();
     }
 
     private function prepareTags(string|StaticCacheTag ...$tags): Collection
