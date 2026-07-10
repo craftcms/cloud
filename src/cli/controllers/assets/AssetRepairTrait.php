@@ -4,6 +4,7 @@ namespace craft\cloud\cli\controllers\assets;
 
 use Craft;
 use craft\cloud\fs\Fs;
+use craft\cloud\traits\VolumeSubpathTrait;
 use craft\db\Table;
 use craft\elements\Asset;
 use craft\helpers\FileHelper;
@@ -14,6 +15,8 @@ use yii\helpers\Console;
 
 trait AssetRepairTrait
 {
+    use VolumeSubpathTrait;
+
     /**
      * @var array<string>|null
      */
@@ -132,7 +135,7 @@ trait AssetRepairTrait
             return null;
         }
 
-        $path = (method_exists($volume, 'getSubpath') ? $volume->getSubpath() : '') . $asset->getPath();
+        $path = $this->volumeSubpath($volume) . $asset->getPath();
         $dimensions = $fs->getImageDimensions($path);
 
         if ($dimensions === null || !$dimensions[0] || !$dimensions[1]) {
