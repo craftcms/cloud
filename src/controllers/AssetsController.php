@@ -4,6 +4,7 @@ namespace craft\cloud\controllers;
 
 use Craft;
 use craft\cloud\fs\Fs;
+use craft\cloud\traits\VolumeSubpathTrait;
 use craft\controllers\AssetsControllerTrait;
 use craft\elements\Asset;
 use craft\elements\conditions\ElementCondition;
@@ -11,7 +12,6 @@ use craft\events\ReplaceAssetEvent;
 use craft\fields\Assets as AssetsField;
 use craft\helpers\Assets;
 use craft\helpers\Db;
-use craft\models\Volume;
 use craft\web\Controller;
 use DateTime;
 use Throwable;
@@ -25,6 +25,7 @@ use yii\web\Response;
 class AssetsController extends Controller
 {
     use AssetsControllerTrait;
+    use VolumeSubpathTrait;
 
     public function actionGetUploadUrl(): Response
     {
@@ -384,11 +385,6 @@ class AssetsController extends Controller
         return Craft::$app->getElements()->saveElement($asset);
     }
 
-    private function volumeSubpath(Volume $volume): string
-    {
-        return method_exists($volume, 'getSubpath') ? $volume->getSubpath() : '';
-    }
-
     protected function setUploadedAssetMetadata(Asset $asset, string $filename, ?string $displayFilename = null): void
     {
         try {
@@ -418,12 +414,13 @@ class AssetsController extends Controller
 
     protected function uploadedImageDimensions(Asset $asset, string $filename): array
     {
-        $fs = $asset->getVolume()->getFs();
+        $volume = $asset->getVolume();
+        $fs = $volume->getFs();
 
         // Null dimensions are safer than browser-oriented dimensions for EXIF
         // images, but they can still prevent image-editor use until reindexed.
         return $fs instanceof Fs
-            ? $fs->getImageDimensions($asset->getPath($filename)) ?? [null, null]
+            ? $fs->getImageDimensions($this->volumeSubpath($volume) . $asset->getPath($filename)) ?? [null, null]
             : [null, null];
     }
 

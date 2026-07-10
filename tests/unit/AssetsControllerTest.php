@@ -53,7 +53,13 @@ class AssetsControllerTest extends Unit
         $fs->header = "\xFF\xD8"
             . "\xFF\xE1" . pack('n', 4) . 'xx'
             . "\xFF\xC0" . pack('n', 17) . "\x08" . pack('n', 3024) . pack('n', 4032) . str_repeat("\0", 10);
-        $asset = new TestAsset(new TestVolume(123, $fs));
+        $volume = new TestVolume(123, $fs);
+
+        if (method_exists($volume, 'setSubpath')) {
+            $volume->setSubpath('volume-prefix');
+        }
+
+        $asset = new TestAsset($volume);
         $asset->setFilename('upload.jpeg');
         $asset->kind = Asset::KIND_IMAGE;
 
@@ -63,6 +69,7 @@ class AssetsControllerTest extends Unit
         $this->assertSame(4032, $asset->getWidth());
         $this->assertSame(3024, $asset->getHeight());
         $this->assertSame(1, $fs->readCount);
+        $this->assertSame([method_exists($volume, 'getSubpath') ? 'volume-prefix/upload.jpeg' : 'upload.jpeg'], $fs->requestedPaths);
     }
 
     public function testUploadedAssetMetadataLeavesUnreadableDimensionsNull(): void
@@ -159,6 +166,29 @@ class AssetsControllerTest extends Unit
         $this->assertCliAssetFilterOptions($replaceMetadataController, 'index');
     }
 
+    public function testRepairAssetDimensionsUsesVolumeSubpath(): void
+    {
+        if (!method_exists(new Volume(), 'setSubpath')) {
+            $this->markTestSkipped('Craft 4 volumes do not implement a subpath.');
+        }
+
+        $fs = new HeaderTestFs();
+        $fs->header = "\xFF\xD8"
+            . "\xFF\xE1" . pack('n', 4) . 'xx'
+            . "\xFF\xC0" . pack('n', 17) . "\x08" . pack('n', 3024) . pack('n', 4032) . str_repeat("\0", 10);
+        $volume = new TestVolume(123, $fs);
+        $volume->setSubpath('volume-prefix');
+        $asset = new TestAsset($volume);
+        $asset->setFilename('upload.jpeg');
+        $asset->setWidth(4032);
+        $asset->setHeight(3024);
+
+        $controller = new TestRepairController('assets/repair', Craft::$app);
+
+        $this->assertSame([4032, 3024], $controller->repairAssetDimensionsForTest($asset));
+        $this->assertSame(['volume-prefix/upload.jpeg'], $fs->requestedPaths);
+    }
+
     private function invokeVolumeSubpath(Volume $volume): string
     {
         $controller = new AssetsController('cloud-assets', Craft::$app);
@@ -231,6 +261,7 @@ class HeaderTestFs extends Fs
     public string $header;
     public array $headers = [];
     public int $readCount = 0;
+    public array $requestedPaths = [];
 
     public static function displayName(): string
     {
@@ -240,6 +271,7 @@ class HeaderTestFs extends Fs
     public function getFileStreamRange(string $uriPath, int $start, int $end)
     {
         $this->readCount++;
+        $this->requestedPaths[] = $uriPath;
 
         $stream = fopen('php://temp', 'r+');
 
@@ -281,6 +313,14 @@ class NullDimensionsTestFs extends HeaderTestFs
     public function getImageDimensions(string $uriPath): ?array
     {
         return null;
+    }
+}
+
+class TestRepairController extends RepairController
+{
+    public function repairAssetDimensionsForTest(Asset $asset): ?array
+    {
+        return $this->repairAssetDimensions($asset);
     }
 }
 

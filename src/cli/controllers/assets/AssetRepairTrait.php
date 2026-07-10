@@ -4,6 +4,7 @@ namespace craft\cloud\cli\controllers\assets;
 
 use Craft;
 use craft\cloud\fs\Fs;
+use craft\cloud\traits\VolumeSubpathTrait;
 use craft\db\Table;
 use craft\elements\Asset;
 use craft\helpers\FileHelper;
@@ -14,6 +15,8 @@ use yii\helpers\Console;
 
 trait AssetRepairTrait
 {
+    use VolumeSubpathTrait;
+
     /**
      * @var array<string>|null
      */
@@ -125,13 +128,15 @@ trait AssetRepairTrait
      */
     protected function repairAssetDimensions(Asset $asset): ?array
     {
-        $fs = $asset->getVolume()->getFs();
+        $volume = $asset->getVolume();
+        $fs = $volume->getFs();
 
         if (!$fs instanceof Fs) {
             return null;
         }
 
-        $dimensions = $fs->getImageDimensions($asset->getPath());
+        $path = $this->volumeSubpath($volume) . $asset->getPath();
+        $dimensions = $fs->getImageDimensions($path);
 
         if ($dimensions === null || !$dimensions[0] || !$dimensions[1]) {
             return null;
