@@ -11,6 +11,7 @@ use craft\cloud\imagetransforms\ImageTransformer;
 use craft\cloud\signing\RequestSigner;
 use craft\cloud\signing\UrlSigner;
 use craft\cloud\twig\TwigExtension;
+use craft\cloud\web\assets\assetthumbfallback\AssetThumbFallbackAsset;
 use craft\cloud\web\assets\uploader\UploaderAsset;
 use craft\cloud\web\ResponseEventHandler;
 use craft\console\Application as ConsoleApplication;
@@ -175,6 +176,7 @@ class Module extends \yii\base\Module implements \yii\base\BootstrapInterface
             );
 
             if ($app->getRequest()->getIsCpRequest()) {
+                $app->getView()->registerAssetBundle(AssetThumbFallbackAsset::class);
                 $app->getView()->registerAssetBundle(UploaderAsset::class);
             }
         }
