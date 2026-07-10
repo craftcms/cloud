@@ -1,61 +1,48 @@
 /** global: Craft */
 /** global: picturefill */
 
-(() => {
-  const thumbSelector = '.thumb[data-srcset], .elementthumb[data-srcset]';
-  let supportedExtensions;
+const thumbSelector = '.thumb[data-srcset], .elementthumb[data-srcset]';
 
-  function getSupportedExtensions() {
-    if (supportedExtensions) {
-      return supportedExtensions;
+function extensionFromUrl(url) {
+  try {
+    return new URL(url, window.location.href).pathname
+      .match(/\.([a-z0-9_]+)$/i)?.[1]
+      ?.toLowerCase();
+  } catch (error) {
+    return null;
+  }
+}
+
+document.addEventListener(
+  'error',
+  (event) => {
+    const image = event.target;
+
+    if (
+      !(image instanceof HTMLImageElement) ||
+      image.dataset.cloudAssetThumbFallback === 'true' ||
+      typeof window.Craft?.getActionUrl !== 'function'
+    ) {
+      return;
     }
 
-    supportedExtensions = new Set();
+    const thumb = image.closest(thumbSelector);
 
-    Object.values(window.Craft?.fileKinds || {}).forEach((fileKind) => {
-      (fileKind.extensions || []).forEach((extension) => {
-        supportedExtensions.add(extension.toLowerCase());
-      });
-    });
-
-    return supportedExtensions;
-  }
-
-  function getFirstSrcsetUrl(srcset) {
-    return srcset.match(/^\s*([^,\s]+)/)?.[1] || null;
-  }
-
-  function getExtension(url) {
-    try {
-      return new URL(url, window.location.href).pathname
-        .match(/\.([a-z0-9_]+)$/i)?.[1]
-        ?.toLowerCase();
-    } catch (error) {
-      return null;
+    if (!thumb) {
+      return;
     }
-  }
 
-  function getIconUrl(image, thumb) {
     const sourceUrl =
       image.currentSrc ||
       image.src ||
-      getFirstSrcsetUrl(thumb.dataset.srcset || '');
-    const extension = sourceUrl ? getExtension(sourceUrl) : null;
+      thumb.dataset.srcset?.match(/^\s*([^,\s]+)/)?.[1];
+    const extension = sourceUrl ? extensionFromUrl(sourceUrl) : null;
 
-    if (
-      !extension ||
-      !getSupportedExtensions().has(extension) ||
-      typeof window.Craft?.getActionUrl !== 'function'
-    ) {
-      return null;
+    if (!extension) {
+      return;
     }
 
-    return window.Craft.getActionUrl('assets/icon', {
-      extension,
-    });
-  }
-
-  function applyFallback(image, thumb, iconUrl) {
+    const iconUrl = window.Craft.getActionUrl('assets/icon', {extension});
     image.dataset.cloudAssetThumbFallback = 'true';
     thumb.dataset.srcset = iconUrl;
     thumb.removeAttribute('data-animated');
@@ -68,29 +55,6 @@
         elements: [image],
       });
     }
-  }
-
-  document.addEventListener(
-    'error',
-    (event) => {
-      const image = event.target;
-
-      if (
-        !(image instanceof HTMLImageElement) ||
-        image.dataset.cloudAssetThumbFallback === 'true'
-      ) {
-        return;
-      }
-
-      const thumb = image.closest(thumbSelector);
-      const iconUrl = thumb ? getIconUrl(image, thumb) : null;
-
-      if (!thumb || !iconUrl) {
-        return;
-      }
-
-      applyFallback(image, thumb, iconUrl);
-    },
-    true,
-  );
-})();
+  },
+  true,
+);
