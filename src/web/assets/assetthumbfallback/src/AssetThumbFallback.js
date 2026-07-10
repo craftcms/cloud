@@ -2,17 +2,14 @@
 /** global: picturefill */
 
 const thumbSelector = '.thumb[data-srcset], .elementthumb[data-srcset]';
+const extensionFromPathPattern = /\.([a-z0-9_]+)$/i;
+const firstSrcsetUrlPattern = /^\s*([^,\s]+)/;
 
 function extensionFromUrl(url) {
   try {
-    const filename = new URL(url, window.location.href).pathname
-      .split('/')
-      .pop();
-    const dot = filename?.lastIndexOf('.') ?? -1;
-
-    return dot === -1 || dot === filename.length - 1
-      ? null
-      : filename.slice(dot + 1).toLowerCase();
+    return new URL(url, window.location.href).pathname
+      .match(extensionFromPathPattern)?.[1]
+      ?.toLowerCase();
   } catch (error) {
     return null;
   }
@@ -40,7 +37,7 @@ document.addEventListener(
     const sourceUrl =
       image.currentSrc ||
       image.src ||
-      thumb.dataset.srcset?.trim().split(' ')[0];
+      thumb.dataset.srcset?.match(firstSrcsetUrlPattern)?.[1];
     const extension = sourceUrl ? extensionFromUrl(sourceUrl) : null;
 
     if (!extension) {
