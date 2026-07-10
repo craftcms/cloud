@@ -5,9 +5,14 @@ const thumbSelector = '.thumb[data-srcset], .elementthumb[data-srcset]';
 
 function extensionFromUrl(url) {
   try {
-    return new URL(url, window.location.href).pathname
-      .match(/\.([a-z0-9_]+)$/i)?.[1]
-      ?.toLowerCase();
+    const filename = new URL(url, window.location.href).pathname
+      .split('/')
+      .pop();
+    const dot = filename?.lastIndexOf('.') ?? -1;
+
+    return dot === -1 || dot === filename.length - 1
+      ? null
+      : filename.slice(dot + 1).toLowerCase();
   } catch (error) {
     return null;
   }
@@ -35,7 +40,7 @@ document.addEventListener(
     const sourceUrl =
       image.currentSrc ||
       image.src ||
-      thumb.dataset.srcset?.match(/^\s*([^,\s]+)/)?.[1];
+      thumb.dataset.srcset?.trim().split(' ')[0];
     const extension = sourceUrl ? extensionFromUrl(sourceUrl) : null;
 
     if (!extension) {
