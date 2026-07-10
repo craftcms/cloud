@@ -3,9 +3,22 @@
 
 (() => {
   const thumbSelector = '.thumb[data-srcset], .elementthumb[data-srcset]';
+  let supportedExtensions;
 
-  function getSettings() {
-    return window.Craft?.CloudAssetThumbFallback;
+  function getSupportedExtensions() {
+    if (supportedExtensions) {
+      return supportedExtensions;
+    }
+
+    supportedExtensions = new Set();
+
+    Object.values(window.Craft?.fileKinds || {}).forEach((fileKind) => {
+      (fileKind.extensions || []).forEach((extension) => {
+        supportedExtensions.add(extension.toLowerCase());
+      });
+    });
+
+    return supportedExtensions;
   }
 
   function getFirstSrcsetUrl(srcset) {
@@ -22,7 +35,7 @@
     }
   }
 
-  function getIconUrl(image, thumb, iconUrlsByExtension) {
+  function getIconUrl(image, thumb) {
     const sourceUrl =
       image.currentSrc ||
       image.src ||
@@ -31,12 +44,15 @@
 
     if (
       !extension ||
-      !Object.prototype.hasOwnProperty.call(iconUrlsByExtension, extension)
+      !getSupportedExtensions().has(extension) ||
+      typeof window.Craft?.getActionUrl !== 'function'
     ) {
       return null;
     }
 
-    return iconUrlsByExtension[extension];
+    return window.Craft.getActionUrl('assets/icon', {
+      extension,
+    });
   }
 
   function applyFallback(image, thumb, iconUrl) {
@@ -57,11 +73,9 @@
   document.addEventListener(
     'error',
     (event) => {
-      const settings = getSettings();
       const image = event.target;
 
       if (
-        !settings?.iconUrlsByExtension ||
         !(image instanceof HTMLImageElement) ||
         image.dataset.cloudAssetThumbFallback === 'true'
       ) {
@@ -69,9 +83,7 @@
       }
 
       const thumb = image.closest(thumbSelector);
-      const iconUrl = thumb
-        ? getIconUrl(image, thumb, settings.iconUrlsByExtension)
-        : null;
+      const iconUrl = thumb ? getIconUrl(image, thumb) : null;
 
       if (!thumb || !iconUrl) {
         return;
