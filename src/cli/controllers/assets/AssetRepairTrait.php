@@ -125,13 +125,15 @@ trait AssetRepairTrait
      */
     protected function repairAssetDimensions(Asset $asset): ?array
     {
-        $fs = $asset->getVolume()->getFs();
+        $volume = $asset->getVolume();
+        $fs = $volume->getFs();
 
         if (!$fs instanceof Fs) {
             return null;
         }
 
-        $dimensions = $fs->getImageDimensions($asset->getPath());
+        $path = (method_exists($volume, 'getSubpath') ? $volume->getSubpath() : '') . $asset->getPath();
+        $dimensions = $fs->getImageDimensions($path);
 
         if ($dimensions === null || !$dimensions[0] || !$dimensions[1]) {
             return null;

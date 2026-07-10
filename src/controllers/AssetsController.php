@@ -418,12 +418,13 @@ class AssetsController extends Controller
 
     protected function uploadedImageDimensions(Asset $asset, string $filename): array
     {
-        $fs = $asset->getVolume()->getFs();
+        $volume = $asset->getVolume();
+        $fs = $volume->getFs();
 
         // Null dimensions are safer than browser-oriented dimensions for EXIF
         // images, but they can still prevent image-editor use until reindexed.
         return $fs instanceof Fs
-            ? $fs->getImageDimensions($asset->getPath($filename)) ?? [null, null]
+            ? $fs->getImageDimensions($this->volumeSubpath($volume) . $asset->getPath($filename)) ?? [null, null]
             : [null, null];
     }
 
