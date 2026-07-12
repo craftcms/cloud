@@ -46,7 +46,7 @@ class StaticCache extends \yii\base\Component
      *
      * @see https://developers.cloudflare.com/cache/how-to/purge-cache/purge-by-tags/#a-few-things-to-remember
      */
-    private const CLOUDFLARE_MAX_CACHE_TAG_HEADER_VALUE_LENGTH = 16 * 1024;
+    private const MAX_CACHE_TAG_HEADER_VALUE_LENGTH = 16 * 1024;
     private ?int $cacheDuration = null;
     private Collection $tags;
     private Collection $tagsToPurge;
@@ -230,23 +230,26 @@ class StaticCache extends \yii\base\Component
         );
 
         // Capture and remove any existing headers, so we can prepare them
-        $existingTagsFromHeader = Collection::make($headers->get(HeaderEnum::CACHE_TAG->value, first: false) ?? []);
+        $existingTagsFromHeader = $this->splitCacheTagHeaders(
+            $headers->get(HeaderEnum::CACHE_TAG->value, first: false) ?? [],
+        );
         $headers->remove(HeaderEnum::CACHE_TAG->value);
         $this->tags->push(...$existingTagsFromHeader);
-        $this->tags = $this->prepareTags(...$this->tags);
-        $cacheTags = $this->limitCacheTags($this->tags);
+        $this->tags = $this->normalizeCacheTags(...$this->tags);
+        $cacheTags = $this->withOverflowTagIfNeeded($this->tags);
 
         Craft::info(new PsrMessage('Adding cache tags to response', [
             'tags' => $cacheTags,
         ]), __METHOD__);
 
-        $cacheTags
-            ->each(function(StaticCacheTag $tag) use ($headers) {
-                $headers->add(
-                    HeaderEnum::CACHE_TAG->value,
-                    $tag->getValue(),
-                );
-            });
+        if ($cacheTags->isEmpty()) {
+            return;
+        }
+
+        $headers->set(
+            HeaderEnum::CACHE_TAG->value,
+            $cacheTags->map(fn(StaticCacheTag $tag) => $tag->getValue())->implode(','),
+        );
     }
 
     public function purgeTags(string|StaticCacheTag ...$tags): void
@@ -257,18 +260,20 @@ class StaticCache extends \yii\base\Component
 
         // Add any existing tags from the response headers
         if ($isWebResponse) {
-            $existingTagsFromHeader = $response->getHeaders()->get(HeaderEnum::CACHE_PURGE_TAG->value, first: false) ?? [];
+            $existingTagsFromHeader = $this->splitCacheTagHeaders(
+                $response->getHeaders()->get(HeaderEnum::CACHE_PURGE_TAG->value, first: false) ?? [],
+            );
             $tags->push(...$existingTagsFromHeader);
             $response->getHeaders()->remove(HeaderEnum::CACHE_PURGE_TAG->value);
         }
 
-        $tags = $this->prepareTags(...$tags);
+        $tags = $this->normalizeCacheTags(...$tags);
 
         if ($tags->isEmpty()) {
             return;
         }
 
-        $tags = $this->prepareTags(
+        $tags = $this->normalizeCacheTags(
             StaticCacheTag::create($this->overflowTag()),
             ...$tags,
         );
@@ -278,10 +283,12 @@ class StaticCache extends \yii\base\Component
         ]), __METHOD__);
 
         if ($isWebResponse) {
-            $tags->each(fn(StaticCacheTag $tag) => $response->getHeaders()->add(
+            $tags = $this->withOverflowTagIfNeeded($tags);
+
+            $response->getHeaders()->set(
                 HeaderEnum::CACHE_PURGE_TAG->value,
-                $tag->getValue(),
-            ));
+                $tags->map(fn(StaticCacheTag $tag) => $tag->getValue())->implode(','),
+            );
 
             return;
         }
@@ -380,7 +387,7 @@ class StaticCache extends \yii\base\Component
         }
     }
 
-    private function prepareTags(string|StaticCacheTag ...$tags): Collection
+    private function normalizeCacheTags(string|StaticCacheTag ...$tags): Collection
     {
         return Collection::make($tags)
             ->map(fn(string|StaticCacheTag $tag) => is_string($tag) ? StaticCacheTag::create($tag) : $tag)
@@ -388,33 +395,41 @@ class StaticCache extends \yii\base\Component
             ->unique(fn(StaticCacheTag $tag) => $tag->getValue());
     }
 
-    private function limitCacheTags(Collection $tags): Collection
+    private function splitCacheTagHeaders(array $headers): Collection
     {
-        $cacheTags = $this->takeCacheTagsThatFit($tags);
+        return Collection::make($headers)
+            ->flatMap(fn(string $header) => explode(',', $header));
+    }
+
+    private function withOverflowTagIfNeeded(Collection $tags): Collection
+    {
+        $cacheTags = $this->truncateCacheTags($tags);
 
         if ($cacheTags->count() === $tags->count()) {
             return $cacheTags;
         }
 
         $overflowTag = StaticCacheTag::create($this->overflowTag());
-        $cacheTags = $this->takeCacheTagsThatFit(
-            $this->prepareTags($overflowTag, ...$tags->values()->all()),
+        $cacheTags = $this->truncateCacheTags(
+            $this->normalizeCacheTags($overflowTag, ...$tags->values()->all()),
         );
+        $totalTagCount = $tags
+            ->reject(fn(StaticCacheTag $tag) => $tag->getValue() === $overflowTag->getValue())
+            ->count();
         $exactTagCount = $cacheTags
             ->reject(fn(StaticCacheTag $tag) => $tag->getValue() === $overflowTag->getValue())
             ->count();
 
-        Craft::warning(new PsrMessage('Cache tags exceed Cloudflare’s maximum header value length; using overflow tag', [
-            'emittedTags' => $cacheTags->count(),
-            'droppedTags' => $tags->count() - $exactTagCount,
-            'cloudflareMaxCacheTagHeaderValueLength' => self::CLOUDFLARE_MAX_CACHE_TAG_HEADER_VALUE_LENGTH,
+        Craft::warning(new PsrMessage('Cache tags exceed the maximum header value length; using overflow tag', [
+            'totalTags' => $totalTagCount,
+            'truncatedTags' => $totalTagCount - $exactTagCount,
             'overflowTag' => $overflowTag->getValue(),
         ]), __METHOD__);
 
         return $cacheTags;
     }
 
-    private function takeCacheTagsThatFit(Collection $tags): Collection
+    private function truncateCacheTags(Collection $tags): Collection
     {
         $headerValue = '';
 
@@ -422,7 +437,7 @@ class StaticCache extends \yii\base\Component
             $value = $tag->getValue();
             $newHeaderValue = $headerValue === '' ? $value : "$headerValue,$value";
 
-            if (StringHelper::byteLength($newHeaderValue) > self::CLOUDFLARE_MAX_CACHE_TAG_HEADER_VALUE_LENGTH) {
+            if (StringHelper::byteLength($newHeaderValue) > self::MAX_CACHE_TAG_HEADER_VALUE_LENGTH) {
                 return false;
             }
 

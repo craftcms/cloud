@@ -8,17 +8,35 @@ use craft\cloud\StaticCacheTag;
 
 class StaticCacheTagTest extends Unit
 {
+    private ?Module $previousModule = null;
+
+    protected function _before(): void
+    {
+        parent::_before();
+
+        $this->previousModule = Module::getInstance();
+        Module::setInstance(new Module('cloud'));
+    }
+
+    protected function _after(): void
+    {
+        Module::setInstance($this->previousModule);
+
+        parent::_after();
+    }
+
     public function testPreservesValidTags(): void
     {
         $this->assertSame('tag*value', StaticCacheTag::create('tag*value')->getValue());
         $this->assertSame('tag:value', StaticCacheTag::create('tag:value')->getValue());
     }
 
-    public function testDropsInvalidTags(): void
+    public function testNormalizesInvalidTags(): void
     {
-        foreach (["tag value", 'tag,value', "tag\tvalue", 'tagévalue'] as $value) {
-            $this->assertSame('', StaticCacheTag::create($value)->getValue());
-        }
+        $this->assertSame('tag%20value', StaticCacheTag::create('tag value')->getValue());
+        $this->assertSame('tag%2Cvalue', StaticCacheTag::create('tag,value')->getValue());
+        $this->assertSame('tag%09value', StaticCacheTag::create("tag\tvalue")->getValue());
+        $this->assertSame('tag%C3%A9value', StaticCacheTag::create('tagévalue')->getValue());
     }
 
     public function testMinifiesOriginalValueBeforeValidation(): void

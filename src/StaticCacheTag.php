@@ -4,6 +4,8 @@ namespace craft\cloud;
 
 class StaticCacheTag implements \Stringable, \JsonSerializable
 {
+    private const INVALID_CACHE_TAG_CHARACTERS = '/[^\x21-\x2B\x2D-\x7E]/';
+
     public readonly string $originalValue;
     private bool $minify = false;
 
@@ -44,7 +46,7 @@ class StaticCacheTag implements \Stringable, \JsonSerializable
                 ->value;
         }
 
-        return $this->isValidCacheTag() ? $this->value : '';
+        return $this->normalize()->value;
     }
 
     public function withPrefix(string $prefix): self
@@ -61,11 +63,17 @@ class StaticCacheTag implements \Stringable, \JsonSerializable
         return $this;
     }
 
-    private function isValidCacheTag(): bool
+    private function normalize(): self
     {
-        // Cloudflare accepts printable ASCII, except spaces. A comma separates tags.
+        // Cache tags need printable ASCII with no spaces or commas.
         // @see https://developers.cloudflare.com/cache/how-to/purge-cache/purge-by-tags/#a-few-things-to-remember
-        return preg_match('/^[\x21-\x2B\x2D-\x7E]+$/', $this->value) === 1;
+        $this->value = preg_replace_callback(
+            self::INVALID_CACHE_TAG_CHARACTERS,
+            fn(array $match) => rawurlencode($match[0]),
+            $this->value,
+        ) ?? $this->value;
+
+        return $this;
     }
 
     private function hash(): self
