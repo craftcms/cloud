@@ -16,6 +16,7 @@ class StaticCacheTagTest extends Unit
 
         $this->previousModule = Module::getInstance();
         Module::setInstance(new Module('cloud'));
+        Module::getInstance()->getConfig()->environmentId = '123-environment-id';
     }
 
     protected function _after(): void
