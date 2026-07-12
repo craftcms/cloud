@@ -229,7 +229,7 @@ class StaticCache extends \yii\base\Component
             $this->staticCacheDirectives()->implode(','),
         );
 
-        $existingTagsFromHeader = $this->parseCacheTagsFromHeaders(
+        $existingTagsFromHeader = $this->parseCacheTagsFromHeader(
             $headers->get(HeaderEnum::CACHE_TAG->value, first: false) ?? [],
         );
         $headers->remove(HeaderEnum::CACHE_TAG->value);
@@ -259,7 +259,7 @@ class StaticCache extends \yii\base\Component
 
         // Add any existing tags from the response headers
         if ($isWebResponse) {
-            $existingTagsFromHeader = $this->parseCacheTagsFromHeaders(
+            $existingTagsFromHeader = $this->parseCacheTagsFromHeader(
                 $response->getHeaders()->get(HeaderEnum::CACHE_PURGE_TAG->value, first: false) ?? [],
             );
             $tags->push(...$existingTagsFromHeader);
@@ -394,7 +394,7 @@ class StaticCache extends \yii\base\Component
             ->unique(fn(StaticCacheTag $tag) => $tag->getValue());
     }
 
-    private function parseCacheTagsFromHeaders(array $headers): Collection
+    private function parseCacheTagsFromHeader(array $headers): Collection
     {
         return Collection::make($headers)
             ->flatMap(fn(string $header) => explode(',', $header))
