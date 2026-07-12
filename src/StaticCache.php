@@ -441,17 +441,18 @@ class StaticCache extends \yii\base\Component
 
     private function truncateCacheTags(Collection $tags): Collection
     {
-        $headerValue = '';
+        $headerValueLength = 0;
 
-        return $tags->filter(function(StaticCacheTag $tag) use (&$headerValue) {
+        return $tags->filter(function(StaticCacheTag $tag) use (&$headerValueLength) {
             $value = $tag->getValue();
-            $newHeaderValue = $headerValue === '' ? $value : "$headerValue,$value";
+            $separatorLength = $headerValueLength === 0 ? 0 : 1;
+            $newHeaderValueLength = $headerValueLength + $separatorLength + StringHelper::byteLength($value);
 
-            if (StringHelper::byteLength($newHeaderValue) > self::MAX_HEADER_VALUE_LENGTH) {
+            if ($newHeaderValueLength > self::MAX_HEADER_VALUE_LENGTH) {
                 return false;
             }
 
-            $headerValue = $newHeaderValue;
+            $headerValueLength = $newHeaderValueLength;
 
             return true;
         });
