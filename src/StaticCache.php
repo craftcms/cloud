@@ -236,7 +236,7 @@ class StaticCache extends \yii\base\Component
         $headers->remove(HeaderEnum::CACHE_TAG->value);
         $this->tags->push(...$existingTagsFromHeader);
         $this->tags = $this->normalizeCacheTags(...$this->tags);
-        $cacheTags = $this->withOverflowTagIfNeeded($this->tags);
+        $cacheTags = $this->cacheTagsForHeader($this->tags);
 
         Craft::info(new PsrMessage('Adding cache tags to response', [
             'tags' => $cacheTags,
@@ -283,7 +283,7 @@ class StaticCache extends \yii\base\Component
         ]), __METHOD__);
 
         if ($isWebResponse) {
-            $tags = $this->withOverflowTagIfNeeded($tags);
+            $tags = $this->cacheTagsForHeader($tags);
 
             $response->getHeaders()->set(
                 HeaderEnum::CACHE_PURGE_TAG->value,
@@ -391,17 +391,19 @@ class StaticCache extends \yii\base\Component
     {
         return Collection::make($tags)
             ->map(fn(string|StaticCacheTag $tag) => is_string($tag) ? StaticCacheTag::create($tag) : $tag)
-            ->filter(fn(StaticCacheTag $tag) => (bool) $tag->getValue())
+            ->filter(fn(StaticCacheTag $tag) => $tag->getValue() !== '')
             ->unique(fn(StaticCacheTag $tag) => $tag->getValue());
     }
 
     private function splitCacheTagHeaders(array $headers): Collection
     {
         return Collection::make($headers)
-            ->flatMap(fn(string $header) => explode(',', $header));
+            ->flatMap(fn(string $header) => explode(',', $header))
+            ->map(fn(string $tag) => trim($tag))
+            ->filter(fn(string $tag) => $tag !== '');
     }
 
-    private function withOverflowTagIfNeeded(Collection $tags): Collection
+    private function cacheTagsForHeader(Collection $tags): Collection
     {
         $cacheTags = $this->truncateCacheTags($tags);
 

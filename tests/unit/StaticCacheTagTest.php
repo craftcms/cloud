@@ -30,6 +30,7 @@ class StaticCacheTagTest extends Unit
     {
         $this->assertSame('tag*value', StaticCacheTag::create('tag*value')->getValue());
         $this->assertSame('tag:value', StaticCacheTag::create('tag:value')->getValue());
+        $this->assertSame('0', StaticCacheTag::create('0')->getValue());
     }
 
     public function testNormalizesInvalidTags(): void

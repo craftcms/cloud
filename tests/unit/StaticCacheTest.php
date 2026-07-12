@@ -141,12 +141,12 @@ class StaticCacheTest extends Unit
     {
         $staticCache = new StaticCache();
         $staticCache->init();
-        Craft::$app->getResponse()->getHeaders()->set(HeaderEnum::CACHE_TAG->value, 'first,second');
+        Craft::$app->getResponse()->getHeaders()->set(HeaderEnum::CACHE_TAG->value, '0, , second');
 
         $this->addCacheHeadersToWebResponse($staticCache);
 
         $this->assertSame(
-            'first,second',
+            '0,second',
             Craft::$app->getResponse()->getHeaders()->get(HeaderEnum::CACHE_TAG->value),
         );
     }
