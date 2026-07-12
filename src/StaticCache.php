@@ -272,10 +272,7 @@ class StaticCache extends \yii\base\Component
             return;
         }
 
-        $tags = $this->normalizeCacheTags(
-            $this->overflowTag(),
-            ...$tags,
-        );
+        $tags = $this->addOverflowTag($tags, $this->overflowTag());
 
         Craft::info(new PsrMessage('Purging tags', [
             'tags' => $tags,
@@ -394,10 +391,10 @@ class StaticCache extends \yii\base\Component
             ->unique(fn(StaticCacheTag $tag) => $tag->getValue());
     }
 
-    private function parseCacheTagsFromHeader(array $headers): Collection
+    private function parseCacheTagsFromHeader(array $headerValues): Collection
     {
-        return Collection::make($headers)
-            ->flatMap(fn(string $header) => explode(',', $header))
+        return Collection::make($headerValues)
+            ->flatMap(fn(string $headerValue) => explode(',', $headerValue))
             ->map(fn(string $tag) => trim($tag))
             ->filter(fn(string $tag) => $tag !== '');
     }
@@ -412,7 +409,7 @@ class StaticCache extends \yii\base\Component
 
         $overflowTag = $this->overflowTag();
         $headerTags = $this->truncateCacheTags(
-            $this->normalizeCacheTags($overflowTag, ...$tags->values()->all()),
+            $this->addOverflowTag($tags, $overflowTag),
         );
 
         $inputTagCount = $tags
@@ -430,6 +427,14 @@ class StaticCache extends \yii\base\Component
         ]), __METHOD__);
 
         return $headerTags;
+    }
+
+    private function addOverflowTag(Collection $tags, StaticCacheTag $overflowTag): Collection
+    {
+        return $this->normalizeCacheTags(
+            $overflowTag,
+            ...$tags->values()->all(),
+        );
     }
 
     private function truncateCacheTags(Collection $tags): Collection
