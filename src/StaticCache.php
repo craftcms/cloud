@@ -422,7 +422,7 @@ class StaticCache extends \yii\base\Component
             ->reject(fn(StaticCacheTag $tag) => $tag->getValue() === $overflowTag->getValue())
             ->values();
 
-        Craft::warning(new PsrMessage('Cache tags exceed the maximum header value length; using overflow tag', [
+        Craft::info(new PsrMessage('Cache tags exceed the maximum header value length; using overflow tag', [
             'totalTags' => $sourceTags->count(),
             'truncatedTags' => $sourceTags->count() - $emittedTags->count(),
             'overflowTag' => $overflowTag->getValue(),
