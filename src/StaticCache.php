@@ -423,18 +423,17 @@ class StaticCache extends \yii\base\Component
 
     private function logTruncatedCacheTags(Collection $tags, Collection $headerTags, StaticCacheTag $overflowTag): void
     {
-        $totalTags = $tags
+        $inputTagCount = $tags
             ->reject(fn(StaticCacheTag $tag) => $tag->getValue() === $overflowTag->getValue())
             ->count();
         $headerTagCount = $headerTags
             ->reject(fn(StaticCacheTag $tag) => $tag->getValue() === $overflowTag->getValue())
             ->count();
-        $truncatedTags = $totalTags - $headerTagCount;
+        $truncatedTagCount = $inputTagCount - $headerTagCount;
 
         Craft::info(new PsrMessage('Cache tags exceed the maximum header value length; using overflow tag', [
             'maxHeaderValueLength' => self::MAX_HEADER_VALUE_LENGTH,
-            'totalTags' => $totalTags,
-            'truncatedTags' => $truncatedTags,
+            'truncatedTags' => $truncatedTagCount,
             'overflowTag' => $overflowTag->getValue(),
         ]), __METHOD__);
     }
