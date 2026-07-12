@@ -229,8 +229,7 @@ class StaticCache extends \yii\base\Component
             $this->staticCacheDirectives()->implode(','),
         );
 
-        // Capture and remove any existing headers, so we can prepare them
-        $existingTagsFromHeader = $this->parseCacheTagHeaders(
+        $existingTagsFromHeader = $this->parseCacheTagsFromHeaders(
             $headers->get(HeaderEnum::CACHE_TAG->value, first: false) ?? [],
         );
         $headers->remove(HeaderEnum::CACHE_TAG->value);
@@ -260,7 +259,7 @@ class StaticCache extends \yii\base\Component
 
         // Add any existing tags from the response headers
         if ($isWebResponse) {
-            $existingTagsFromHeader = $this->parseCacheTagHeaders(
+            $existingTagsFromHeader = $this->parseCacheTagsFromHeaders(
                 $response->getHeaders()->get(HeaderEnum::CACHE_PURGE_TAG->value, first: false) ?? [],
             );
             $tags->push(...$existingTagsFromHeader);
@@ -395,7 +394,7 @@ class StaticCache extends \yii\base\Component
             ->unique(fn(StaticCacheTag $tag) => $tag->getValue());
     }
 
-    private function parseCacheTagHeaders(array $headers): Collection
+    private function parseCacheTagsFromHeaders(array $headers): Collection
     {
         return Collection::make($headers)
             ->flatMap(fn(string $header) => explode(',', $header))
@@ -416,13 +415,6 @@ class StaticCache extends \yii\base\Component
             $this->normalizeCacheTags($overflowTag, ...$tags->values()->all()),
         );
 
-        $this->logTruncatedCacheTags($tags, $headerTags, $overflowTag);
-
-        return $headerTags;
-    }
-
-    private function logTruncatedCacheTags(Collection $tags, Collection $headerTags, StaticCacheTag $overflowTag): void
-    {
         $inputTagCount = $tags
             ->reject(fn(StaticCacheTag $tag) => $tag->getValue() === $overflowTag->getValue())
             ->count();
@@ -436,6 +428,8 @@ class StaticCache extends \yii\base\Component
             'truncatedTags' => $truncatedTagCount,
             'overflowTag' => $overflowTag->getValue(),
         ]), __METHOD__);
+
+        return $headerTags;
     }
 
     private function truncateCacheTags(Collection $tags): Collection
