@@ -240,7 +240,11 @@ class StaticCache extends \yii\base\Component
             'tags' => $cacheTags,
         ]), __METHOD__);
 
-        $this->setCacheTagsHeader(HeaderEnum::CACHE_TAG, $headers, $cacheTags);
+        if ($cacheTags->isEmpty()) {
+            return;
+        }
+
+        $headers->set(HeaderEnum::CACHE_TAG->value, $this->cacheTagHeaderValue($cacheTags));
     }
 
     public function purgeTags(string|StaticCacheTag ...$tags): void
@@ -265,7 +269,7 @@ class StaticCache extends \yii\base\Component
             return;
         }
 
-        $tags = $this->addOverflowTag($tags, $this->overflowTag());
+        $tags = $this->normalizeCacheTags($this->overflowTag(), ...$tags);
 
         Craft::info(new PsrMessage('Purging tags', [
             'tags' => $tags,
@@ -274,7 +278,10 @@ class StaticCache extends \yii\base\Component
         if ($isWebResponse) {
             $tags = $this->prepareCacheTagsForHeader($tags);
 
-            $this->setCacheTagsHeader(HeaderEnum::CACHE_PURGE_TAG, $response->getHeaders(), $tags);
+            $response->getHeaders()->set(
+                HeaderEnum::CACHE_PURGE_TAG->value,
+                $this->cacheTagHeaderValue($tags),
+            );
 
             return;
         }
@@ -389,16 +396,9 @@ class StaticCache extends \yii\base\Component
             ->filter(fn(string $tag) => $tag !== '');
     }
 
-    private function setCacheTagsHeader(HeaderEnum $header, HeaderCollection $headers, Collection $tags): void
+    private function cacheTagHeaderValue(Collection $tags): string
     {
-        if ($tags->isEmpty()) {
-            return;
-        }
-
-        $headers->set(
-            $header->value,
-            $tags->map(fn(StaticCacheTag $tag) => $tag->getValue())->implode(','),
-        );
+        return $tags->map(fn(StaticCacheTag $tag) => $tag->getValue())->implode(',');
     }
 
     private function prepareCacheTagsForHeader(Collection $tags): Collection
@@ -411,7 +411,7 @@ class StaticCache extends \yii\base\Component
 
         $overflowTag = $this->overflowTag();
         $headerTags = $this->truncateCacheTags(
-            $this->addOverflowTag($tags, $overflowTag),
+            $this->normalizeCacheTags($overflowTag, ...$tags),
         );
 
         $inputTagCount = $tags
@@ -429,14 +429,6 @@ class StaticCache extends \yii\base\Component
         ]), __METHOD__);
 
         return $headerTags;
-    }
-
-    private function addOverflowTag(Collection $tags, StaticCacheTag $overflowTag): Collection
-    {
-        return $this->normalizeCacheTags(
-            $overflowTag,
-            ...$tags->values()->all(),
-        );
     }
 
     private function truncateCacheTags(Collection $tags): Collection
