@@ -33,17 +33,18 @@ class StaticCacheTag implements \Stringable, \JsonSerializable
 
     public function getValue(): string
     {
-        $clone = clone $this;
-        $clone->removeInvalidCharacters();
+        if (!$this->value) {
+            return '';
+        }
 
-        if ($clone->value && $clone->minify) {
-            return self::create($clone->value)
+        if ($this->minify) {
+            return self::create($this->value)
                 ->hash()
                 ->withPrefix(Module::getInstance()->getConfig()->getShortEnvironmentId())
                 ->value;
         }
 
-        return $clone->value;
+        return $this->isValidCacheTag() ? $this->value : '';
     }
 
     public function withPrefix(string $prefix): self
@@ -60,14 +61,11 @@ class StaticCacheTag implements \Stringable, \JsonSerializable
         return $this;
     }
 
-    private function removeInvalidCharacters(): self
+    private function isValidCacheTag(): bool
     {
-        // Filter non-ASCII characters and asterisks, as these will tags end up in headers.
-        // Asterisks should be valid, but Lambda mysteriously dies
-        // with a 502 if they're present in the value of a response header.
-        $this->value = preg_replace('/[^\x00-\x7F]|\*/', '', $this->value);
-
-        return $this;
+        // Cloudflare accepts printable ASCII, except spaces. A comma separates tags.
+        // @see https://developers.cloudflare.com/cache/how-to/purge-cache/purge-by-tags/#a-few-things-to-remember
+        return preg_match('/^[\x21-\x2B\x2D-\x7E]+$/', $this->value) === 1;
     }
 
     private function hash(): self

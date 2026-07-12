@@ -5,9 +5,13 @@ namespace craft\cloud\tests\unit;
 use Codeception\Test\Unit;
 use Craft;
 use craft\cloud\HeaderEnum;
+use craft\cloud\Module;
 use craft\cloud\StaticCache;
+use craft\cloud\StaticCacheTag;
+use craft\helpers\StringHelper;
 use Illuminate\Support\Collection;
 use ReflectionMethod;
+use ReflectionProperty;
 
 class StaticCacheTest extends Unit
 {
@@ -17,6 +21,7 @@ class StaticCacheTest extends Unit
     protected $tester;
 
     private ?string $requestMethod = null;
+    private ?string $environmentId = null;
 
     protected function _before(): void
     {
@@ -26,6 +31,9 @@ class StaticCacheTest extends Unit
         Craft::$app->getResponse()->clear();
         Craft::$app->getResponse()->setStatusCode(200);
 
+        $this->environmentId = Module::getInstance()->getConfig()->environmentId;
+        Module::getInstance()->getConfig()->environmentId = '123-environment-id';
+
         $this->requestMethod = $_SERVER['REQUEST_METHOD'] ?? null;
         $_SERVER['REQUEST_METHOD'] = 'GET';
     }
@@ -34,6 +42,7 @@ class StaticCacheTest extends Unit
     {
         Craft::$app->getRequest()->setIsCpRequest(null);
         Craft::$app->getResponse()->clear();
+        Module::getInstance()->getConfig()->environmentId = $this->environmentId;
 
         if ($this->requestMethod === null) {
             unset($_SERVER['REQUEST_METHOD']);
@@ -92,6 +101,35 @@ class StaticCacheTest extends Unit
         );
     }
 
+    public function testCacheTagOverflowUsesFallbackTag(): void
+    {
+        $staticCache = new StaticCache();
+        $staticCache->init();
+        $this->setTags($staticCache, Collection::range(1, 1000)
+            ->map(fn(int $index) => StaticCacheTag::create("tag-$index-" . str_repeat('x', 24))));
+
+        $this->addCacheHeadersToWebResponse($staticCache);
+
+        $tags = Craft::$app->getResponse()->getHeaders()->get(HeaderEnum::CACHE_TAG->value, first: false);
+
+        $this->assertSame('123-environment-id:overflow', $tags[0]);
+        $this->assertLessThanOrEqual(16 * 1024, StringHelper::byteLength(implode(',', $tags)));
+        $this->assertContains('tag-1-' . str_repeat('x', 24), $tags);
+        $this->assertNotContains('tag-1000-' . str_repeat('x', 24), $tags);
+    }
+
+    public function testPurgeTagsIncludeOverflowFallbackTag(): void
+    {
+        $staticCache = new StaticCache();
+
+        $staticCache->purgeTags('first', 'second');
+
+        $this->assertSame(
+            ['123-environment-id:overflow', 'first', 'second'],
+            Craft::$app->getResponse()->getHeaders()->get(HeaderEnum::CACHE_PURGE_TAG->value, first: false),
+        );
+    }
+
     private function isCacheable(StaticCache $staticCache): bool
     {
         $method = new ReflectionMethod($staticCache, 'isCacheable');
@@ -106,5 +144,19 @@ class StaticCacheTest extends Unit
         $method->setAccessible(true);
 
         return $method->invoke($staticCache);
+    }
+
+    private function addCacheHeadersToWebResponse(StaticCache $staticCache): void
+    {
+        $method = new ReflectionMethod($staticCache, 'addCacheHeadersToWebResponse');
+        $method->setAccessible(true);
+        $method->invoke($staticCache);
+    }
+
+    private function setTags(StaticCache $staticCache, Collection $tags): void
+    {
+        $property = new ReflectionProperty($staticCache, 'tags');
+        $property->setAccessible(true);
+        $property->setValue($staticCache, $tags);
     }
 }

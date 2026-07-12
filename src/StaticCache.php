@@ -9,6 +9,7 @@ use craft\events\InvalidateElementCachesEvent;
 use craft\events\RegisterCacheOptionsEvent;
 use craft\events\TemplateEvent;
 use craft\helpers\ElementHelper;
+use craft\helpers\StringHelper;
 use craft\services\Elements;
 use craft\utilities\ClearCaches;
 use craft\web\UrlManager;
@@ -33,10 +34,19 @@ use yii\caching\TagDependency;
  *    - `cdn:{environmentId}:{objectKey}` (object key has no leading slash)
  * - Added by Craft:
  *   - `{environmentShortId}{hashed}`
+ *   - `{environmentId}:overflow` (when the response has too many cache tags)
  */
 class StaticCache extends \yii\base\Component
 {
     public const CDN_PREFIX = 'cdn:';
+
+    /**
+     * Cloudflare's documented aggregate Cache-Tag value limit. It includes
+     * commas and whitespace, but excludes the header field name.
+     *
+     * @see https://developers.cloudflare.com/cache/how-to/purge-cache/purge-by-tags/#a-few-things-to-remember
+     */
+    private const CLOUDFLARE_MAX_CACHE_TAG_HEADER_VALUE_LENGTH = 16 * 1024;
     private ?int $cacheDuration = null;
     private Collection $tags;
     private Collection $tagsToPurge;
@@ -224,12 +234,13 @@ class StaticCache extends \yii\base\Component
         $headers->remove(HeaderEnum::CACHE_TAG->value);
         $this->tags->push(...$existingTagsFromHeader);
         $this->tags = $this->prepareTags(...$this->tags);
+        $cacheTags = $this->limitCacheTags($this->tags);
 
         Craft::info(new PsrMessage('Adding cache tags to response', [
-            'tags' => $this->tags,
+            'tags' => $cacheTags,
         ]), __METHOD__);
 
-        $this->tags
+        $cacheTags
             ->each(function(StaticCacheTag $tag) use ($headers) {
                 $headers->add(
                     HeaderEnum::CACHE_TAG->value,
@@ -256,6 +267,11 @@ class StaticCache extends \yii\base\Component
         if ($tags->isEmpty()) {
             return;
         }
+
+        $tags = $this->prepareTags(
+            StaticCacheTag::create($this->overflowTag()),
+            ...$tags,
+        );
 
         Craft::info(new PsrMessage('Purging tags', [
             'tags' => $tags,
@@ -370,5 +386,54 @@ class StaticCache extends \yii\base\Component
             ->map(fn(string|StaticCacheTag $tag) => is_string($tag) ? StaticCacheTag::create($tag) : $tag)
             ->filter(fn(StaticCacheTag $tag) => (bool) $tag->getValue())
             ->unique(fn(StaticCacheTag $tag) => $tag->getValue());
+    }
+
+    private function limitCacheTags(Collection $tags): Collection
+    {
+        $cacheTags = $this->takeCacheTagsThatFit($tags);
+
+        if ($cacheTags->count() === $tags->count()) {
+            return $cacheTags;
+        }
+
+        $overflowTag = StaticCacheTag::create($this->overflowTag());
+        $cacheTags = $this->takeCacheTagsThatFit(
+            $this->prepareTags($overflowTag, ...$tags->values()->all()),
+        );
+        $exactTagCount = $cacheTags
+            ->reject(fn(StaticCacheTag $tag) => $tag->getValue() === $overflowTag->getValue())
+            ->count();
+
+        Craft::warning(new PsrMessage('Cache tags exceed Cloudflare’s maximum header value length; using overflow tag', [
+            'emittedTags' => $cacheTags->count(),
+            'droppedTags' => $tags->count() - $exactTagCount,
+            'cloudflareMaxCacheTagHeaderValueLength' => self::CLOUDFLARE_MAX_CACHE_TAG_HEADER_VALUE_LENGTH,
+            'overflowTag' => $overflowTag->getValue(),
+        ]), __METHOD__);
+
+        return $cacheTags;
+    }
+
+    private function takeCacheTagsThatFit(Collection $tags): Collection
+    {
+        $headerValue = '';
+
+        return $tags->filter(function(StaticCacheTag $tag) use (&$headerValue) {
+            $value = $tag->getValue();
+            $newHeaderValue = $headerValue === '' ? $value : "$headerValue,$value";
+
+            if (StringHelper::byteLength($newHeaderValue) > self::CLOUDFLARE_MAX_CACHE_TAG_HEADER_VALUE_LENGTH) {
+                return false;
+            }
+
+            $headerValue = $newHeaderValue;
+
+            return true;
+        });
+    }
+
+    private function overflowTag(): string
+    {
+        return Module::getInstance()->getConfig()->environmentId . ':overflow';
     }
 }

@@ -250,7 +250,6 @@ class Module extends \yii\base\Module implements \yii\base\BootstrapInterface
                 ->reject(fn(string $header) => $header === 'X-Forwarded-Host')
                 ->all();
 
-            // Important this gets called last so multi-value headers aren't prematurely joined
             (new ResponseEventHandler())->handle();
         }
     }
