@@ -21,6 +21,7 @@ use League\Uri\Components\Path;
 use samdark\log\PsrMessage;
 use yii\base\Event;
 use yii\caching\TagDependency;
+use yii\web\HeaderCollection;
 
 /**
  * Static Cache tags can appear in the `Cache-Tag` and `Cache-Purge-Tag` headers.
@@ -229,9 +230,7 @@ class StaticCache extends \yii\base\Component
             $this->staticCacheDirectives()->implode(','),
         );
 
-        $existingTagsFromHeader = $this->parseCacheTagsFromHeader(
-            $headers->get(HeaderEnum::CACHE_TAG->value, first: false) ?? [],
-        );
+        $existingTagsFromHeader = $this->parseCacheTagsFromHeader(HeaderEnum::CACHE_TAG, $headers);
         $headers->remove(HeaderEnum::CACHE_TAG->value);
         $this->tags->push(...$existingTagsFromHeader);
         $this->tags = $this->normalizeCacheTags(...$this->tags);
@@ -241,14 +240,7 @@ class StaticCache extends \yii\base\Component
             'tags' => $cacheTags,
         ]), __METHOD__);
 
-        if ($cacheTags->isEmpty()) {
-            return;
-        }
-
-        $headers->set(
-            HeaderEnum::CACHE_TAG->value,
-            $cacheTags->map(fn(StaticCacheTag $tag) => $tag->getValue())->implode(','),
-        );
+        $this->setCacheTagsHeader(HeaderEnum::CACHE_TAG, $headers, $cacheTags);
     }
 
     public function purgeTags(string|StaticCacheTag ...$tags): void
@@ -260,7 +252,8 @@ class StaticCache extends \yii\base\Component
         // Add any existing tags from the response headers
         if ($isWebResponse) {
             $existingTagsFromHeader = $this->parseCacheTagsFromHeader(
-                $response->getHeaders()->get(HeaderEnum::CACHE_PURGE_TAG->value, first: false) ?? [],
+                HeaderEnum::CACHE_PURGE_TAG,
+                $response->getHeaders(),
             );
             $tags->push(...$existingTagsFromHeader);
             $response->getHeaders()->remove(HeaderEnum::CACHE_PURGE_TAG->value);
@@ -281,10 +274,7 @@ class StaticCache extends \yii\base\Component
         if ($isWebResponse) {
             $tags = $this->prepareCacheTagsForHeader($tags);
 
-            $response->getHeaders()->set(
-                HeaderEnum::CACHE_PURGE_TAG->value,
-                $tags->map(fn(StaticCacheTag $tag) => $tag->getValue())->implode(','),
-            );
+            $this->setCacheTagsHeader(HeaderEnum::CACHE_PURGE_TAG, $response->getHeaders(), $tags);
 
             return;
         }
@@ -391,12 +381,24 @@ class StaticCache extends \yii\base\Component
             ->unique(fn(StaticCacheTag $tag) => $tag->getValue());
     }
 
-    private function parseCacheTagsFromHeader(array $headerValues): Collection
+    private function parseCacheTagsFromHeader(HeaderEnum $header, HeaderCollection $headers): Collection
     {
-        return Collection::make($headerValues)
+        return Collection::make($headers->get($header->value, first: false) ?? [])
             ->flatMap(fn(string $headerValue) => explode(',', $headerValue))
             ->map(fn(string $tag) => trim($tag))
             ->filter(fn(string $tag) => $tag !== '');
+    }
+
+    private function setCacheTagsHeader(HeaderEnum $header, HeaderCollection $headers, Collection $tags): void
+    {
+        if ($tags->isEmpty()) {
+            return;
+        }
+
+        $headers->set(
+            $header->value,
+            $tags->map(fn(StaticCacheTag $tag) => $tag->getValue())->implode(','),
+        );
     }
 
     private function prepareCacheTagsForHeader(Collection $tags): Collection
