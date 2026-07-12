@@ -41,11 +41,14 @@ class StaticCacheTagTest extends Unit
         $this->assertSame('tag%C3%A9value', StaticCacheTag::create('tagévalue')->getValue());
     }
 
-    public function testMinifiesOriginalValueBeforeValidation(): void
+    public function testMinifiesOriginalValueAfterGettingNormalizedValue(): void
     {
+        $tag = StaticCacheTag::create('tag value');
+
+        $this->assertSame('tag%20value', $tag->getValue());
         $this->assertSame(
-            Module::getInstance()->getConfig()->getShortEnvironmentId() . sprintf('%x', crc32('tag*value')),
-            StaticCacheTag::create('tag*value')->minify(true)->getValue(),
+            Module::getInstance()->getConfig()->getShortEnvironmentId() . sprintf('%x', crc32('tag value')),
+            $tag->minify(true)->getValue(),
         );
     }
 }

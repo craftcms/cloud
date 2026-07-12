@@ -46,7 +46,7 @@ class StaticCache extends \yii\base\Component
      *
      * @see https://developers.cloudflare.com/cache/how-to/purge-cache/purge-by-tags/#a-few-things-to-remember
      */
-    private const MAX_CACHE_TAG_HEADER_VALUE_LENGTH = 16 * 1024;
+    private const MAX_HEADER_VALUE_LENGTH = 16 * 1024;
     private ?int $cacheDuration = null;
     private Collection $tags;
     private Collection $tagsToPurge;
@@ -415,16 +415,16 @@ class StaticCache extends \yii\base\Component
         $cacheTags = $this->truncateCacheTags(
             $this->normalizeCacheTags($overflowTag, ...$tags->values()->all()),
         );
-        $totalTagCount = $tags
+        $sourceTags = $tags
             ->reject(fn(StaticCacheTag $tag) => $tag->getValue() === $overflowTag->getValue())
-            ->count();
-        $exactTagCount = $cacheTags
+            ->values();
+        $emittedTags = $cacheTags
             ->reject(fn(StaticCacheTag $tag) => $tag->getValue() === $overflowTag->getValue())
-            ->count();
+            ->values();
 
         Craft::warning(new PsrMessage('Cache tags exceed the maximum header value length; using overflow tag', [
-            'totalTags' => $totalTagCount,
-            'truncatedTags' => $totalTagCount - $exactTagCount,
+            'totalTags' => $sourceTags->count(),
+            'truncatedTags' => $sourceTags->count() - $emittedTags->count(),
             'overflowTag' => $overflowTag->getValue(),
         ]), __METHOD__);
 
@@ -439,7 +439,7 @@ class StaticCache extends \yii\base\Component
             $value = $tag->getValue();
             $newHeaderValue = $headerValue === '' ? $value : "$headerValue,$value";
 
-            if (StringHelper::byteLength($newHeaderValue) > self::MAX_CACHE_TAG_HEADER_VALUE_LENGTH) {
+            if (StringHelper::byteLength($newHeaderValue) > self::MAX_HEADER_VALUE_LENGTH) {
                 return false;
             }
 
@@ -451,6 +451,8 @@ class StaticCache extends \yii\base\Component
 
     private function overflowTag(): string
     {
-        return Module::getInstance()->getConfig()->environmentId . ':overflow';
+        $environmentId = Module::getInstance()->getConfig()->environmentId;
+
+        return "{$environmentId}:overflow";
     }
 }

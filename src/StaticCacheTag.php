@@ -46,7 +46,7 @@ class StaticCacheTag implements \Stringable, \JsonSerializable
                 ->value;
         }
 
-        return $this->normalize()->value;
+        return $this->normalizedValue();
     }
 
     public function withPrefix(string $prefix): self
@@ -63,17 +63,15 @@ class StaticCacheTag implements \Stringable, \JsonSerializable
         return $this;
     }
 
-    private function normalize(): self
+    private function normalizedValue(): string
     {
         // Cache tags need printable ASCII with no spaces or commas.
         // @see https://developers.cloudflare.com/cache/how-to/purge-cache/purge-by-tags/#a-few-things-to-remember
-        $this->value = preg_replace_callback(
+        return preg_replace_callback(
             self::INVALID_CHARS,
             fn(array $match) => rawurlencode($match[0]),
             $this->value,
         ) ?? $this->value;
-
-        return $this;
     }
 
     private function hash(): self
