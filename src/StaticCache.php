@@ -274,7 +274,7 @@ class StaticCache extends \yii\base\Component
         }
 
         $tags = $this->normalizeCacheTags(
-            StaticCacheTag::create($this->overflowTag()),
+            $this->overflowTag(),
             ...$tags,
         );
 
@@ -405,30 +405,38 @@ class StaticCache extends \yii\base\Component
 
     private function cacheTagsForHeader(Collection $tags): Collection
     {
-        $cacheTags = $this->truncateCacheTags($tags);
+        $headerTags = $this->truncateCacheTags($tags);
 
-        if ($cacheTags->count() === $tags->count()) {
-            return $cacheTags;
+        if ($headerTags->count() === $tags->count()) {
+            return $headerTags;
         }
 
-        $overflowTag = StaticCacheTag::create($this->overflowTag());
-        $cacheTags = $this->truncateCacheTags(
+        $overflowTag = $this->overflowTag();
+        $headerTags = $this->truncateCacheTags(
             $this->normalizeCacheTags($overflowTag, ...$tags->values()->all()),
         );
-        $sourceTags = $tags
+
+        $this->logTruncatedCacheTags($tags, $headerTags, $overflowTag);
+
+        return $headerTags;
+    }
+
+    private function logTruncatedCacheTags(Collection $tags, Collection $headerTags, StaticCacheTag $overflowTag): void
+    {
+        $totalTags = $tags
             ->reject(fn(StaticCacheTag $tag) => $tag->getValue() === $overflowTag->getValue())
-            ->values();
-        $emittedTags = $cacheTags
+            ->count();
+        $headerTagCount = $headerTags
             ->reject(fn(StaticCacheTag $tag) => $tag->getValue() === $overflowTag->getValue())
-            ->values();
+            ->count();
+        $truncatedTags = $totalTags - $headerTagCount;
 
         Craft::info(new PsrMessage('Cache tags exceed the maximum header value length; using overflow tag', [
-            'totalTags' => $sourceTags->count(),
-            'truncatedTags' => $sourceTags->count() - $emittedTags->count(),
+            'maxHeaderValueLength' => self::MAX_HEADER_VALUE_LENGTH,
+            'totalTags' => $totalTags,
+            'truncatedTags' => $truncatedTags,
             'overflowTag' => $overflowTag->getValue(),
         ]), __METHOD__);
-
-        return $cacheTags;
     }
 
     private function truncateCacheTags(Collection $tags): Collection
@@ -449,10 +457,10 @@ class StaticCache extends \yii\base\Component
         });
     }
 
-    private function overflowTag(): string
+    private function overflowTag(): StaticCacheTag
     {
         $environmentId = Module::getInstance()->getConfig()->environmentId;
 
-        return "{$environmentId}:overflow";
+        return StaticCacheTag::create("{$environmentId}:overflow");
     }
 }
