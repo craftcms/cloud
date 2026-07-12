@@ -236,7 +236,7 @@ class StaticCache extends \yii\base\Component
         $headers->remove(HeaderEnum::CACHE_TAG->value);
         $this->tags->push(...$existingTagsFromHeader);
         $this->tags = $this->normalizeCacheTags(...$this->tags);
-        $cacheTags = $this->cacheTagsForHeader($this->tags);
+        $cacheTags = $this->prepareCacheTagsForHeader($this->tags);
 
         Craft::info(new PsrMessage('Adding cache tags to response', [
             'tags' => $cacheTags,
@@ -283,7 +283,7 @@ class StaticCache extends \yii\base\Component
         ]), __METHOD__);
 
         if ($isWebResponse) {
-            $tags = $this->cacheTagsForHeader($tags);
+            $tags = $this->prepareCacheTagsForHeader($tags);
 
             $response->getHeaders()->set(
                 HeaderEnum::CACHE_PURGE_TAG->value,
@@ -403,7 +403,7 @@ class StaticCache extends \yii\base\Component
             ->filter(fn(string $tag) => $tag !== '');
     }
 
-    private function cacheTagsForHeader(Collection $tags): Collection
+    private function prepareCacheTagsForHeader(Collection $tags): Collection
     {
         $headerTags = $this->truncateCacheTags($tags);
 
