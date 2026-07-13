@@ -242,7 +242,7 @@ class StaticCache extends \yii\base\Component
             'tags' => $cacheTags,
         ]), __METHOD__);
 
-        $this->setCacheTagHeader(HeaderEnum::CACHE_TAG, $cacheTags);
+        $this->setCacheTagHeader(HeaderEnum::CACHE_TAG->value, $cacheTags);
     }
 
     public function purgeTags(string|StaticCacheTag ...$tags): void
@@ -280,7 +280,7 @@ class StaticCache extends \yii\base\Component
             $tags = $this->prepareCacheTagsForHeader($tags);
 
             $this->setCacheTagHeader(
-                HeaderEnum::CACHE_PURGE_TAG,
+                HeaderEnum::CACHE_PURGE_TAG->value,
                 $tags,
             );
 
@@ -389,14 +389,14 @@ class StaticCache extends \yii\base\Component
             ->unique(fn(StaticCacheTag $tag) => $tag->getValue());
     }
 
-    private function setCacheTagHeader(HeaderEnum $header, Collection $tags): void
+    private function setCacheTagHeader(string $header, Collection $tags): void
     {
         if ($tags->isEmpty()) {
             return;
         }
 
         Craft::$app->getResponse()->getHeaders()->set(
-            $header->value,
+            $header,
             $tags->map(fn(StaticCacheTag $tag) => $tag->getValue())->implode(','),
         );
     }
