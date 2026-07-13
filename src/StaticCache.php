@@ -45,8 +45,8 @@ class StaticCache extends \yii\base\Component
      *
      * @see https://developers.cloudflare.com/workers/cache/configuration/
      */
-    private const MAX_HEADER_VALUE_LENGTH = 16 * 1024;
-    private const MAX_TAG_HEADER_VALUE_LENGTH = 1024;
+    private const MAX_TAG_HEADER_VALUE_LENGTH = 16 * 1024;
+    private const MAX_TAG_VALUE_LENGTH = 1024;
     private const MAX_TAG_COUNT = 1000;
     private ?int $cacheDuration = null;
     private Collection $tags;
@@ -421,9 +421,9 @@ class StaticCache extends \yii\base\Component
         $truncatedTagCount = $inputTagCount - $headerTagCount;
 
         Craft::info(new PsrMessage('Cache tags exceed header limits; using overflow tag', [
-            'maxHeaderValueLength' => self::MAX_HEADER_VALUE_LENGTH,
-            'maxTagCount' => self::MAX_TAG_COUNT,
             'maxTagHeaderValueLength' => self::MAX_TAG_HEADER_VALUE_LENGTH,
+            'maxTagCount' => self::MAX_TAG_COUNT,
+            'maxTagValueLength' => self::MAX_TAG_VALUE_LENGTH,
             'truncatedTags' => $truncatedTagCount,
             'overflowTag' => $overflowTag->getValue(),
         ]), __METHOD__);
@@ -442,7 +442,7 @@ class StaticCache extends \yii\base\Component
 
             if (
                 $headerTags->count() === self::MAX_TAG_COUNT ||
-                StringHelper::byteLength($value) > self::MAX_TAG_HEADER_VALUE_LENGTH
+                StringHelper::byteLength($value) > self::MAX_TAG_VALUE_LENGTH
             ) {
                 break;
             }
@@ -450,7 +450,7 @@ class StaticCache extends \yii\base\Component
             $separatorLength = $headerValueLength === 0 ? 0 : 1;
             $newHeaderValueLength = $headerValueLength + $separatorLength + StringHelper::byteLength($value);
 
-            if ($newHeaderValueLength > self::MAX_HEADER_VALUE_LENGTH) {
+            if ($newHeaderValueLength > self::MAX_TAG_HEADER_VALUE_LENGTH) {
                 break;
             }
 
