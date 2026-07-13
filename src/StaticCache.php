@@ -260,8 +260,6 @@ class StaticCache extends \yii\base\Component
             return;
         }
 
-        $tags = $this->normalizeCacheTags($this->overflowTag(), ...$tags);
-
         Craft::info(new PsrMessage('Purging tags', [
             'tags' => $tags,
         ]), __METHOD__);

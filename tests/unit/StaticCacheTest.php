@@ -175,7 +175,7 @@ class StaticCacheTest extends Unit
         $this->assertNotContains('tag-1000', $tags);
     }
 
-    public function testPurgeTagsIncludeOverflowFallbackTag(): void
+    public function testPurgeTagsKeepExistingHeaderTags(): void
     {
         $staticCache = new StaticCache();
         Craft::$app->getResponse()->getHeaders()->set(HeaderEnum::CACHE_PURGE_TAG->value, 'first,second');
@@ -183,7 +183,7 @@ class StaticCacheTest extends Unit
         $staticCache->purgeTags();
 
         $this->assertSame(
-            '123-environment-id:overflow,first,second',
+            'first,second',
             Craft::$app->getResponse()->getHeaders()->get(HeaderEnum::CACHE_PURGE_TAG->value),
         );
     }
