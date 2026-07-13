@@ -41,12 +41,13 @@ class StaticCache extends \yii\base\Component
     public const CDN_PREFIX = 'cdn:';
 
     /**
-     * Cloudflare's documented aggregate Cache-Tag value limit. It includes
-     * commas and whitespace, but excludes the header field name.
+     * Cloudflare's documented Cache-Tag limits.
      *
-     * @see https://developers.cloudflare.com/cache/how-to/purge-cache/purge-by-tags/#a-few-things-to-remember
+     * @see https://developers.cloudflare.com/workers/cache/configuration/
      */
     private const MAX_HEADER_VALUE_LENGTH = 16 * 1024;
+    private const MAX_TAG_VALUE_LENGTH = 1024;
+    private const MAX_TAG_COUNT = 1000;
     private ?int $cacheDuration = null;
     private Collection $tags;
     private Collection $tagsToPurge;
@@ -419,8 +420,10 @@ class StaticCache extends \yii\base\Component
             ->count();
         $truncatedTagCount = $inputTagCount - $headerTagCount;
 
-        Craft::info(new PsrMessage('Cache tags exceed the maximum header value length; using overflow tag', [
+        Craft::info(new PsrMessage('Cache tags exceed header limits; using overflow tag', [
             'maxHeaderValueLength' => self::MAX_HEADER_VALUE_LENGTH,
+            'maxTagCount' => self::MAX_TAG_COUNT,
+            'maxTagValueLength' => self::MAX_TAG_VALUE_LENGTH,
             'truncatedTags' => $truncatedTagCount,
             'overflowTag' => $overflowTag->getValue(),
         ]), __METHOD__);
@@ -436,6 +439,14 @@ class StaticCache extends \yii\base\Component
         /** @var StaticCacheTag $tag */
         foreach ($tags as $tag) {
             $value = $tag->getValue();
+
+            if (
+                $headerTags->count() === self::MAX_TAG_COUNT ||
+                StringHelper::byteLength($value) > self::MAX_TAG_VALUE_LENGTH
+            ) {
+                break;
+            }
+
             $separatorLength = $headerValueLength === 0 ? 0 : 1;
             $newHeaderValueLength = $headerValueLength + $separatorLength + StringHelper::byteLength($value);
 

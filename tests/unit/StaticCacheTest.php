@@ -124,12 +124,12 @@ class StaticCacheTest extends Unit
         $this->assertNotContains('tag-1000-' . str_repeat('x', 24), $tags);
     }
 
-    public function testCacheTagOverflowTruncatesRemainingTags(): void
+    public function testCacheTagOverflowTruncatesTagsThatExceedTheMaximumLength(): void
     {
         $staticCache = new StaticCache();
         $staticCache->init();
         $this->setTags($staticCache, Collection::make([
-            StaticCacheTag::create(str_repeat('x', 16 * 1024)),
+            StaticCacheTag::create(str_repeat('x', 1025)),
             StaticCacheTag::create('second'),
         ]));
 
@@ -139,6 +139,40 @@ class StaticCacheTest extends Unit
             '123-environment-id:overflow',
             Craft::$app->getResponse()->getHeaders()->get(HeaderEnum::CACHE_TAG->value),
         );
+    }
+
+    public function testCacheTagAtMaximumLengthIsAddedToTheHeader(): void
+    {
+        $staticCache = new StaticCache();
+        $staticCache->init();
+        $tag = str_repeat('x', 1024);
+        $this->setTags($staticCache, Collection::make([
+            StaticCacheTag::create($tag),
+        ]));
+
+        $this->addCacheHeadersToWebResponse($staticCache);
+
+        $this->assertSame(
+            $tag,
+            Craft::$app->getResponse()->getHeaders()->get(HeaderEnum::CACHE_TAG->value),
+        );
+    }
+
+    public function testCacheTagOverflowTruncatesTagsThatExceedTheMaximumCount(): void
+    {
+        $staticCache = new StaticCache();
+        $staticCache->init();
+        $this->setTags($staticCache, Collection::range(1, 1001)
+            ->map(fn(int $index) => StaticCacheTag::create("tag-$index")));
+
+        $this->addCacheHeadersToWebResponse($staticCache);
+
+        $tags = explode(',', Craft::$app->getResponse()->getHeaders()->get(HeaderEnum::CACHE_TAG->value));
+
+        $this->assertSame('123-environment-id:overflow', $tags[0]);
+        $this->assertCount(1000, $tags);
+        $this->assertContains('tag-999', $tags);
+        $this->assertNotContains('tag-1000', $tags);
     }
 
     public function testPurgeTagsIncludeOverflowFallbackTag(): void
