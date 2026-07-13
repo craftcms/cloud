@@ -124,7 +124,7 @@ class StaticCacheTest extends Unit
         $this->assertNotContains('tag-1000-' . str_repeat('x', 24), $tags);
     }
 
-    public function testCacheTagOverflowKeepsLaterTagsThatFit(): void
+    public function testCacheTagOverflowTruncatesRemainingTags(): void
     {
         $staticCache = new StaticCache();
         $staticCache->init();
@@ -136,7 +136,7 @@ class StaticCacheTest extends Unit
         $this->addCacheHeadersToWebResponse($staticCache);
 
         $this->assertSame(
-            '123-environment-id:overflow,second',
+            '123-environment-id:overflow',
             Craft::$app->getResponse()->getHeaders()->get(HeaderEnum::CACHE_TAG->value),
         );
     }

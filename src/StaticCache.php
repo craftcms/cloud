@@ -232,7 +232,7 @@ class StaticCache extends \yii\base\Component
         $this->tags->push(...$this->parseCacheTagsFromHeader(HeaderEnum::CACHE_TAG->value));
         $headers->remove(HeaderEnum::CACHE_TAG->value);
         $this->tags = $this->normalizeCacheTags(...$this->tags);
-        $cacheTags = $this->prepareCacheTagsForHeader($this->tags);
+        $cacheTags = $this->truncateCacheTagsForHeader($this->tags);
 
         Craft::info(new PsrMessage('Adding cache tags to response', [
             'tags' => $cacheTags,
@@ -266,7 +266,7 @@ class StaticCache extends \yii\base\Component
         ]), __METHOD__);
 
         if ($isWebResponse) {
-            $tags = $this->prepareCacheTagsForHeader($tags);
+            $tags = $this->truncateCacheTagsForHeader($tags);
 
             $this->setCacheTagHeader(
                 HeaderEnum::CACHE_PURGE_TAG->value,
@@ -398,7 +398,7 @@ class StaticCache extends \yii\base\Component
         );
     }
 
-    private function prepareCacheTagsForHeader(Collection $tags): Collection
+    private function truncateCacheTagsForHeader(Collection $tags): Collection
     {
         $headerTags = $this->truncateCacheTags($tags);
 
@@ -431,20 +431,23 @@ class StaticCache extends \yii\base\Component
     private function truncateCacheTags(Collection $tags): Collection
     {
         $headerValueLength = 0;
+        $headerTags = Collection::make();
 
-        return $tags->filter(function(StaticCacheTag $tag) use (&$headerValueLength) {
+        /** @var StaticCacheTag $tag */
+        foreach ($tags as $tag) {
             $value = $tag->getValue();
             $separatorLength = $headerValueLength === 0 ? 0 : 1;
             $newHeaderValueLength = $headerValueLength + $separatorLength + StringHelper::byteLength($value);
 
             if ($newHeaderValueLength > self::MAX_HEADER_VALUE_LENGTH) {
-                return false;
+                break;
             }
 
             $headerValueLength = $newHeaderValueLength;
+            $headerTags->push($tag);
+        }
 
-            return true;
-        });
+        return $headerTags;
     }
 
     private function overflowTag(): StaticCacheTag
