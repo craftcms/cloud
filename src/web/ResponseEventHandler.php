@@ -6,7 +6,6 @@ use Craft;
 use craft\cloud\fs\TmpFs;
 use craft\cloud\HeaderEnum;
 use craft\cloud\Module;
-use craft\helpers\StringHelper;
 use craft\web\Response;
 use Illuminate\Support\Collection;
 use yii\base\Event;
@@ -16,13 +15,6 @@ use yii\web\ServerErrorHttpException;
 class ResponseEventHandler
 {
     private Response $response;
-
-    /**
-     * @see https://developers.cloudflare.com/workers/platform/limits/#request-limits
-     * @see https://docs.aws.amazon.com/elasticloadbalancing/latest/application/load-balancer-limits.html#http-headers-quotas
-     * @see https://docs.aws.amazon.com/lambda/latest/dg/gettingstarted-limits.html
-     */
-    private const MAX_HEADER_LENGTH = 16 * 1024;
 
     public function __construct()
     {
@@ -43,8 +35,6 @@ class ResponseEventHandler
         if (Module::getInstance()->getConfig()->getDevMode()) {
             $this->addDevModeHeader();
         }
-
-        $this->normalizeHeaders();
 
         if (Module::getInstance()->getConfig()->gzipResponse) {
             $this->gzipResponse();
@@ -116,41 +106,6 @@ class ResponseEventHandler
         // Ensure we don't recursively call send()
         // @see https://github.com/craftcms/cms/pull/15014
         Craft::$app->end();
-    }
-
-    private function normalizeHeaders(): void
-    {
-        Collection::make($this->response->getHeaders())
-            ->each(function(array $values, string $name) {
-                if (HeaderEnum::SET_COOKIE->matches($name)) {
-                    return;
-                }
-
-                $this->response->getHeaders()->set(
-                    $name,
-                    $this->joinHeaderValues($values),
-                );
-            });
-    }
-
-    private function joinHeaderValues(array $values): string
-    {
-        return Collection::make($values)
-            ->filter()
-            ->reduce(function($result, $value) {
-                $newResult = $result === '' ? $value : $result . ',' . $value;
-
-                if (StringHelper::byteLength($newResult) > self::MAX_HEADER_LENGTH) {
-                    Craft::warning(
-                        sprintf("Header value exceeds the maximum length of %s bytes; truncating response.", self::MAX_HEADER_LENGTH),
-                        __METHOD__,
-                    );
-
-                    return $result;
-                }
-
-                return $newResult;
-            }, '');
     }
 
     private function addDevModeHeader(): void

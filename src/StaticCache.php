@@ -9,6 +9,7 @@ use craft\events\InvalidateElementCachesEvent;
 use craft\events\RegisterCacheOptionsEvent;
 use craft\events\TemplateEvent;
 use craft\helpers\ElementHelper;
+use craft\helpers\StringHelper;
 use craft\services\Elements;
 use craft\utilities\ClearCaches;
 use craft\web\UrlManager;
@@ -33,10 +34,20 @@ use yii\caching\TagDependency;
  *    - `cdn:{environmentId}:{objectKey}` (object key has no leading slash)
  * - Added by Craft:
  *   - `{environmentShortId}{hashed}`
+ *   - `{environmentId}:overflow` (when the response has too many cache tags)
  */
 class StaticCache extends \yii\base\Component
 {
     public const CDN_PREFIX = 'cdn:';
+
+    /**
+     * Cloudflare's documented Cache-Tag limits.
+     *
+     * @see https://developers.cloudflare.com/workers/cache/configuration/
+     */
+    private const MAX_TAG_HEADER_VALUE_LENGTH = 16 * 1024;
+    private const MAX_TAG_VALUE_LENGTH = 1024;
+    private const MAX_TAG_COUNT = 1000;
     private ?int $cacheDuration = null;
     private Collection $tags;
     private Collection $tagsToPurge;
@@ -219,23 +230,16 @@ class StaticCache extends \yii\base\Component
             $this->staticCacheDirectives()->implode(','),
         );
 
-        // Capture and remove any existing headers, so we can prepare them
-        $existingTagsFromHeader = Collection::make($headers->get(HeaderEnum::CACHE_TAG->value, first: false) ?? []);
+        $this->tags->push(...$this->parseCacheTagsFromHeader(HeaderEnum::CACHE_TAG->value));
         $headers->remove(HeaderEnum::CACHE_TAG->value);
-        $this->tags->push(...$existingTagsFromHeader);
-        $this->tags = $this->prepareTags(...$this->tags);
+        $this->tags = $this->normalizeCacheTags(...$this->tags);
+        $cacheTags = $this->truncateCacheTagsForHeader($this->tags);
 
         Craft::info(new PsrMessage('Adding cache tags to response', [
-            'tags' => $this->tags,
+            'tags' => $cacheTags,
         ]), __METHOD__);
 
-        $this->tags
-            ->each(function(StaticCacheTag $tag) use ($headers) {
-                $headers->add(
-                    HeaderEnum::CACHE_TAG->value,
-                    $tag->getValue(),
-                );
-            });
+        $this->setCacheTagHeader(HeaderEnum::CACHE_TAG->value, $cacheTags);
     }
 
     public function purgeTags(string|StaticCacheTag ...$tags): void
@@ -246,29 +250,34 @@ class StaticCache extends \yii\base\Component
 
         // Add any existing tags from the response headers
         if ($isWebResponse) {
-            $existingTagsFromHeader = $response->getHeaders()->get(HeaderEnum::CACHE_PURGE_TAG->value, first: false) ?? [];
-            $tags->push(...$existingTagsFromHeader);
+            $tags->push(...$this->parseCacheTagsFromHeader(HeaderEnum::CACHE_PURGE_TAG->value));
             $response->getHeaders()->remove(HeaderEnum::CACHE_PURGE_TAG->value);
         }
 
-        $tags = $this->prepareTags(...$tags);
+        $tags = $this->normalizeCacheTags(...$tags);
 
         if ($tags->isEmpty()) {
+            return;
+        }
+
+        if ($isWebResponse) {
+            $tags = $this->truncateCacheTagsForHeader($tags);
+
+            Craft::info(new PsrMessage('Purging tags', [
+                'tags' => $tags,
+            ]), __METHOD__);
+
+            $this->setCacheTagHeader(
+                HeaderEnum::CACHE_PURGE_TAG->value,
+                $tags,
+            );
+
             return;
         }
 
         Craft::info(new PsrMessage('Purging tags', [
             'tags' => $tags,
         ]), __METHOD__);
-
-        if ($isWebResponse) {
-            $tags->each(fn(StaticCacheTag $tag) => $response->getHeaders()->add(
-                HeaderEnum::CACHE_PURGE_TAG->value,
-                $tag->getValue(),
-            ));
-
-            return;
-        }
 
         Helper::createGatewayApiClient()->request('POST', 'cache/purge', [
             // Mapping to string because: https://github.com/laravel/framework/pull/54630
@@ -364,11 +373,101 @@ class StaticCache extends \yii\base\Component
         }
     }
 
-    private function prepareTags(string|StaticCacheTag ...$tags): Collection
+    private function normalizeCacheTags(string|StaticCacheTag ...$tags): Collection
     {
         return Collection::make($tags)
             ->map(fn(string|StaticCacheTag $tag) => is_string($tag) ? StaticCacheTag::create($tag) : $tag)
-            ->filter(fn(StaticCacheTag $tag) => (bool) $tag->getValue())
+            ->filter(fn(StaticCacheTag $tag) => $tag->getValue() !== '')
             ->unique(fn(StaticCacheTag $tag) => $tag->getValue());
+    }
+
+    private function parseCacheTagsFromHeader(string $header): Collection
+    {
+        return Collection::make(Craft::$app->getResponse()->getHeaders()->get($header, first: false) ?? [])
+            ->flatMap(fn(string $headerValue) => explode(',', $headerValue))
+            ->map(fn(string $tag) => trim($tag))
+            ->filter(fn(string $tag) => $tag !== '');
+    }
+
+    private function setCacheTagHeader(string $header, Collection $tags): void
+    {
+        if ($tags->isEmpty()) {
+            return;
+        }
+
+        Craft::$app->getResponse()->getHeaders()->set(
+            $header,
+            $tags->map(fn(StaticCacheTag $tag) => $tag->getValue())->implode(','),
+        );
+    }
+
+    private function truncateCacheTagsForHeader(Collection $tags): Collection
+    {
+        $headerTags = $this->truncateCacheTags($tags);
+
+        if ($headerTags->count() === $tags->count()) {
+            return $headerTags;
+        }
+
+        $overflowTag = $this->overflowTag();
+        $headerTags = $this->truncateCacheTags(
+            $this->normalizeCacheTags($overflowTag, ...$tags),
+        );
+
+        $inputTagCount = $tags
+            ->reject(fn(StaticCacheTag $tag) => $tag->getValue() === $overflowTag->getValue())
+            ->count();
+        $headerTagCount = $headerTags
+            ->reject(fn(StaticCacheTag $tag) => $tag->getValue() === $overflowTag->getValue())
+            ->count();
+        $truncatedTagCount = $inputTagCount - $headerTagCount;
+
+        Craft::info(new PsrMessage('Cache tags exceed header limits; using overflow tag', [
+            'maxTagHeaderValueLength' => self::MAX_TAG_HEADER_VALUE_LENGTH,
+            'maxTagCount' => self::MAX_TAG_COUNT,
+            'maxTagValueLength' => self::MAX_TAG_VALUE_LENGTH,
+            'truncatedTagCount' => $truncatedTagCount,
+            'overflowTag' => $overflowTag->getValue(),
+        ]), __METHOD__);
+
+        return $headerTags;
+    }
+
+    private function truncateCacheTags(Collection $tags): Collection
+    {
+        $headerValueLength = 0;
+        $headerTags = Collection::make();
+
+        /** @var StaticCacheTag $tag */
+        foreach ($tags as $tag) {
+            $value = $tag->getValue();
+            $valueLength = StringHelper::byteLength($value);
+
+            if (
+                $headerTags->count() === self::MAX_TAG_COUNT ||
+                $valueLength > self::MAX_TAG_VALUE_LENGTH
+            ) {
+                break;
+            }
+
+            $separatorLength = $headerValueLength === 0 ? 0 : 1;
+            $newHeaderValueLength = $headerValueLength + $separatorLength + $valueLength;
+
+            if ($newHeaderValueLength > self::MAX_TAG_HEADER_VALUE_LENGTH) {
+                break;
+            }
+
+            $headerValueLength = $newHeaderValueLength;
+            $headerTags->push($tag);
+        }
+
+        return $headerTags;
+    }
+
+    private function overflowTag(): StaticCacheTag
+    {
+        $environmentId = Module::getInstance()->getConfig()->environmentId;
+
+        return StaticCacheTag::create("{$environmentId}:overflow");
     }
 }

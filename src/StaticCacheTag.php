@@ -4,6 +4,8 @@ namespace craft\cloud;
 
 class StaticCacheTag implements \Stringable, \JsonSerializable
 {
+    private const INVALID_CHARS = '/[^\x21-\x2B\x2D-\x7E]/';
+
     public readonly string $originalValue;
     private bool $minify = false;
 
@@ -33,17 +35,18 @@ class StaticCacheTag implements \Stringable, \JsonSerializable
 
     public function getValue(): string
     {
-        $clone = clone $this;
-        $clone->removeInvalidCharacters();
+        if ($this->value === '') {
+            return '';
+        }
 
-        if ($clone->value && $clone->minify) {
-            return self::create($clone->value)
+        if ($this->minify) {
+            return self::create($this->value)
                 ->hash()
-                ->withPrefix(Module::getInstance()->getConfig()->getShortEnvironmentId())
+                ->withPrefix(Module::getInstance()->getConfig()->getShortEnvironmentId() ?? '')
                 ->value;
         }
 
-        return $clone->value;
+        return $this->normalizedValue();
     }
 
     public function withPrefix(string $prefix): self
@@ -60,14 +63,15 @@ class StaticCacheTag implements \Stringable, \JsonSerializable
         return $this;
     }
 
-    private function removeInvalidCharacters(): self
+    private function normalizedValue(): string
     {
-        // Filter non-ASCII characters and asterisks, as these will tags end up in headers.
-        // Asterisks should be valid, but Lambda mysteriously dies
-        // with a 502 if they're present in the value of a response header.
-        $this->value = preg_replace('/[^\x00-\x7F]|\*/', '', $this->value);
-
-        return $this;
+        // Cache tags need printable ASCII with no spaces or commas.
+        // @see https://developers.cloudflare.com/cache/how-to/purge-cache/purge-by-tags/#a-few-things-to-remember
+        return preg_replace_callback(
+            self::INVALID_CHARS,
+            fn(array $match) => rawurlencode($match[0]),
+            $this->value,
+        ) ?? $this->value;
     }
 
     private function hash(): self

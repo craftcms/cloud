@@ -5,9 +5,13 @@ namespace craft\cloud\tests\unit;
 use Codeception\Test\Unit;
 use Craft;
 use craft\cloud\HeaderEnum;
+use craft\cloud\Module;
 use craft\cloud\StaticCache;
+use craft\cloud\StaticCacheTag;
+use craft\helpers\StringHelper;
 use Illuminate\Support\Collection;
 use ReflectionMethod;
+use ReflectionProperty;
 
 class StaticCacheTest extends Unit
 {
@@ -17,14 +21,22 @@ class StaticCacheTest extends Unit
     protected $tester;
 
     private ?string $requestMethod = null;
+    private ?string $environmentId = null;
+    private ?Module $previousModule = null;
 
     protected function _before(): void
     {
         parent::_before();
 
+        $this->previousModule = Module::getInstance();
+        Module::setInstance(new Module('cloud'));
+
         Craft::$app->getRequest()->setIsCpRequest(false);
         Craft::$app->getResponse()->clear();
         Craft::$app->getResponse()->setStatusCode(200);
+
+        $this->environmentId = Module::getInstance()->getConfig()->environmentId;
+        Module::getInstance()->getConfig()->environmentId = '123-environment-id';
 
         $this->requestMethod = $_SERVER['REQUEST_METHOD'] ?? null;
         $_SERVER['REQUEST_METHOD'] = 'GET';
@@ -34,6 +46,8 @@ class StaticCacheTest extends Unit
     {
         Craft::$app->getRequest()->setIsCpRequest(null);
         Craft::$app->getResponse()->clear();
+        Module::getInstance()->getConfig()->environmentId = $this->environmentId;
+        Module::setInstance($this->previousModule);
 
         if ($this->requestMethod === null) {
             unset($_SERVER['REQUEST_METHOD']);
@@ -92,6 +106,112 @@ class StaticCacheTest extends Unit
         );
     }
 
+    public function testCacheTagOverflowUsesFallbackTag(): void
+    {
+        $staticCache = new StaticCache();
+        $this->setTags($staticCache, Collection::range(1, 1000)
+            ->map(fn(int $index) => StaticCacheTag::create("tag-$index-" . str_repeat('x', 24))));
+
+        $this->addCacheHeadersToWebResponse($staticCache);
+
+        $cacheTagHeader = Craft::$app->getResponse()->getHeaders()->get(HeaderEnum::CACHE_TAG->value);
+        $tags = explode(',', $cacheTagHeader);
+
+        $this->assertSame('123-environment-id:overflow', $tags[0]);
+        $this->assertLessThanOrEqual(16 * 1024, StringHelper::byteLength($cacheTagHeader));
+        $this->assertContains('tag-1-' . str_repeat('x', 24), $tags);
+        $this->assertNotContains('tag-1000-' . str_repeat('x', 24), $tags);
+    }
+
+    public function testCacheTagOverflowTruncatesTagsThatExceedTheMaximumLength(): void
+    {
+        $staticCache = new StaticCache();
+        $this->setTags($staticCache, Collection::make([
+            StaticCacheTag::create(str_repeat('x', 1025)),
+            StaticCacheTag::create('second'),
+        ]));
+
+        $this->addCacheHeadersToWebResponse($staticCache);
+
+        $this->assertSame(
+            '123-environment-id:overflow',
+            Craft::$app->getResponse()->getHeaders()->get(HeaderEnum::CACHE_TAG->value),
+        );
+    }
+
+    public function testCacheTagAtMaximumLengthIsAddedToTheHeader(): void
+    {
+        $staticCache = new StaticCache();
+        $tag = str_repeat('x', 1024);
+        $this->setTags($staticCache, Collection::make([
+            StaticCacheTag::create($tag),
+        ]));
+
+        $this->addCacheHeadersToWebResponse($staticCache);
+
+        $this->assertSame(
+            $tag,
+            Craft::$app->getResponse()->getHeaders()->get(HeaderEnum::CACHE_TAG->value),
+        );
+    }
+
+    public function testCacheTagOverflowTruncatesTagsThatExceedTheMaximumCount(): void
+    {
+        $staticCache = new StaticCache();
+        $this->setTags($staticCache, Collection::range(1, 1001)
+            ->map(fn(int $index) => StaticCacheTag::create("tag-$index")));
+
+        $this->addCacheHeadersToWebResponse($staticCache);
+
+        $tags = explode(',', Craft::$app->getResponse()->getHeaders()->get(HeaderEnum::CACHE_TAG->value));
+
+        $this->assertSame('123-environment-id:overflow', $tags[0]);
+        $this->assertCount(1000, $tags);
+        $this->assertContains('tag-999', $tags);
+        $this->assertNotContains('tag-1000', $tags);
+    }
+
+    public function testPurgeTagsKeepExistingHeaderTags(): void
+    {
+        $staticCache = new StaticCache();
+        Craft::$app->getResponse()->getHeaders()->set(HeaderEnum::CACHE_PURGE_TAG->value, 'first,second');
+
+        $staticCache->purgeTags();
+
+        $this->assertSame(
+            'first,second',
+            Craft::$app->getResponse()->getHeaders()->get(HeaderEnum::CACHE_PURGE_TAG->value),
+        );
+    }
+
+    public function testExistingCacheTagHeaderIsSplit(): void
+    {
+        $staticCache = new StaticCache();
+        Craft::$app->getResponse()->getHeaders()->set(HeaderEnum::CACHE_TAG->value, '0, , second');
+
+        $this->addCacheHeadersToWebResponse($staticCache);
+
+        $this->assertSame(
+            '0,second',
+            Craft::$app->getResponse()->getHeaders()->get(HeaderEnum::CACHE_TAG->value),
+        );
+    }
+
+    public function testPurgeTagHeaderUsesOverflowFallbackWhenItIsTooLong(): void
+    {
+        $staticCache = new StaticCache();
+        $tags = Collection::range(1, 1000)
+            ->map(fn(int $index) => "tag-$index-" . str_repeat('x', 24))
+            ->all();
+
+        $staticCache->purgeTags(...$tags);
+
+        $cachePurgeTagHeader = Craft::$app->getResponse()->getHeaders()->get(HeaderEnum::CACHE_PURGE_TAG->value);
+
+        $this->assertStringStartsWith('123-environment-id:overflow,', $cachePurgeTagHeader);
+        $this->assertLessThanOrEqual(16 * 1024, StringHelper::byteLength($cachePurgeTagHeader));
+    }
+
     private function isCacheable(StaticCache $staticCache): bool
     {
         $method = new ReflectionMethod($staticCache, 'isCacheable');
@@ -106,5 +226,19 @@ class StaticCacheTest extends Unit
         $method->setAccessible(true);
 
         return $method->invoke($staticCache);
+    }
+
+    private function addCacheHeadersToWebResponse(StaticCache $staticCache): void
+    {
+        $method = new ReflectionMethod($staticCache, 'addCacheHeadersToWebResponse');
+        $method->setAccessible(true);
+        $method->invoke($staticCache);
+    }
+
+    private function setTags(StaticCache $staticCache, Collection $tags): void
+    {
+        $property = new ReflectionProperty($staticCache, 'tags');
+        $property->setAccessible(true);
+        $property->setValue($staticCache, $tags);
     }
 }
