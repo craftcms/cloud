@@ -109,7 +109,6 @@ class StaticCacheTest extends Unit
     public function testCacheTagOverflowUsesFallbackTag(): void
     {
         $staticCache = new StaticCache();
-        $staticCache->init();
         $this->setTags($staticCache, Collection::range(1, 1000)
             ->map(fn(int $index) => StaticCacheTag::create("tag-$index-" . str_repeat('x', 24))));
 
@@ -127,7 +126,6 @@ class StaticCacheTest extends Unit
     public function testCacheTagOverflowTruncatesTagsThatExceedTheMaximumLength(): void
     {
         $staticCache = new StaticCache();
-        $staticCache->init();
         $this->setTags($staticCache, Collection::make([
             StaticCacheTag::create(str_repeat('x', 1025)),
             StaticCacheTag::create('second'),
@@ -144,7 +142,6 @@ class StaticCacheTest extends Unit
     public function testCacheTagAtMaximumLengthIsAddedToTheHeader(): void
     {
         $staticCache = new StaticCache();
-        $staticCache->init();
         $tag = str_repeat('x', 1024);
         $this->setTags($staticCache, Collection::make([
             StaticCacheTag::create($tag),
@@ -161,7 +158,6 @@ class StaticCacheTest extends Unit
     public function testCacheTagOverflowTruncatesTagsThatExceedTheMaximumCount(): void
     {
         $staticCache = new StaticCache();
-        $staticCache->init();
         $this->setTags($staticCache, Collection::range(1, 1001)
             ->map(fn(int $index) => StaticCacheTag::create("tag-$index")));
 
@@ -191,7 +187,6 @@ class StaticCacheTest extends Unit
     public function testExistingCacheTagHeaderIsSplit(): void
     {
         $staticCache = new StaticCache();
-        $staticCache->init();
         Craft::$app->getResponse()->getHeaders()->set(HeaderEnum::CACHE_TAG->value, '0, , second');
 
         $this->addCacheHeadersToWebResponse($staticCache);

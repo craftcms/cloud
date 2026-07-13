@@ -437,16 +437,17 @@ class StaticCache extends \yii\base\Component
         /** @var StaticCacheTag $tag */
         foreach ($tags as $tag) {
             $value = $tag->getValue();
+            $valueLength = StringHelper::byteLength($value);
 
             if (
                 $headerTags->count() === self::MAX_TAG_COUNT ||
-                StringHelper::byteLength($value) > self::MAX_TAG_VALUE_LENGTH
+                $valueLength > self::MAX_TAG_VALUE_LENGTH
             ) {
                 break;
             }
 
             $separatorLength = $headerValueLength === 0 ? 0 : 1;
-            $newHeaderValueLength = $headerValueLength + $separatorLength + StringHelper::byteLength($value);
+            $newHeaderValueLength = $headerValueLength + $separatorLength + $valueLength;
 
             if ($newHeaderValueLength > self::MAX_TAG_HEADER_VALUE_LENGTH) {
                 break;
