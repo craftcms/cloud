@@ -426,7 +426,7 @@ class StaticCache extends \yii\base\Component
             'maxTagHeaderValueLength' => self::MAX_TAG_HEADER_VALUE_LENGTH,
             'maxTagCount' => self::MAX_TAG_COUNT,
             'maxTagValueLength' => self::MAX_TAG_VALUE_LENGTH,
-            'truncatedTags' => $truncatedTagCount,
+            'truncatedTagCount' => $truncatedTagCount,
             'overflowTag' => $overflowTag->getValue(),
         ]), __METHOD__);
 
