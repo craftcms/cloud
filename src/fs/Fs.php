@@ -540,9 +540,8 @@ abstract class Fs extends FlysystemFs
             }
         }
 
-        Craft::warning(
+        Module::warning(
             "Unable to determine image dimensions for \"{$uriPath}\" within the " . self::IMAGE_DIMENSION_MAX_BYTES . ' byte read limit.',
-            __METHOD__,
         );
 
         return null;

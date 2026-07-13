@@ -108,7 +108,7 @@ class AppConfig
                 return 'redis://' . $record[0]['target'] . ':' . $record[0]['port'];
             }
 
-            Craft::error("Unable to fetch DNS records: $srv", __METHOD__);
+            Module::error("Unable to fetch DNS records: $srv");
         }
 
         // TODO: drop deprecated fallback once migration is complete

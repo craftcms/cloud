@@ -2,9 +2,8 @@
 
 namespace craft\cloud\web;
 
-use Craft;
+use craft\cloud\Module;
 use craft\helpers\App;
-use samdark\log\PsrMessage;
 use yii\web\DbSession;
 
 class Session extends DbSession
@@ -19,11 +18,8 @@ class Session extends DbSession
             return;
         }
 
-        Craft::info(new PsrMessage(
-            'Session opened',
-            [
-                'stack' => App::backtrace(8),
-            ],
-        ), __METHOD__);
+        Module::info('Session opened', [
+            'stack' => App::backtrace(8),
+        ]);
     }
 }

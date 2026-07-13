@@ -2,7 +2,7 @@
 
 namespace craft\cloud\signing;
 
-use Craft;
+use craft\cloud\Module;
 use GuzzleHttp\Psr7\HttpFactory;
 use HttpMessageSignatures\Algorithm\HmacSha256;
 use HttpMessageSignatures\Exception\VerificationException;
@@ -34,12 +34,11 @@ class UrlSigner
         try {
             $normalizedUrl = $this->normalizeUrlForSigning($url);
         } catch (SyntaxError $e) {
-            Craft::warning([
-                'message' => 'Malformed signed URL',
+            Module::warning('Malformed signed URL', [
                 'reason' => $e->getMessage(),
                 'url' => $url,
                 'signatureParameter' => $this->signatureParameter,
-            ], __METHOD__);
+            ]);
 
             return false;
         }
@@ -51,12 +50,11 @@ class UrlSigner
 
             return $this->createVerifier()->verify($url);
         } catch (VerificationException $e) {
-            Craft::info([
-                'message' => 'Invalid URL signature',
+            Module::info('Invalid URL signature', [
                 'reason' => $e->getMessage(),
                 'url' => $url,
                 'signatureParameter' => $this->signatureParameter,
-            ], __METHOD__);
+            ]);
 
             return false;
         }
