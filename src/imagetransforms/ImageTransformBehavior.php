@@ -3,6 +3,7 @@
 namespace craft\cloud\imagetransforms;
 
 use Craft;
+use craft\cloud\Module;
 use craft\models\ImageTransform;
 use Illuminate\Support\Collection;
 use yii\base\Behavior;
@@ -200,7 +201,7 @@ class ImageTransformBehavior extends Behavior
                 'bottom' => 1,
             };
         } catch (\UnhandledMatchError $e) {
-            Craft::warning("Invalid position value: `{$this->owner->position}`", __METHOD__);
+            Module::warning("Invalid position value: `{$this->owner->position}`");
             return null;
         }
 

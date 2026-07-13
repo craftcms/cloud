@@ -18,7 +18,6 @@ use GuzzleHttp\RequestOptions;
 use GuzzleHttp\Utils as GuzzleUtils;
 use Illuminate\Support\Collection;
 use League\Uri\Components\Path;
-use samdark\log\PsrMessage;
 use yii\base\Event;
 use yii\caching\TagDependency;
 
@@ -109,7 +108,7 @@ class StaticCache extends \yii\base\Component
                     $this->purgeTags(...$this->tagsToPurge);
                 } catch (\Throwable $e) {
                     // TODO: log exception once output payload isn't a concern
-                    Craft::error('Failed to purge tags after request', __METHOD__);
+                    Module::error('Failed to purge tags after request');
                 }
             }
         });
@@ -235,9 +234,9 @@ class StaticCache extends \yii\base\Component
         $this->tags = $this->normalizeCacheTags(...$this->tags);
         $cacheTags = $this->truncateCacheTagsForHeader($this->tags);
 
-        Craft::info(new PsrMessage('Adding cache tags to response', [
+        Module::info('Adding cache tags to response', [
             'tags' => $cacheTags,
-        ]), __METHOD__);
+        ]);
 
         $this->setCacheTagHeader(HeaderEnum::CACHE_TAG->value, $cacheTags);
     }
@@ -263,9 +262,9 @@ class StaticCache extends \yii\base\Component
         if ($isWebResponse) {
             $tags = $this->truncateCacheTagsForHeader($tags);
 
-            Craft::info(new PsrMessage('Purging tags', [
+            Module::info('Purging tags', [
                 'tags' => $tags,
-            ]), __METHOD__);
+            ]);
 
             $this->setCacheTagHeader(
                 HeaderEnum::CACHE_PURGE_TAG->value,
@@ -275,9 +274,9 @@ class StaticCache extends \yii\base\Component
             return;
         }
 
-        Craft::info(new PsrMessage('Purging tags', [
+        Module::info('Purging tags', [
             'tags' => $tags,
-        ]), __METHOD__);
+        ]);
 
         Helper::createGatewayApiClient()->request('POST', 'cache/purge', [
             // Mapping to string because: https://github.com/laravel/framework/pull/54630
@@ -295,9 +294,9 @@ class StaticCache extends \yii\base\Component
             return;
         }
 
-        Craft::info(new PsrMessage('Purging URL prefixes', [
+        Module::info('Purging URL prefixes', [
             'urlPrefixes' => $urlPrefixes->all(),
-        ]), __METHOD__);
+        ]);
 
         Helper::createGatewayApiClient()->request('POST', 'cache/purge', [
             RequestOptions::JSON => [
@@ -422,13 +421,13 @@ class StaticCache extends \yii\base\Component
             ->count();
         $truncatedTagCount = $inputTagCount - $headerTagCount;
 
-        Craft::info(new PsrMessage('Cache tags exceed header limits; using overflow tag', [
+        Module::info('Cache tags exceed header limits; using overflow tag', [
             'maxTagHeaderValueLength' => self::MAX_TAG_HEADER_VALUE_LENGTH,
             'maxTagCount' => self::MAX_TAG_COUNT,
             'maxTagValueLength' => self::MAX_TAG_VALUE_LENGTH,
             'truncatedTagCount' => $truncatedTagCount,
             'overflowTag' => $overflowTag->getValue(),
-        ]), __METHOD__);
+        ]);
 
         return $headerTags;
     }

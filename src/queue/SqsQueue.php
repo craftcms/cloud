@@ -3,6 +3,7 @@
 namespace craft\cloud\queue;
 
 use Craft;
+use craft\cloud\Module;
 
 class SqsQueue extends \yii\queue\sqs\Queue implements ReleasableQueueInterface
 {
@@ -41,6 +42,6 @@ class SqsQueue extends \yii\queue\sqs\Queue implements ReleasableQueueInterface
 
     public function release(string $id): void
     {
-        Craft::info('Releasing single jobs is not supported.');
+        Module::info('Releasing single jobs is not supported.');
     }
 }

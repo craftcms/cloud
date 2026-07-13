@@ -34,8 +34,10 @@ use craft\web\Application as WebApplication;
 use craft\web\View;
 use Illuminate\Support\Collection;
 use Psr\Log\LogLevel;
+use samdark\log\PsrMessage;
 use yii\base\InvalidConfigException;
 use yii\base\NotSupportedException;
+use yii\log\Logger;
 
 /**
  * @property ?string $id When auto-bootstrapped as an extension, this can be `null`.
@@ -54,6 +56,26 @@ class Module extends \yii\base\Module implements \yii\base\BootstrapInterface
     private const MAX_EXECUTION_SECONDS_CLI = 900 - 10;
 
     private Config $_config;
+
+    public static function log(int $level, string $message, array $context = []): void
+    {
+        Craft::getLogger()->log(new PsrMessage($message, $context), $level, self::class);
+    }
+
+    public static function info(string $message, array $context = []): void
+    {
+        self::log(Logger::LEVEL_INFO, $message, $context);
+    }
+
+    public static function warning(string $message, array $context = []): void
+    {
+        self::log(Logger::LEVEL_WARNING, $message, $context);
+    }
+
+    public static function error(string $message, array $context = []): void
+    {
+        self::log(Logger::LEVEL_ERROR, $message, $context);
+    }
 
     /**
      * @throws InvalidConfigException
@@ -356,7 +378,7 @@ class Module extends \yii\base\Module implements \yii\base\BootstrapInterface
     {
         $memoryLimit = ConfigHelper::sizeInBytes($limit) - ConfigHelper::sizeInBytes($offset);
         Craft::$app->getConfig()->getGeneral()->phpMaxMemoryLimit((string) $memoryLimit);
-        Craft::info("phpMaxMemoryLimit set to $memoryLimit", __METHOD__);
+        self::info("phpMaxMemoryLimit set to $memoryLimit");
 
         return $memoryLimit;
     }
