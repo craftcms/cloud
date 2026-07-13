@@ -229,10 +229,7 @@ class StaticCache extends \yii\base\Component
             $this->staticCacheDirectives()->implode(','),
         );
 
-        $existingTagsFromHeader = Collection::make($headers->get(HeaderEnum::CACHE_TAG->value, first: false) ?? [])
-            ->flatMap(fn(string $headerValue) => explode(',', $headerValue))
-            ->map(fn(string $tag) => trim($tag))
-            ->filter(fn(string $tag) => $tag !== '');
+        $existingTagsFromHeader = $this->parseCacheTagsFromHeader(HeaderEnum::CACHE_TAG->value);
         $headers->remove(HeaderEnum::CACHE_TAG->value);
         $this->tags->push(...$existingTagsFromHeader);
         $this->tags = $this->normalizeCacheTags(...$this->tags);
@@ -253,13 +250,7 @@ class StaticCache extends \yii\base\Component
 
         // Add any existing tags from the response headers
         if ($isWebResponse) {
-            $existingTagsFromHeader = Collection::make($response->getHeaders()->get(
-                HeaderEnum::CACHE_PURGE_TAG->value,
-                first: false,
-            ) ?? [])
-                ->flatMap(fn(string $headerValue) => explode(',', $headerValue))
-                ->map(fn(string $tag) => trim($tag))
-                ->filter(fn(string $tag) => $tag !== '');
+            $existingTagsFromHeader = $this->parseCacheTagsFromHeader(HeaderEnum::CACHE_PURGE_TAG->value);
             $tags->push(...$existingTagsFromHeader);
             $response->getHeaders()->remove(HeaderEnum::CACHE_PURGE_TAG->value);
         }
@@ -387,6 +378,14 @@ class StaticCache extends \yii\base\Component
             ->map(fn(string|StaticCacheTag $tag) => is_string($tag) ? StaticCacheTag::create($tag) : $tag)
             ->filter(fn(StaticCacheTag $tag) => $tag->getValue() !== '')
             ->unique(fn(StaticCacheTag $tag) => $tag->getValue());
+    }
+
+    private function parseCacheTagsFromHeader(string $header): Collection
+    {
+        return Collection::make(Craft::$app->getResponse()->getHeaders()->get($header, first: false) ?? [])
+            ->flatMap(fn(string $headerValue) => explode(',', $headerValue))
+            ->map(fn(string $tag) => trim($tag))
+            ->filter(fn(string $tag) => $tag !== '');
     }
 
     private function setCacheTagHeader(string $header, Collection $tags): void
