@@ -21,7 +21,6 @@ use League\Uri\Components\Path;
 use samdark\log\PsrMessage;
 use yii\base\Event;
 use yii\caching\TagDependency;
-use yii\web\HeaderCollection;
 
 /**
  * Static Cache tags can appear in the `Cache-Tag` and `Cache-Purge-Tag` headers.
@@ -243,7 +242,7 @@ class StaticCache extends \yii\base\Component
             'tags' => $cacheTags,
         ]), __METHOD__);
 
-        $this->setCacheTagHeader(HeaderEnum::CACHE_TAG->value, $headers, $cacheTags);
+        $this->setCacheTagHeader(HeaderEnum::CACHE_TAG, $cacheTags);
     }
 
     public function purgeTags(string|StaticCacheTag ...$tags): void
@@ -281,8 +280,7 @@ class StaticCache extends \yii\base\Component
             $tags = $this->prepareCacheTagsForHeader($tags);
 
             $this->setCacheTagHeader(
-                HeaderEnum::CACHE_PURGE_TAG->value,
-                $response->getHeaders(),
+                HeaderEnum::CACHE_PURGE_TAG,
                 $tags,
             );
 
@@ -391,13 +389,16 @@ class StaticCache extends \yii\base\Component
             ->unique(fn(StaticCacheTag $tag) => $tag->getValue());
     }
 
-    private function setCacheTagHeader(string $header, HeaderCollection $headers, Collection $tags): void
+    private function setCacheTagHeader(HeaderEnum $header, Collection $tags): void
     {
         if ($tags->isEmpty()) {
             return;
         }
 
-        $headers->set($header, $tags->map(fn(StaticCacheTag $tag) => $tag->getValue())->implode(','));
+        Craft::$app->getResponse()->getHeaders()->set(
+            $header->value,
+            $tags->map(fn(StaticCacheTag $tag) => $tag->getValue())->implode(','),
+        );
     }
 
     private function prepareCacheTagsForHeader(Collection $tags): Collection
