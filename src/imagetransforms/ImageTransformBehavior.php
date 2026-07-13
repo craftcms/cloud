@@ -2,7 +2,6 @@
 
 namespace craft\cloud\imagetransforms;
 
-use Craft;
 use craft\cloud\Module;
 use craft\models\ImageTransform;
 use Illuminate\Support\Collection;
