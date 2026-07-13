@@ -42,7 +42,7 @@ class StaticCacheTag implements \Stringable, \JsonSerializable
         if ($this->minify) {
             return self::create($this->value)
                 ->hash()
-                ->withPrefix(Module::getInstance()->getConfig()->getShortEnvironmentId())
+                ->withPrefix(Module::getInstance()->getConfig()->getShortEnvironmentId() ?? '')
                 ->value;
         }
 

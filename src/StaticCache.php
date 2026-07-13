@@ -260,12 +260,12 @@ class StaticCache extends \yii\base\Component
             return;
         }
 
-        Craft::info(new PsrMessage('Purging tags', [
-            'tags' => $tags,
-        ]), __METHOD__);
-
         if ($isWebResponse) {
             $tags = $this->truncateCacheTagsForHeader($tags);
+
+            Craft::info(new PsrMessage('Purging tags', [
+                'tags' => $tags,
+            ]), __METHOD__);
 
             $this->setCacheTagHeader(
                 HeaderEnum::CACHE_PURGE_TAG->value,
@@ -274,6 +274,10 @@ class StaticCache extends \yii\base\Component
 
             return;
         }
+
+        Craft::info(new PsrMessage('Purging tags', [
+            'tags' => $tags,
+        ]), __METHOD__);
 
         Helper::createGatewayApiClient()->request('POST', 'cache/purge', [
             // Mapping to string because: https://github.com/laravel/framework/pull/54630

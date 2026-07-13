@@ -51,4 +51,14 @@ class StaticCacheTagTest extends Unit
             $tag->minify(true)->getValue(),
         );
     }
+
+    public function testMinifiesValueWithoutEnvironmentId(): void
+    {
+        Module::getInstance()->getConfig()->environmentId = null;
+
+        $this->assertSame(
+            sprintf('%x', crc32('tag value')),
+            StaticCacheTag::create('tag value')->minify(true)->getValue(),
+        );
+    }
 }
