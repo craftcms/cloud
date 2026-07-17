@@ -116,7 +116,7 @@ class StaticCache extends \yii\base\Component
                 try {
                     $this->sendPurgeTags(
                         $this->tagsToPurge,
-                        $this->fetchUrls->all(),
+                        $this->fetchUrls,
                     );
                 } catch (\Throwable $e) {
                     // TODO: log exception once output payload isn't a concern
@@ -277,7 +277,7 @@ class StaticCache extends \yii\base\Component
         $this->sendPurgeTags($tags);
     }
 
-    private function sendPurgeTags(Collection $tags, array $fetchUrls = []): void
+    private function sendPurgeTags(Collection $tags, ?Collection $fetchUrls = null): void
     {
         $response = Craft::$app->getResponse();
         $isWebResponse = $response instanceof \craft\web\Response;
@@ -295,7 +295,7 @@ class StaticCache extends \yii\base\Component
             return;
         }
 
-        if ($isWebResponse && empty($fetchUrls)) {
+        if ($isWebResponse && !$fetchUrls?->isNotEmpty()) {
             $tags = $this->truncateCacheTagsForHeader($tags);
 
             Module::info('Purging tags', [
@@ -320,8 +320,11 @@ class StaticCache extends \yii\base\Component
             'tags' => $tags->map(fn(StaticCacheTag $tag) => (string) $tag)->values()->all(),
         ];
 
-        if (!empty($fetchUrls)) {
-            $payload['fetchUrls'] = $fetchUrls;
+        if ($fetchUrls?->isNotEmpty()) {
+            $payload['fetchUrls'] = $fetchUrls
+                ->unique()
+                ->values()
+                ->all();
         }
 
         Helper::createGatewayApiClient()->request('POST', 'cache/purge', [
@@ -343,6 +346,7 @@ class StaticCache extends \yii\base\Component
             'tags' => $tags->values()->all(),
             'element' => $element,
         ]);
+
         $this->trigger(self::EVENT_BEFORE_PURGE, $event);
 
         if (!$event->isValid) {
@@ -351,73 +355,27 @@ class StaticCache extends \yii\base\Component
 
         $tags = $this->normalizeCacheTags(...$event->tags);
 
-        if ($tags->isNotEmpty()) {
-            $this->queueFetchUrls($element);
+        try {
+            if (
+                $tags->isNotEmpty() &&
+                $element instanceof Element &&
+                !ElementHelper::isDraftOrRevision($element) &&
+                $element->enabled &&
+                $element->getEnabledForSite() &&
+                !$element->trashed &&
+                !$element->archived &&
+                $element->getRoute() !== null &&
+                ($url = $element->getUrl()) !== null &&
+                in_array(strtolower((string)parse_url($url, PHP_URL_SCHEME)), ['http', 'https'], true) &&
+                parse_url($url, PHP_URL_HOST)
+            ) {
+                $this->fetchUrls->push($url);
+            }
+        } catch (\Throwable) {
+            // The tags can still be purged without fetching the URL.
         }
 
         return $tags;
-    }
-
-    private function queueFetchUrls(?ElementInterface $element): void
-    {
-        if (!$element instanceof Element) {
-            return;
-        }
-
-        /** @var Collection<int, ElementInterface> $elements */
-        $elements = Collection::make([$element]);
-
-        if ($element->id && !ElementHelper::isDraftOrRevision($element)) {
-            try {
-                $elements->push(...$element::find()
-                    ->id($element->id)
-                    ->siteId('*')
-                    ->status(null)
-                    ->trashed(null)
-                    ->all());
-            } catch (\Throwable) {
-                // The triggering site variant can still be fetched.
-            }
-        }
-
-        $this->fetchUrls = $this->fetchUrls
-            ->merge($elements->map(fn(ElementInterface $element) => $this->fetchUrl($element))->filter())
-            ->unique()
-            ->values();
-    }
-
-    private function fetchUrl(ElementInterface $element): ?string
-    {
-        if (
-            !$element instanceof Element ||
-            ElementHelper::isDraftOrRevision($element) ||
-            !$element::hasUris() ||
-            !$element->uri ||
-            !$element->enabled ||
-            !$element->getEnabledForSite() ||
-            $element->trashed ||
-            $element->archived
-        ) {
-            return null;
-        }
-
-        try {
-            $site = $element->getSite();
-            $url = $site->getEnabled() && $site->hasUrls && $element->getRoute() !== null
-                ? $element->getUrl()
-                : null;
-        } catch (\Throwable) {
-            return null;
-        }
-
-        $parts = $url !== null ? parse_url($url) : false;
-
-        return
-            is_array($parts) &&
-            in_array(strtolower($parts['scheme'] ?? ''), ['http', 'https'], true) &&
-            !empty($parts['host'])
-                ? $url
-                : null;
     }
 
     public function purgeUrlPrefixes(string ...$urlPrefixes): void

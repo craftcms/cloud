@@ -396,7 +396,7 @@ class StaticCacheTest extends Unit
         $method->invoke(
             $staticCache,
             $this->collectionProperty($staticCache, 'tagsToPurge'),
-            $this->collectionProperty($staticCache, 'fetchUrls')->all(),
+            $this->collectionProperty($staticCache, 'fetchUrls'),
         );
     }
 
