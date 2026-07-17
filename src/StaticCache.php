@@ -395,6 +395,7 @@ class StaticCache extends \yii\base\Component
             !$element->uri ||
             !$element->enabled ||
             !$element->getEnabledForSite() ||
+            $element->trashed ||
             $element->archived
         ) {
             return null;
