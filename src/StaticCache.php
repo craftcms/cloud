@@ -364,6 +364,8 @@ class StaticCache extends \yii\base\Component
                 $element->getEnabledForSite() &&
                 !$element->trashed &&
                 !$element->archived &&
+                $element->getSite()->getEnabled() &&
+                $element->getSite()->hasUrls &&
                 $element->getRoute() !== null &&
                 ($url = $element->getUrl()) !== null &&
                 in_array(strtolower((string)parse_url($url, PHP_URL_SCHEME)), ['http', 'https'], true) &&
