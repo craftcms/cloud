@@ -281,6 +281,7 @@ class StaticCache extends \yii\base\Component
     {
         $response = Craft::$app->getResponse();
         $isWebResponse = $response instanceof \craft\web\Response;
+        $sendApiRequest = !$isWebResponse || $fetchUrls?->isNotEmpty();
 
         // Add any existing tags from the response headers
         if ($isWebResponse) {
@@ -295,7 +296,7 @@ class StaticCache extends \yii\base\Component
             return;
         }
 
-        if ($isWebResponse && !$fetchUrls?->isNotEmpty()) {
+        if (!$sendApiRequest) {
             $tags = $this->truncateCacheTagsForHeader($tags);
 
             Module::info('Purging tags', [
