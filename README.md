@@ -217,5 +217,32 @@ Most configuration (to Craft and the extension itself) is handled directly by Cl
 | `useAssetCdn`         | `boolean`      | Whether or not to enable the CDN for uploaded assets.                                                                           |
 | `useArtifactCdn`      | `boolean`      | Whether or not to enable the CDN for build artifacts and asset bundles.                                                         |
 | `staticCacheDuration` | `int`          | The default duration, in seconds, to statically cache requests.                                                                 |
+
 > [!TIP]
 > These options can also be set via environment overrides beginning with `CRAFT_CLOUD_`.
+
+### Static cache
+
+Static cache purge events can be configured through Yii’s dependency injection container in `config/app.php`:
+
+```php
+use craft\cloud\events\PurgeEvent;
+use craft\cloud\StaticCache;
+
+return [
+    'container' => [
+        'definitions' => [
+            StaticCache::class => [
+                'class' => StaticCache::class,
+                'on ' . StaticCache::EVENT_BEFORE_PURGE => static function(PurgeEvent $event): void {
+                    if ($event->element?->uri === 'health-check') {
+                        $event->isValid = false;
+                    }
+                },
+            ],
+        ],
+    ],
+];
+```
+
+When an element purge proceeds, its deduplicated public site URLs are included in tag-based gateway API requests as the optional `fetchUrls` field. After a successful purge, the gateway asynchronously fetches those URLs to repopulate the cache. Drafts, revisions, disabled or unroutable elements, and non-HTTP(S) URLs are omitted. Canceling the purge also prevents those URLs from being fetched.
