@@ -330,6 +330,8 @@ class StaticCacheTest extends Unit
         $disabledElement->enabled = false;
         $trashedElement = clone $englishElement;
         $trashedElement->trashed = true;
+        $deletedElement = clone $englishElement;
+        $deletedElement->dateDeleted = new \DateTime();
 
         $this->purgeElementUri($staticCache, $englishElement);
         $this->purgeElementUri($staticCache, $englishElement);
@@ -338,6 +340,7 @@ class StaticCacheTest extends Unit
         $this->purgeElementUri($staticCache, $privateElement);
         $this->purgeElementUri($staticCache, $disabledElement);
         $this->purgeElementUri($staticCache, $trashedElement);
+        $this->purgeElementUri($staticCache, $deletedElement);
         $this->sendPendingPurgeTags($staticCache);
 
         $payload = json_decode(

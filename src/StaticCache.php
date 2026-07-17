@@ -375,6 +375,7 @@ class StaticCache extends \yii\base\Component
                 $element->enabled &&
                 $element->getEnabledForSite() &&
                 !$element->trashed &&
+                $element->dateDeleted === null &&
                 !$element->archived &&
                 $element->getSite()->getEnabled() &&
                 $element->getSite()->hasUrls &&
