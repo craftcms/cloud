@@ -284,8 +284,9 @@ class StaticCache extends \yii\base\Component
 
         // Add any existing tags from the response headers
         if ($isWebResponse) {
-            $tags->push(...$this->parseCacheTagsFromHeader(HeaderEnum::CACHE_PURGE_TAG->value));
+            $headerTags = $this->parseCacheTagsFromHeader(HeaderEnum::CACHE_PURGE_TAG->value);
             $response->getHeaders()->remove(HeaderEnum::CACHE_PURGE_TAG->value);
+            $tags->push(...$this->preparePurgeTags(null, ...$headerTags));
         }
 
         $tags = $this->normalizeCacheTags(...$tags);

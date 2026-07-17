@@ -289,6 +289,10 @@ class StaticCacheTest extends Unit
     public function testElementPurgeRequestIncludesPublicFetchUrls(): void
     {
         $staticCache = new StaticCache();
+        Craft::$app->getResponse()->getHeaders()->set(HeaderEnum::CACHE_PURGE_TAG->value, 'cancelled');
+        $staticCache->on(StaticCache::EVENT_BEFORE_PURGE, function(PurgeEvent $event) {
+            $event->isValid = $event->element !== null;
+        });
         $englishElement = new FetchableElement(['uri' => 'news']);
         $englishElement->fetchUrl = 'https://example.com/news';
         $frenchElement = clone $englishElement;
