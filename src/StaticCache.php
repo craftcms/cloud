@@ -3,6 +3,7 @@
 namespace craft\cloud;
 
 use Craft;
+use craft\base\Element;
 use craft\base\ElementInterface;
 use craft\cloud\events\PurgeEvent;
 use craft\events\ElementEvent;
@@ -358,10 +359,11 @@ class StaticCache extends \yii\base\Component
 
     private function queueFetchUrls(?ElementInterface $element): void
     {
-        if ($element === null) {
+        if (!$element instanceof Element) {
             return;
         }
 
+        /** @var Collection<int, ElementInterface> $elements */
         $elements = Collection::make([$element]);
 
         if ($element->id && !ElementHelper::isDraftOrRevision($element)) {
@@ -386,6 +388,7 @@ class StaticCache extends \yii\base\Component
     private function fetchUrl(ElementInterface $element): ?string
     {
         if (
+            !$element instanceof Element ||
             ElementHelper::isDraftOrRevision($element) ||
             !$element::hasUris() ||
             !$element->uri ||
