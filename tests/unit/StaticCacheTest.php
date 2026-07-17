@@ -31,6 +31,7 @@ class StaticCacheTest extends Unit
     private ?string $environmentId = null;
     private ?Module $previousModule = null;
     private ?RequestInterface $gatewayRequest = null;
+    private ?\Throwable $gatewayException = null;
 
     protected function _before(): void
     {
@@ -49,6 +50,10 @@ class StaticCacheTest extends Unit
         $module->getConfig()->signingKey = 'test-signing-key';
         $module->set('requestSigner', new class(function(RequestInterface $request) {
             $this->gatewayRequest = $request;
+
+            if ($this->gatewayException) {
+                throw $this->gatewayException;
+            }
         }) extends RequestSigner {
             public function __construct(private readonly \Closure $capture)
             {
@@ -223,6 +228,26 @@ class StaticCacheTest extends Unit
 
         $this->assertFalse(
             Craft::$app->getResponse()->getHeaders()->has(HeaderEnum::CACHE_PURGE_TAG->value),
+        );
+    }
+
+    public function testFailedFetchRequestFallsBackToPurgeHeader(): void
+    {
+        $staticCache = new StaticCache();
+        $element = new FetchableElement(['uri' => 'news']);
+        $element->fetchUrl = 'https://example.com/news';
+        $this->gatewayException = new \RuntimeException();
+
+        $this->purgeElementUri($staticCache, $element);
+
+        try {
+            $this->sendPendingPurgeTags($staticCache);
+        } catch (\RuntimeException) {
+        }
+
+        $this->assertSame(
+            '123-environment-id:/news',
+            Craft::$app->getResponse()->getHeaders()->get(HeaderEnum::CACHE_PURGE_TAG->value),
         );
     }
 

@@ -327,9 +327,20 @@ class StaticCache extends \yii\base\Component
                 ->all();
         }
 
-        Helper::createGatewayApiClient()->request('POST', 'cache/purge', [
-            RequestOptions::JSON => $payload,
-        ]);
+        try {
+            Helper::createGatewayApiClient()->request('POST', 'cache/purge', [
+                RequestOptions::JSON => $payload,
+            ]);
+        } catch (\Throwable $e) {
+            if ($isWebResponse) {
+                $this->setCacheTagHeader(
+                    HeaderEnum::CACHE_PURGE_TAG->value,
+                    $this->truncateCacheTagsForHeader($tags),
+                );
+            }
+
+            throw $e;
+        }
     }
 
     private function preparePurgeTags(
