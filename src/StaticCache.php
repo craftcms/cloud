@@ -114,7 +114,7 @@ class StaticCache extends \yii\base\Component
         Craft::$app->onAfterRequest(function() {
             if ($this->tagsToPurge->isNotEmpty()) {
                 try {
-                    $this->sendPurgeTags(
+                    $this->purgePreparedTags(
                         $this->tagsToPurge,
                         $this->fetchUrls,
                     );
@@ -203,17 +203,29 @@ class StaticCache extends \yii\base\Component
 
     public function purgeAll(): void
     {
-        $this->purgeGateway();
+        $this->purgeOrigin();
         $this->purgeCdn();
     }
 
-    public function purgeGateway(): void
+    public function purgeOrigin(): void
     {
         $tags = $this->preparePurgeTags(
             null,
             Module::getInstance()->getConfig()->environmentId,
         );
         $this->tagsToPurge->push(...$tags);
+    }
+
+    /**
+     * @deprecated in 3.5.0. Use [[purgeOrigin()]] instead.
+     */
+    public function purgeGateway(): void
+    {
+        Craft::$app->getDeprecator()->log(
+            __METHOD__,
+            '`purgeGateway()` has been deprecated. Use `purgeOrigin()` instead.',
+        );
+        $this->purgeOrigin();
     }
 
     public function purgeCdn(): void
@@ -274,10 +286,10 @@ class StaticCache extends \yii\base\Component
         }
 
         $tags = $this->preparePurgeTags(null, ...$tags);
-        $this->sendPurgeTags($tags);
+        $this->purgePreparedTags($tags);
     }
 
-    private function sendPurgeTags(Collection $tags, ?Collection $fetchUrls = null): void
+    private function purgePreparedTags(Collection $tags, ?Collection $fetchUrls = null): void
     {
         $response = Craft::$app->getResponse();
         $isWebResponse = $response instanceof \craft\web\Response;

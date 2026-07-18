@@ -419,7 +419,7 @@ class StaticCacheTest extends Unit
 
     private function sendPendingPurgeTags(StaticCache $staticCache): void
     {
-        $method = new ReflectionMethod($staticCache, 'sendPurgeTags');
+        $method = new ReflectionMethod($staticCache, 'purgePreparedTags');
         $method->setAccessible(true);
         $method->invoke(
             $staticCache,
