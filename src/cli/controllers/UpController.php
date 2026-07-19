@@ -28,7 +28,7 @@ class UpController extends Controller
 
         if (Craft::$app->getIsInstalled()) {
             $this->mustRun('/up');
-            Module::getInstance()->getStaticCache()->purgeGateway();
+            Module::getInstance()->getStaticCache()->purgeOrigin();
         }
 
         $event = new CancelableEvent();

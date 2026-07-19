@@ -55,7 +55,7 @@ class Module extends \yii\base\Module implements \yii\base\BootstrapInterface
      */
     private const MAX_EXECUTION_SECONDS_CLI = 900 - 10;
 
-    private Config $_config;
+    private Config $config;
 
     public static function log(int $level, string $message, array $context = []): void
     {
@@ -227,8 +227,8 @@ class Module extends \yii\base\Module implements \yii\base\BootstrapInterface
 
     public function getConfig(): Config
     {
-        if (isset($this->_config)) {
-            return $this->_config;
+        if (isset($this->config)) {
+            return $this->config;
         }
 
         $fileConfig = Craft::$app->getConfig()->getConfigFromFile($this->id);
@@ -238,9 +238,9 @@ class Module extends \yii\base\Module implements \yii\base\BootstrapInterface
             ? Craft::createObject(['class' => Config::class] + $fileConfig)
             : $fileConfig;
 
-        $this->_config = Craft::configure($config, App::envConfig(Config::class, 'CRAFT_CLOUD_'));
+        $this->config = Craft::configure($config, App::envConfig(Config::class, 'CRAFT_CLOUD_'));
 
-        return $this->_config;
+        return $this->config;
     }
 
     protected function bootstrapCloud(ConsoleApplication|WebApplication $app): void

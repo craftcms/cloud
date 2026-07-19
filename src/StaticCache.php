@@ -4,6 +4,7 @@ namespace craft\cloud;
 
 use Craft;
 use craft\base\ElementInterface;
+use craft\cloud\events\PurgeEvent;
 use craft\events\ElementEvent;
 use craft\events\InvalidateElementCachesEvent;
 use craft\events\RegisterCacheOptionsEvent;
@@ -40,6 +41,11 @@ class StaticCache extends \yii\base\Component
     public const CDN_PREFIX = 'cdn:';
 
     /**
+     * @event PurgeEvent The event that is triggered before static cache tags are purged.
+     */
+    public const EVENT_BEFORE_PURGE = 'beforePurge';
+
+    /**
      * Cloudflare's documented Cache-Tag limits.
      *
      * @see https://developers.cloudflare.com/workers/cache/configuration/
@@ -50,12 +56,14 @@ class StaticCache extends \yii\base\Component
     private ?int $cacheDuration = null;
     private Collection $tags;
     private Collection $tagsToPurge;
+    private Collection $fetchUrls;
     private bool $collectingCacheInfo = false;
 
     public function init(): void
     {
         $this->tags = Collection::make();
         $this->tagsToPurge = Collection::make();
+        $this->fetchUrls = Collection::make();
     }
 
     public function registerEventHandlers(): void
@@ -105,10 +113,14 @@ class StaticCache extends \yii\base\Component
         Craft::$app->onAfterRequest(function() {
             if ($this->tagsToPurge->isNotEmpty()) {
                 try {
-                    $this->purgeTags(...$this->tagsToPurge);
+                    $this->sendTagPurgeRequest(
+                        $this->tagsToPurge,
+                        $this->fetchUrls,
+                    );
                 } catch (\Throwable $e) {
-                    // TODO: log exception once output payload isn't a concern
-                    Module::error('Failed to purge tags after request');
+                    Module::error('Failed to purge tags after request', [
+                        'exceptionMessage' => $e->getMessage(),
+                    ]);
                 }
             }
         });
@@ -158,14 +170,23 @@ class StaticCache extends \yii\base\Component
     {
         $tags = Collection::make($event->tags)->map(fn(string $tag) => StaticCacheTag::create($tag)->minify(true));
 
-        $skip = $tags->contains(function(StaticCacheTag $tag) {
-            return preg_match('/element::craft\\\\elements\\\\\S+::(drafts|revisions)/', $tag->originalValue);
-        });
+        // InvalidateElementCachesEvent::$element was added in Craft 4.10/5.2:
+        // https://github.com/craftcms/cms/pull/14950
+        if (property_exists($event, 'element')) {
+            $element = $event->element;
+            $skip = $element && ElementHelper::isDraftOrRevision($element);
+        } else {
+            $element = null;
+            $skip = $tags->contains(function(StaticCacheTag $tag) {
+                return preg_match('/element::craft\\\\elements\\\\\S+::(drafts|revisions)/', $tag->originalValue);
+            });
+        }
 
         if ($skip) {
             return;
         }
 
+        $tags = $this->beforePurge($element, ...$tags);
         $this->tagsToPurge->push(...$tags);
     }
 
@@ -180,7 +201,15 @@ class StaticCache extends \yii\base\Component
 
     private function handleSaveElement(ElementEvent $event): void
     {
-        $this->purgeElementUri($event->element);
+        if (!$this->purgeElementUri($event->element)) {
+            return;
+        }
+
+        $url = $event->element->getUrl();
+
+        if ($url !== null) {
+            $this->fetchUrls->push($url);
+        }
     }
 
     private function handleDeleteElement(ElementEvent $event): void
@@ -190,26 +219,46 @@ class StaticCache extends \yii\base\Component
 
     public function purgeAll(): void
     {
-        $this->purgeGateway();
+        $this->purgeOrigin();
         $this->purgeCdn();
     }
 
+    public function purgeOrigin(): void
+    {
+        $tags = $this->beforePurge(
+            null,
+            Module::getInstance()->getConfig()->environmentId,
+        );
+        $this->tagsToPurge->push(...$tags);
+    }
+
+    /**
+     * @deprecated in 3.5.0. Use [[purgeOrigin()]] instead.
+     */
     public function purgeGateway(): void
     {
-        $this->tagsToPurge->push(Module::getInstance()->getConfig()->environmentId);
+        Craft::$app->getDeprecator()->log(
+            __METHOD__,
+            '`purgeGateway()` has been deprecated. Use `purgeOrigin()` instead.',
+        );
+        $this->purgeOrigin();
     }
 
     public function purgeCdn(): void
     {
-        $this->tagsToPurge->push(self::CDN_PREFIX . Module::getInstance()->getConfig()->environmentId);
+        $tags = $this->beforePurge(
+            null,
+            self::CDN_PREFIX . Module::getInstance()->getConfig()->environmentId,
+        );
+        $this->tagsToPurge->push(...$tags);
     }
 
-    private function purgeElementUri(ElementInterface $element): void
+    private function purgeElementUri(ElementInterface $element): bool
     {
         $uri = $element->uri ?? null;
 
         if (ElementHelper::isDraftOrRevision($element) || !$uri) {
-            return;
+            return false;
         }
 
         $uri = $element->getIsHomepage()
@@ -217,7 +266,10 @@ class StaticCache extends \yii\base\Component
             : Path::new($uri)->withLeadingSlash()->withoutTrailingSlash();
 
         $environmentId = Module::getInstance()->getConfig()->environmentId;
-        $this->tagsToPurge->prepend("$environmentId:$uri");
+        $tags = $this->beforePurge($element, "$environmentId:$uri");
+        $this->tagsToPurge = $tags->concat($this->tagsToPurge);
+
+        return $tags->isNotEmpty();
     }
 
     private function addCacheHeadersToWebResponse(): void
@@ -245,12 +297,27 @@ class StaticCache extends \yii\base\Component
     {
         $tags = Collection::make($tags);
         $response = Craft::$app->getResponse();
+
+        if ($response instanceof \craft\web\Response) {
+            $tags->push(...$this->parseCacheTagsFromHeader(HeaderEnum::CACHE_PURGE_TAG->value));
+            $response->getHeaders()->remove(HeaderEnum::CACHE_PURGE_TAG->value);
+        }
+
+        $tags = $this->beforePurge(null, ...$tags);
+        $this->sendTagPurgeRequest($tags);
+    }
+
+    private function sendTagPurgeRequest(Collection $tags, ?Collection $fetchUrls = null): void
+    {
+        $response = Craft::$app->getResponse();
         $isWebResponse = $response instanceof \craft\web\Response;
+        $sendApiRequest = !$isWebResponse || $fetchUrls?->isNotEmpty();
 
         // Add any existing tags from the response headers
         if ($isWebResponse) {
-            $tags->push(...$this->parseCacheTagsFromHeader(HeaderEnum::CACHE_PURGE_TAG->value));
+            $headerTags = $this->parseCacheTagsFromHeader(HeaderEnum::CACHE_PURGE_TAG->value);
             $response->getHeaders()->remove(HeaderEnum::CACHE_PURGE_TAG->value);
+            $tags->push(...$this->beforePurge(null, ...$headerTags));
         }
 
         $tags = $this->normalizeCacheTags(...$tags);
@@ -259,7 +326,7 @@ class StaticCache extends \yii\base\Component
             return;
         }
 
-        if ($isWebResponse) {
+        if (!$sendApiRequest) {
             $tags = $this->truncateCacheTagsForHeader($tags);
 
             Module::info('Purging tags', [
@@ -276,14 +343,59 @@ class StaticCache extends \yii\base\Component
 
         Module::info('Purging tags', [
             'tags' => $tags,
+            'fetchUrls' => $fetchUrls,
         ]);
 
-        Helper::createGatewayApiClient()->request('POST', 'cache/purge', [
-            // Mapping to string because: https://github.com/laravel/framework/pull/54630
-            RequestOptions::JSON => [
-                'tags' => $tags->map(fn(StaticCacheTag $tag) => (string) $tag)->values()->all(),
-            ],
+        $payload = [
+            'tags' => $tags->map(fn(StaticCacheTag $tag) => (string) $tag)->values()->all(),
+        ];
+
+        if ($fetchUrls?->isNotEmpty()) {
+            $payload['fetchUrls'] = $fetchUrls
+                ->unique()
+                ->values()
+                ->all();
+        }
+
+        try {
+            Helper::createGatewayApiClient()->request('POST', 'cache/purge', [
+                RequestOptions::JSON => $payload,
+                RequestOptions::TIMEOUT => 3,
+            ]);
+        } catch (\Throwable $e) {
+            if ($isWebResponse) {
+                $this->setCacheTagHeader(
+                    HeaderEnum::CACHE_PURGE_TAG->value,
+                    $this->truncateCacheTagsForHeader($tags),
+                );
+            }
+
+            throw $e;
+        }
+    }
+
+    private function beforePurge(
+        ?ElementInterface $element,
+        string|StaticCacheTag ...$tags,
+    ): Collection {
+        $tags = $this->normalizeCacheTags(...$tags);
+
+        if ($tags->isEmpty()) {
+            return $tags;
+        }
+
+        $event = new PurgeEvent([
+            'tags' => $tags->values()->all(),
+            'element' => $element,
         ]);
+
+        $this->trigger(self::EVENT_BEFORE_PURGE, $event);
+
+        if (!$event->isValid) {
+            return Collection::make();
+        }
+
+        return Collection::make($event->tags);
     }
 
     public function purgeUrlPrefixes(string ...$urlPrefixes): void

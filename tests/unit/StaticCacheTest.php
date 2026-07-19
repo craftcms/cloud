@@ -4,12 +4,21 @@ namespace craft\cloud\tests\unit;
 
 use Codeception\Test\Unit;
 use Craft;
+use craft\cloud\events\PurgeEvent;
 use craft\cloud\HeaderEnum;
 use craft\cloud\Module;
+use craft\cloud\signing\RequestSigner;
 use craft\cloud\StaticCache;
 use craft\cloud\StaticCacheTag;
+use craft\elements\Entry;
+use craft\events\ElementEvent;
+use craft\events\InvalidateElementCachesEvent;
 use craft\helpers\StringHelper;
+use GuzzleHttp\HandlerStack;
+use GuzzleHttp\Promise\Create;
+use GuzzleHttp\Psr7\Response;
 use Illuminate\Support\Collection;
+use Psr\Http\Message\RequestInterface;
 use ReflectionMethod;
 use ReflectionProperty;
 
@@ -23,20 +32,45 @@ class StaticCacheTest extends Unit
     private ?string $requestMethod = null;
     private ?string $environmentId = null;
     private ?Module $previousModule = null;
+    private ?RequestInterface $gatewayRequest = null;
+    private ?\Throwable $gatewayException = null;
 
     protected function _before(): void
     {
         parent::_before();
 
         $this->previousModule = Module::getInstance();
-        Module::setInstance(new Module('cloud'));
+        $module = new Module('cloud');
+        Module::setInstance($module);
 
         Craft::$app->getRequest()->setIsCpRequest(false);
         Craft::$app->getResponse()->clear();
         Craft::$app->getResponse()->setStatusCode(200);
 
-        $this->environmentId = Module::getInstance()->getConfig()->environmentId;
-        Module::getInstance()->getConfig()->environmentId = '123-environment-id';
+        $this->environmentId = $module->getConfig()->environmentId;
+        $module->getConfig()->environmentId = '123-environment-id';
+        $module->getConfig()->signingKey = 'test-signing-key';
+        $module->set('requestSigner', new class(function(RequestInterface $request) {
+            $this->gatewayRequest = $request;
+
+            if ($this->gatewayException) {
+                throw $this->gatewayException;
+            }
+        }) extends RequestSigner {
+            public function __construct(private readonly \Closure $capture)
+            {
+                parent::__construct('test-signing-key');
+            }
+
+            public function createHandlerStack(?HandlerStack $handlerStack = null): HandlerStack
+            {
+                return new HandlerStack(function(RequestInterface $request) {
+                    ($this->capture)($request);
+
+                    return Create::promiseFor(new Response(204));
+                });
+            }
+        });
 
         $this->requestMethod = $_SERVER['REQUEST_METHOD'] ?? null;
         $_SERVER['REQUEST_METHOD'] = 'GET';
@@ -184,6 +218,167 @@ class StaticCacheTest extends Unit
         );
     }
 
+    public function testBeforePurgeEventCanCancelPurge(): void
+    {
+        $staticCache = new StaticCache();
+        $staticCache->on(StaticCache::EVENT_BEFORE_PURGE, function(PurgeEvent $event) {
+            $this->assertContainsOnlyInstancesOf(StaticCacheTag::class, $event->tags);
+            $event->isValid = false;
+        });
+
+        $staticCache->purgeTags('first');
+
+        $this->assertFalse(
+            Craft::$app->getResponse()->getHeaders()->has(HeaderEnum::CACHE_PURGE_TAG->value),
+        );
+    }
+
+    public function testDraftCacheInvalidationDoesNotPurge(): void
+    {
+        $staticCache = new StaticCache();
+        $method = new ReflectionMethod($staticCache, 'handleInvalidateElementCaches');
+        $method->setAccessible(true);
+        $eventConfig = property_exists(InvalidateElementCachesEvent::class, 'element')
+            ? [
+                'element' => new Entry(['draftId' => 1]),
+                'tags' => ['element::craft\\elements\\Entry::1'],
+            ]
+            : [
+                'tags' => ['element::craft\\elements\\Entry::drafts'],
+            ];
+        $method->invoke($staticCache, new InvalidateElementCachesEvent($eventConfig));
+
+        $this->assertTrue($this->collectionProperty($staticCache, 'tagsToPurge')->isEmpty());
+    }
+
+    public function testFailedFetchRequestFallsBackToPurgeHeader(): void
+    {
+        $staticCache = new StaticCache();
+        $element = new FetchableElement(['uri' => 'news']);
+        $element->fetchUrl = 'https://example.com/news';
+        $this->gatewayException = new \RuntimeException();
+
+        $this->saveElement($staticCache, $element);
+
+        try {
+            $this->sendPendingPurgeTags($staticCache);
+        } catch (\RuntimeException) {
+        }
+
+        $this->assertSame(
+            '123-environment-id:/news',
+            Craft::$app->getResponse()->getHeaders()->get(HeaderEnum::CACHE_PURGE_TAG->value),
+        );
+    }
+
+    public function testBeforePurgeEventCanCancelExistingHeaderTags(): void
+    {
+        $staticCache = new StaticCache();
+        Craft::$app->getResponse()->getHeaders()->set(HeaderEnum::CACHE_PURGE_TAG->value, 'first');
+        $staticCache->on(StaticCache::EVENT_BEFORE_PURGE, function(PurgeEvent $event) {
+            $event->isValid = false;
+        });
+
+        $staticCache->purgeTags();
+
+        $this->assertFalse(
+            Craft::$app->getResponse()->getHeaders()->has(HeaderEnum::CACHE_PURGE_TAG->value),
+        );
+    }
+
+    public function testBeforePurgeEventCanReplaceTags(): void
+    {
+        $staticCache = new StaticCache();
+        $staticCache->on(StaticCache::EVENT_BEFORE_PURGE, function(PurgeEvent $event) {
+            $event->tags = [StaticCacheTag::create('second')];
+        });
+
+        $staticCache->purgeTags('first');
+
+        $this->assertSame(
+            'second',
+            Craft::$app->getResponse()->getHeaders()->get(HeaderEnum::CACHE_PURGE_TAG->value),
+        );
+    }
+
+    public function testBeforePurgeEventReceivesElement(): void
+    {
+        $staticCache = new StaticCache();
+        $element = new Entry(['uri' => 'news']);
+        $purgeEvent = null;
+        $staticCache->on(StaticCache::EVENT_BEFORE_PURGE, function(PurgeEvent $event) use (&$purgeEvent) {
+            $purgeEvent = $event;
+        });
+
+        $this->saveElement($staticCache, $element);
+
+        $this->assertSame($element, $purgeEvent->element);
+        $this->assertSame('123-environment-id:/news', $purgeEvent->tags[0]->getValue());
+    }
+
+    public function testCancelledElementPurgeDoesNotQueueFetch(): void
+    {
+        $staticCache = new StaticCache();
+        $element = new FetchableElement(['uri' => 'news']);
+        $element->fetchUrl = 'https://example.com/news';
+        $staticCache->on(StaticCache::EVENT_BEFORE_PURGE, function(PurgeEvent $event) {
+            $event->isValid = false;
+        });
+
+        $this->saveElement($staticCache, $element);
+
+        $this->assertTrue($this->collectionProperty($staticCache, 'tagsToPurge')->isEmpty());
+        $this->assertTrue($this->collectionProperty($staticCache, 'fetchUrls')->isEmpty());
+    }
+
+    public function testDeletedElementPurgeDoesNotQueueFetch(): void
+    {
+        $staticCache = new StaticCache();
+        $element = new FetchableElement(['uri' => 'news']);
+        $element->fetchUrl = 'https://example.com/news';
+
+        $this->deleteElement($staticCache, $element);
+
+        $this->assertTrue($this->collectionProperty($staticCache, 'tagsToPurge')->isNotEmpty());
+        $this->assertTrue($this->collectionProperty($staticCache, 'fetchUrls')->isEmpty());
+    }
+
+    public function testSavedElementPurgeRequestIncludesFetchUrls(): void
+    {
+        $staticCache = new StaticCache();
+        Craft::$app->getResponse()->getHeaders()->set(HeaderEnum::CACHE_PURGE_TAG->value, 'cancelled');
+        $staticCache->on(StaticCache::EVENT_BEFORE_PURGE, function(PurgeEvent $event) {
+            $event->isValid = $event->element !== null;
+        });
+        $englishElement = new FetchableElement(['uri' => 'news']);
+        $englishElement->fetchUrl = 'https://example.com/news';
+        $frenchElement = clone $englishElement;
+        $frenchElement->fetchUrl = 'https://example.com/fr/nouvelles';
+        $urlLessElement = clone $englishElement;
+        $urlLessElement->fetchUrl = null;
+
+        $this->saveElement($staticCache, $englishElement);
+        $this->saveElement($staticCache, $englishElement);
+        $this->saveElement($staticCache, $frenchElement);
+        $this->saveElement($staticCache, $urlLessElement);
+        $this->sendPendingPurgeTags($staticCache);
+
+        $payload = json_decode(
+            (string) $this->gatewayRequest?->getBody(),
+            true,
+            flags: JSON_THROW_ON_ERROR,
+        );
+
+        $this->assertSame(['123-environment-id:/news'], $payload['tags']);
+        $this->assertSame([
+            'https://example.com/news',
+            'https://example.com/fr/nouvelles',
+        ], $payload['fetchUrls']);
+        $this->assertFalse(
+            Craft::$app->getResponse()->getHeaders()->has(HeaderEnum::CACHE_PURGE_TAG->value),
+        );
+    }
+
     public function testExistingCacheTagHeaderIsSplit(): void
     {
         $staticCache = new StaticCache();
@@ -235,10 +430,53 @@ class StaticCacheTest extends Unit
         $method->invoke($staticCache);
     }
 
+    private function saveElement(StaticCache $staticCache, Entry $element): void
+    {
+        $method = new ReflectionMethod($staticCache, 'handleSaveElement');
+        $method->setAccessible(true);
+        $method->invoke($staticCache, new ElementEvent(['element' => $element]));
+    }
+
+    private function deleteElement(StaticCache $staticCache, Entry $element): void
+    {
+        $method = new ReflectionMethod($staticCache, 'handleDeleteElement');
+        $method->setAccessible(true);
+        $method->invoke($staticCache, new ElementEvent(['element' => $element]));
+    }
+
+    private function sendPendingPurgeTags(StaticCache $staticCache): void
+    {
+        $method = new ReflectionMethod($staticCache, 'sendTagPurgeRequest');
+        $method->setAccessible(true);
+        $method->invoke(
+            $staticCache,
+            $this->collectionProperty($staticCache, 'tagsToPurge'),
+            $this->collectionProperty($staticCache, 'fetchUrls'),
+        );
+    }
+
+    private function collectionProperty(StaticCache $staticCache, string $name): Collection
+    {
+        $property = new ReflectionProperty($staticCache, $name);
+        $property->setAccessible(true);
+
+        return $property->getValue($staticCache);
+    }
+
     private function setTags(StaticCache $staticCache, Collection $tags): void
     {
         $property = new ReflectionProperty($staticCache, 'tags');
         $property->setAccessible(true);
         $property->setValue($staticCache, $tags);
+    }
+}
+
+class FetchableElement extends Entry
+{
+    public ?string $fetchUrl = null;
+
+    public function getUrl(): ?string
+    {
+        return $this->fetchUrl;
     }
 }
