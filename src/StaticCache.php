@@ -168,12 +168,25 @@ class StaticCache extends \yii\base\Component
 
     private function handleInvalidateElementCaches(InvalidateElementCachesEvent $event): void
     {
-        if ($event->element && ElementHelper::isDraftOrRevision($event->element)) {
+        $tags = Collection::make($event->tags)->map(fn(string $tag) => StaticCacheTag::create($tag)->minify(true));
+
+        // InvalidateElementCachesEvent::$element was added in Craft 4.10/5.2:
+        // https://github.com/craftcms/cms/pull/14950
+        if (property_exists($event, 'element')) {
+            $element = $event->element;
+            $skip = $element && ElementHelper::isDraftOrRevision($element);
+        } else {
+            $element = null;
+            $skip = $tags->contains(function(StaticCacheTag $tag) {
+                return preg_match('/element::craft\\\\elements\\\\\S+::(drafts|revisions)/', $tag->originalValue);
+            });
+        }
+
+        if ($skip) {
             return;
         }
 
-        $tags = Collection::make($event->tags)->map(fn(string $tag) => StaticCacheTag::create($tag)->minify(true));
-        $tags = $this->beforePurge($event->element, ...$tags);
+        $tags = $this->beforePurge($element, ...$tags);
         $this->tagsToPurge->push(...$tags);
     }
 
