@@ -238,10 +238,15 @@ class StaticCacheTest extends Unit
         $staticCache = new StaticCache();
         $method = new ReflectionMethod($staticCache, 'handleInvalidateElementCaches');
         $method->setAccessible(true);
-        $method->invoke($staticCache, new InvalidateElementCachesEvent([
-            'element' => new Entry(['draftId' => 1]),
-            'tags' => ['element::craft\\elements\\Entry::1'],
-        ]));
+        $eventConfig = property_exists(InvalidateElementCachesEvent::class, 'element')
+            ? [
+                'element' => new Entry(['draftId' => 1]),
+                'tags' => ['element::craft\\elements\\Entry::1'],
+            ]
+            : [
+                'tags' => ['element::craft\\elements\\Entry::drafts'],
+            ];
+        $method->invoke($staticCache, new InvalidateElementCachesEvent($eventConfig));
 
         $this->assertTrue($this->collectionProperty($staticCache, 'tagsToPurge')->isEmpty());
     }
