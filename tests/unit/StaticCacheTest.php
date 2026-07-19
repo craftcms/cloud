@@ -12,6 +12,7 @@ use craft\cloud\StaticCache;
 use craft\cloud\StaticCacheTag;
 use craft\elements\Entry;
 use craft\events\ElementEvent;
+use craft\events\InvalidateElementCachesEvent;
 use craft\helpers\StringHelper;
 use GuzzleHttp\HandlerStack;
 use GuzzleHttp\Promise\Create;
@@ -230,6 +231,19 @@ class StaticCacheTest extends Unit
         $this->assertFalse(
             Craft::$app->getResponse()->getHeaders()->has(HeaderEnum::CACHE_PURGE_TAG->value),
         );
+    }
+
+    public function testDraftCacheInvalidationDoesNotPurge(): void
+    {
+        $staticCache = new StaticCache();
+        $method = new ReflectionMethod($staticCache, 'handleInvalidateElementCaches');
+        $method->setAccessible(true);
+        $method->invoke($staticCache, new InvalidateElementCachesEvent([
+            'element' => new Entry(['draftId' => 1]),
+            'tags' => ['element::craft\\elements\\Entry::1'],
+        ]));
+
+        $this->assertTrue($this->collectionProperty($staticCache, 'tagsToPurge')->isEmpty());
     }
 
     public function testFailedFetchRequestFallsBackToPurgeHeader(): void

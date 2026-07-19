@@ -168,17 +168,12 @@ class StaticCache extends \yii\base\Component
 
     private function handleInvalidateElementCaches(InvalidateElementCachesEvent $event): void
     {
-        $tags = Collection::make($event->tags)->map(fn(string $tag) => StaticCacheTag::create($tag)->minify(true));
-
-        $skip = $tags->contains(function(StaticCacheTag $tag) {
-            return preg_match('/element::craft\\\\elements\\\\\S+::(drafts|revisions)/', $tag->originalValue);
-        });
-
-        if ($skip) {
+        if ($event->element && ElementHelper::isDraftOrRevision($event->element)) {
             return;
         }
 
-        $tags = $this->beforePurge($event->element ?? null, ...$tags);
+        $tags = Collection::make($event->tags)->map(fn(string $tag) => StaticCacheTag::create($tag)->minify(true));
+        $tags = $this->beforePurge($event->element, ...$tags);
         $this->tagsToPurge->push(...$tags);
     }
 

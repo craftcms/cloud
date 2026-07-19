@@ -5,7 +5,7 @@
     "ext-curl": "*",
     "bref/bref": "^3",
     "bref/extra-php-extensions": "^3",
-    "craftcms/cms": "^4.6 || ^5",
+    "craftcms/cms": "^4.10 || ^5.2",
     "craftcms/flysystem": "^1.0.0 || ^2.0.0",
     "craftcms/http-message-signatures": "^1.0",
     "guzzlehttp/guzzle": "^7.4.5",
