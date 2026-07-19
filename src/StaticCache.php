@@ -5,6 +5,7 @@ namespace craft\cloud;
 use Craft;
 use craft\base\ElementInterface;
 use craft\cloud\events\PurgeEvent;
+use craft\cloud\queue\PurgeStaticCacheJob;
 use craft\events\ElementEvent;
 use craft\events\InvalidateElementCachesEvent;
 use craft\events\RegisterCacheOptionsEvent;
@@ -341,27 +342,20 @@ class StaticCache extends \yii\base\Component
             return;
         }
 
-        Module::info('Purging tags', [
-            'tags' => $tags,
-            'fetchUrls' => $fetchUrls,
+        $job = new PurgeStaticCacheJob([
+            'tags' => $tags->map(fn(StaticCacheTag $tag) => (string) $tag)->values()->all(),
+            'fetchUrls' => $fetchUrls
+                ?->unique()
+                ->values()
+                ->all() ?? [],
         ]);
 
-        $payload = [
-            'tags' => $tags->map(fn(StaticCacheTag $tag) => (string) $tag)->values()->all(),
-        ];
-
-        if ($fetchUrls?->isNotEmpty()) {
-            $payload['fetchUrls'] = $fetchUrls
-                ->unique()
-                ->values()
-                ->all();
-        }
-
         try {
-            Helper::createGatewayApiClient()->request('POST', 'cache/purge', [
-                RequestOptions::JSON => $payload,
-                RequestOptions::TIMEOUT => 3,
-            ]);
+            if ($isWebResponse) {
+                Craft::$app->getQueue()->push($job);
+            } else {
+                $job->execute(Craft::$app->getQueue());
+            }
         } catch (\Throwable $e) {
             if ($isWebResponse) {
                 $this->setCacheTagHeader(
