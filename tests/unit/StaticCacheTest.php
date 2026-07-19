@@ -11,6 +11,7 @@ use craft\cloud\signing\RequestSigner;
 use craft\cloud\StaticCache;
 use craft\cloud\StaticCacheTag;
 use craft\elements\Entry;
+use craft\events\ElementEvent;
 use craft\helpers\StringHelper;
 use GuzzleHttp\HandlerStack;
 use GuzzleHttp\Promise\Create;
@@ -238,7 +239,7 @@ class StaticCacheTest extends Unit
         $element->fetchUrl = 'https://example.com/news';
         $this->gatewayException = new \RuntimeException();
 
-        $this->purgeElementUri($staticCache, $element);
+        $this->saveElement($staticCache, $element);
 
         try {
             $this->sendPendingPurgeTags($staticCache);
@@ -290,7 +291,7 @@ class StaticCacheTest extends Unit
             $purgeEvent = $event;
         });
 
-        $this->purgeElementUri($staticCache, $element);
+        $this->saveElement($staticCache, $element);
 
         $this->assertSame($element, $purgeEvent->element);
         $this->assertSame('123-environment-id:/news', $purgeEvent->tags[0]->getValue());
@@ -305,13 +306,25 @@ class StaticCacheTest extends Unit
             $event->isValid = false;
         });
 
-        $this->purgeElementUri($staticCache, $element);
+        $this->saveElement($staticCache, $element);
 
         $this->assertTrue($this->collectionProperty($staticCache, 'tagsToPurge')->isEmpty());
         $this->assertTrue($this->collectionProperty($staticCache, 'fetchUrls')->isEmpty());
     }
 
-    public function testElementPurgeRequestIncludesPublicFetchUrls(): void
+    public function testDeletedElementPurgeDoesNotQueueFetch(): void
+    {
+        $staticCache = new StaticCache();
+        $element = new FetchableElement(['uri' => 'news']);
+        $element->fetchUrl = 'https://example.com/news';
+
+        $this->deleteElement($staticCache, $element);
+
+        $this->assertTrue($this->collectionProperty($staticCache, 'tagsToPurge')->isNotEmpty());
+        $this->assertTrue($this->collectionProperty($staticCache, 'fetchUrls')->isEmpty());
+    }
+
+    public function testSavedElementPurgeRequestIncludesFetchUrls(): void
     {
         $staticCache = new StaticCache();
         Craft::$app->getResponse()->getHeaders()->set(HeaderEnum::CACHE_PURGE_TAG->value, 'cancelled');
@@ -322,25 +335,13 @@ class StaticCacheTest extends Unit
         $englishElement->fetchUrl = 'https://example.com/news';
         $frenchElement = clone $englishElement;
         $frenchElement->fetchUrl = 'https://example.com/fr/nouvelles';
-        $relativeElement = clone $englishElement;
-        $relativeElement->fetchUrl = '/news';
-        $privateElement = clone $englishElement;
-        $privateElement->isPublic = false;
-        $disabledElement = clone $englishElement;
-        $disabledElement->enabled = false;
-        $trashedElement = clone $englishElement;
-        $trashedElement->trashed = true;
-        $deletedElement = clone $englishElement;
-        $deletedElement->dateDeleted = new \DateTime();
+        $urlLessElement = clone $englishElement;
+        $urlLessElement->fetchUrl = null;
 
-        $this->purgeElementUri($staticCache, $englishElement);
-        $this->purgeElementUri($staticCache, $englishElement);
-        $this->purgeElementUri($staticCache, $frenchElement);
-        $this->purgeElementUri($staticCache, $relativeElement);
-        $this->purgeElementUri($staticCache, $privateElement);
-        $this->purgeElementUri($staticCache, $disabledElement);
-        $this->purgeElementUri($staticCache, $trashedElement);
-        $this->purgeElementUri($staticCache, $deletedElement);
+        $this->saveElement($staticCache, $englishElement);
+        $this->saveElement($staticCache, $englishElement);
+        $this->saveElement($staticCache, $frenchElement);
+        $this->saveElement($staticCache, $urlLessElement);
         $this->sendPendingPurgeTags($staticCache);
 
         $payload = json_decode(
@@ -410,16 +411,23 @@ class StaticCacheTest extends Unit
         $method->invoke($staticCache);
     }
 
-    private function purgeElementUri(StaticCache $staticCache, Entry $element): void
+    private function saveElement(StaticCache $staticCache, Entry $element): void
     {
-        $method = new ReflectionMethod($staticCache, 'purgeElementUri');
+        $method = new ReflectionMethod($staticCache, 'handleSaveElement');
         $method->setAccessible(true);
-        $method->invoke($staticCache, $element);
+        $method->invoke($staticCache, new ElementEvent(['element' => $element]));
+    }
+
+    private function deleteElement(StaticCache $staticCache, Entry $element): void
+    {
+        $method = new ReflectionMethod($staticCache, 'handleDeleteElement');
+        $method->setAccessible(true);
+        $method->invoke($staticCache, new ElementEvent(['element' => $element]));
     }
 
     private function sendPendingPurgeTags(StaticCache $staticCache): void
     {
-        $method = new ReflectionMethod($staticCache, 'purgePreparedTags');
+        $method = new ReflectionMethod($staticCache, 'sendTagPurgeRequest');
         $method->setAccessible(true);
         $method->invoke(
             $staticCache,
@@ -447,15 +455,9 @@ class StaticCacheTest extends Unit
 class FetchableElement extends Entry
 {
     public ?string $fetchUrl = null;
-    public bool $isPublic = true;
 
     public function getUrl(): ?string
     {
         return $this->fetchUrl;
-    }
-
-    protected function route(): array|string|null
-    {
-        return $this->isPublic ? 'test/route' : null;
     }
 }

@@ -245,4 +245,4 @@ return [
 ];
 ```
 
-When an element purge proceeds, its deduplicated public site URLs are included in tag-based gateway API requests as the optional `fetchUrls` field. After a successful purge, the gateway asynchronously fetches those URLs to repopulate the cache. Drafts, revisions, deleted, disabled or unroutable elements, and non-HTTP(S) URLs are omitted. Canceling the purge also prevents those URLs from being fetched.
+When a saved element purge proceeds, its non-null site URL is included in tag-based gateway API requests as the optional `fetchUrls` field. URLs are deduplicated, and the gateway asynchronously fetches them after a successful purge to repopulate the cache. Drafts, revisions, deletions, and canceled purges do not enqueue URLs.
