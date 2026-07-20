@@ -248,6 +248,21 @@ class StaticCacheTest extends Unit
         );
     }
 
+    public function testOverlongAssetCdnPurgeUsesOverflowTags(): void
+    {
+        $staticCache = new StaticCache();
+        Module::getInstance()->set('staticCache', $staticCache);
+        $fs = new AssetsFs();
+        $method = new ReflectionMethod($fs, 'invalidateCdnPath');
+        $method->setAccessible(true);
+
+        $this->assertTrue($method->invoke($fs, str_repeat('x', 1024)));
+        $this->assertSame(
+            '123-environment-id:overflow,123-environment-id:cdn:overflow',
+            Craft::$app->getResponse()->getHeaders()->get(HeaderEnum::CACHE_PURGE_TAG->value),
+        );
+    }
+
     public function testBeforePurgeEventCanCancelPurge(): void
     {
         $staticCache = new StaticCache();
@@ -362,6 +377,24 @@ class StaticCacheTest extends Unit
                 ->map(fn(StaticCacheTag $tag) => $tag->getValue())
                 ->all(),
         );
+    }
+
+    public function testOverlongElementUriPurgeUsesOverflowTag(): void
+    {
+        $staticCache = new StaticCache();
+        $element = new FetchableElement(['uri' => str_repeat('x', 1024)]);
+        $element->fetchUrl = 'https://example.com/overlong';
+
+        $this->saveElement($staticCache, $element);
+        $this->sendPendingPurgeTags($staticCache);
+
+        $payload = json_decode(
+            (string) $this->gatewayRequest?->getBody(),
+            true,
+            flags: JSON_THROW_ON_ERROR,
+        );
+
+        $this->assertSame(['123-environment-id:uri:overflow'], $payload['tags']);
     }
 
     public function testCancelledElementPurgeDoesNotQueueFetch(): void

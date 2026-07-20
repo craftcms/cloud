@@ -31,16 +31,16 @@ use yii\caching\TagDependency;
  *   - `{environmentId}:{uri}` (legacy; non-homepage URI has a leading and no trailing slash)
  *   - `{environmentId}:uri`
  *   - `{environmentId}:uri:{uri}` (homepage URI is `/`, otherwise with a leading and no trailing slash)
- *   - `{environmentId}:uri:overflow`
+ *   - `{environmentId}:uri:overflow` (when the URI selector is too long)
  * - Added by the CDN:
  *   - `cdn:{environmentId}` (legacy)
  *   - `cdn:{environmentId}:{objectKey}` (legacy; object key has no leading slash)
  *   - `{environmentId}:cdn`
  *   - `{environmentId}:cdn:{objectKey}` (object key has no leading slash)
- *   - `{environmentId}:cdn:overflow`
+ *   - `{environmentId}:cdn:overflow` (when the object key selector is too long)
  * - Added by Craft:
  *   - `{environmentShortId}{hashed}`
- *   - `{environmentId}:overflow` (when the response has too many cache tags)
+ *   - `{environmentId}:overflow` (shared overflow and legacy CDN selector fallback)
  */
 class StaticCache extends \yii\base\Component
 {
@@ -57,7 +57,7 @@ class StaticCache extends \yii\base\Component
      * @see https://developers.cloudflare.com/workers/cache/configuration/
      */
     private const MAX_TAG_HEADER_VALUE_LENGTH = 16 * 1024;
-    private const MAX_TAG_VALUE_LENGTH = 1024;
+    public const MAX_TAG_VALUE_LENGTH = 1024;
     private const MAX_TAG_COUNT = 1000;
     private ?int $cacheDuration = null;
     private Collection $tags;
@@ -281,9 +281,16 @@ class StaticCache extends \yii\base\Component
         $environmentId = Module::getInstance()->getConfig()->environmentId;
         // Keep the legacy unnamespaced tag for non-homepage URIs during rollout.
         $tagValues = $isHomepage
-            ? ["$environmentId:uri:$uri"]
-            : ["$environmentId:$uri", "$environmentId:uri:$uri"];
-        $tags = $this->beforePurge($element, ...$tagValues);
+            ? [StaticCacheTag::create("$environmentId:uri:$uri")]
+            : [StaticCacheTag::create("$environmentId:$uri"), StaticCacheTag::create("$environmentId:uri:$uri")];
+        $overflowTag = StaticCacheTag::create("$environmentId:uri:overflow");
+        $tags = $this->beforePurge(
+            $element,
+            ...array_map(
+                fn(StaticCacheTag $tag) => strlen($tag->getValue()) > self::MAX_TAG_VALUE_LENGTH ? $overflowTag : $tag,
+                $tagValues,
+            ),
+        );
         $this->tagsToPurge = $tags->concat($this->tagsToPurge);
 
         return $tags->isNotEmpty();
