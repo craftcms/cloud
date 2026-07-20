@@ -30,7 +30,7 @@ use yii\caching\TagDependency;
  *   - `{environmentId}` (legacy)
  *   - `{environmentId}:{uri}` (legacy; homepage URI is empty, otherwise leading with no trailing slash)
  *   - `origin:{environmentId}`
- *   - `origin:{environmentId}:{uri}` (URI has a leading and no trailing slash)
+ *   - `origin:{environmentId}:{uri}` (homepage URI is `/`, otherwise leading with no trailing slash)
  * - Added by the CDN:
  *    - `cdn:{environmentId}`
  *    - `cdn:{environmentId}:{objectKey}` (object key has no leading slash)
