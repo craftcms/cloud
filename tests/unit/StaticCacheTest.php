@@ -5,6 +5,7 @@ namespace craft\cloud\tests\unit;
 use Codeception\Test\Unit;
 use Craft;
 use craft\cloud\events\PurgeEvent;
+use craft\cloud\fs\AssetsFs;
 use craft\cloud\HeaderEnum;
 use craft\cloud\Module;
 use craft\cloud\signing\RequestSigner;
@@ -225,10 +226,24 @@ class StaticCacheTest extends Unit
         $staticCache->purgeAll();
 
         $this->assertSame(
-            ['123-environment-id', 'origin:123-environment-id', 'cdn:123-environment-id'],
+            ['123-environment-id', '123-environment-id:uri', 'cdn:123-environment-id', '123-environment-id:cdn'],
             $this->collectionProperty($staticCache, 'tagsToPurge')
                 ->map(fn(StaticCacheTag $tag) => $tag->getValue())
                 ->all(),
+        );
+    }
+
+    public function testAssetCdnPurgeUsesLegacyAndEnvironmentFirstTags(): void
+    {
+        $staticCache = new StaticCache();
+        Module::getInstance()->set('staticCache', $staticCache);
+        $fs = new AssetsFs();
+        $method = new ReflectionMethod($fs, 'invalidateCdnPath');
+
+        $this->assertTrue($method->invoke($fs, 'image.jpg'));
+        $this->assertSame(
+            'cdn:123-environment-id:123-environment-id/assets/image.jpg,123-environment-id:cdn:123-environment-id/assets/image.jpg',
+            Craft::$app->getResponse()->getHeaders()->get(HeaderEnum::CACHE_PURGE_TAG->value),
         );
     }
 
@@ -280,7 +295,7 @@ class StaticCacheTest extends Unit
         }
 
         $this->assertSame(
-            '123-environment-id:/news,origin:123-environment-id:/news',
+            '123-environment-id:/news,123-environment-id:uri:/news',
             Craft::$app->getResponse()->getHeaders()->get(HeaderEnum::CACHE_PURGE_TAG->value),
         );
     }
@@ -328,12 +343,12 @@ class StaticCacheTest extends Unit
 
         $this->assertSame($element, $purgeEvent->element);
         $this->assertSame(
-            ['123-environment-id:/news', 'origin:123-environment-id:/news'],
+            ['123-environment-id:/news', '123-environment-id:uri:/news'],
             array_map(fn(StaticCacheTag $tag) => $tag->getValue(), $purgeEvent->tags),
         );
     }
 
-    public function testHomepagePurgeUsesOriginTag(): void
+    public function testHomepagePurgeUsesUriTag(): void
     {
         $staticCache = new StaticCache();
         $element = new Entry(['uri' => Entry::HOMEPAGE_URI]);
@@ -341,7 +356,7 @@ class StaticCacheTest extends Unit
         $this->saveElement($staticCache, $element);
 
         $this->assertSame(
-            ['origin:123-environment-id:/'],
+            ['123-environment-id:uri:/'],
             $this->collectionProperty($staticCache, 'tagsToPurge')
                 ->map(fn(StaticCacheTag $tag) => $tag->getValue())
                 ->all(),
@@ -403,7 +418,7 @@ class StaticCacheTest extends Unit
 
         $this->assertSame([
             '123-environment-id:/news',
-            'origin:123-environment-id:/news',
+            '123-environment-id:uri:/news',
         ], $payload['tags']);
         $this->assertSame([
             'https://example.com/news',

@@ -9,7 +9,6 @@ use Craft;
 use craft\behaviors\EnvAttributeParserBehavior;
 use craft\cloud\Module;
 use craft\cloud\StaticCache;
-use craft\cloud\StaticCacheTag;
 use craft\elements\Asset;
 use craft\errors\FsException;
 use craft\flysystem\base\FlysystemFs;
@@ -202,12 +201,14 @@ abstract class Fs extends FlysystemFs
     protected function invalidateCdnPath(string $path): bool
     {
         try {
-            $prefix = StaticCache::CDN_PREFIX . Module::getInstance()->getConfig()->environmentId . ':';
-            $tag = StaticCacheTag::create($this->createBucketPath($path)->toString())
-                ->minify(false)
-                ->withPrefix($prefix);
+            $environmentId = Module::getInstance()->getConfig()->environmentId;
+            $objectKey = $this->createBucketPath($path)->toString();
 
-            Module::getInstance()->getStaticCache()->purgeTags($tag);
+            // Purge the legacy cache-family-first tag alongside the environment-first tag.
+            Module::getInstance()->getStaticCache()->purgeTags(
+                StaticCache::CDN_PREFIX . "$environmentId:$objectKey",
+                "$environmentId:cdn:$objectKey",
+            );
 
             return true;
         } catch (\Throwable $e) {

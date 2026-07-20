@@ -29,11 +29,13 @@ use yii\caching\TagDependency;
  * - Added by the gateway:
  *   - `{environmentId}` (legacy)
  *   - `{environmentId}:{uri}` (legacy; non-homepage URI has a leading and no trailing slash)
- *   - `origin:{environmentId}`
- *   - `origin:{environmentId}:{uri}` (homepage URI is `/`, otherwise with a leading and no trailing slash)
+ *   - `{environmentId}:uri`
+ *   - `{environmentId}:uri:{uri}` (homepage URI is `/`, otherwise with a leading and no trailing slash)
  * - Added by the CDN:
- *    - `cdn:{environmentId}`
- *    - `cdn:{environmentId}:{objectKey}` (object key has no leading slash)
+ *   - `cdn:{environmentId}` (legacy)
+ *   - `cdn:{environmentId}:{objectKey}` (legacy; object key has no leading slash)
+ *   - `{environmentId}:cdn`
+ *   - `{environmentId}:cdn:{objectKey}` (object key has no leading slash)
  * - Added by Craft:
  *   - `{environmentShortId}{hashed}`
  *   - `{environmentId}:overflow` (when the response has too many cache tags)
@@ -228,11 +230,11 @@ class StaticCache extends \yii\base\Component
     public function purgeOrigin(): void
     {
         $environmentId = Module::getInstance()->getConfig()->environmentId;
-        // Purge the legacy unnamespaced tag alongside the origin tag.
+        // Purge the legacy unscoped tag alongside the URI-family tag.
         $tags = $this->beforePurge(
             null,
             $environmentId,
-            "origin:$environmentId",
+            "$environmentId:uri",
         );
         $this->tagsToPurge->push(...$tags);
     }
@@ -251,9 +253,12 @@ class StaticCache extends \yii\base\Component
 
     public function purgeCdn(): void
     {
+        $environmentId = Module::getInstance()->getConfig()->environmentId;
+        // Purge the legacy cache-family-first tag alongside the environment-first tag.
         $tags = $this->beforePurge(
             null,
-            self::CDN_PREFIX . Module::getInstance()->getConfig()->environmentId,
+            self::CDN_PREFIX . $environmentId,
+            "$environmentId:cdn",
         );
         $this->tagsToPurge->push(...$tags);
     }
@@ -274,8 +279,8 @@ class StaticCache extends \yii\base\Component
         $environmentId = Module::getInstance()->getConfig()->environmentId;
         // Keep the legacy unnamespaced tag for non-homepage URIs during rollout.
         $tagValues = $isHomepage
-            ? ["origin:$environmentId:$uri"]
-            : ["$environmentId:$uri", "origin:$environmentId:$uri"];
+            ? ["$environmentId:uri:$uri"]
+            : ["$environmentId:$uri", "$environmentId:uri:$uri"];
         $tags = $this->beforePurge($element, ...$tagValues);
         $this->tagsToPurge = $tags->concat($this->tagsToPurge);
 
