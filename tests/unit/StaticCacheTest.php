@@ -333,6 +333,21 @@ class StaticCacheTest extends Unit
         );
     }
 
+    public function testHomepagePurgeUsesLegacyEmptyUriTag(): void
+    {
+        $staticCache = new StaticCache();
+        $element = new Entry(['uri' => Entry::HOMEPAGE_URI]);
+
+        $this->saveElement($staticCache, $element);
+
+        $this->assertSame(
+            ['123-environment-id:', 'origin:123-environment-id:/'],
+            $this->collectionProperty($staticCache, 'tagsToPurge')
+                ->map(fn(StaticCacheTag $tag) => $tag->getValue())
+                ->all(),
+        );
+    }
+
     public function testCancelledElementPurgeDoesNotQueueFetch(): void
     {
         $staticCache = new StaticCache();
