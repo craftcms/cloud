@@ -31,11 +31,13 @@ use yii\caching\TagDependency;
  *   - `{environmentId}:{uri}` (legacy; non-homepage URI has a leading and no trailing slash)
  *   - `{environmentId}:uri`
  *   - `{environmentId}:uri:{uri}` (homepage URI is `/`, otherwise with a leading and no trailing slash)
+ *   - `{environmentId}:uri:overflow`
  * - Added by the CDN:
  *   - `cdn:{environmentId}` (legacy)
  *   - `cdn:{environmentId}:{objectKey}` (legacy; object key has no leading slash)
  *   - `{environmentId}:cdn`
  *   - `{environmentId}:cdn:{objectKey}` (object key has no leading slash)
+ *   - `{environmentId}:cdn:overflow`
  * - Added by Craft:
  *   - `{environmentShortId}{hashed}`
  *   - `{environmentId}:overflow` (when the response has too many cache tags)
