@@ -218,6 +218,20 @@ class StaticCacheTest extends Unit
         );
     }
 
+    public function testPurgeAllUsesOriginAndCdnTags(): void
+    {
+        $staticCache = new StaticCache();
+
+        $staticCache->purgeAll();
+
+        $this->assertSame(
+            ['123-environment-id', 'origin:123-environment-id', 'cdn:123-environment-id'],
+            $this->collectionProperty($staticCache, 'tagsToPurge')
+                ->map(fn(StaticCacheTag $tag) => $tag->getValue())
+                ->all(),
+        );
+    }
+
     public function testBeforePurgeEventCanCancelPurge(): void
     {
         $staticCache = new StaticCache();
@@ -266,7 +280,7 @@ class StaticCacheTest extends Unit
         }
 
         $this->assertSame(
-            '123-environment-id:/news',
+            '123-environment-id:/news,origin:123-environment-id:/news',
             Craft::$app->getResponse()->getHeaders()->get(HeaderEnum::CACHE_PURGE_TAG->value),
         );
     }
@@ -313,7 +327,10 @@ class StaticCacheTest extends Unit
         $this->saveElement($staticCache, $element);
 
         $this->assertSame($element, $purgeEvent->element);
-        $this->assertSame('123-environment-id:/news', $purgeEvent->tags[0]->getValue());
+        $this->assertSame(
+            ['123-environment-id:/news', 'origin:123-environment-id:/news'],
+            array_map(fn(StaticCacheTag $tag) => $tag->getValue(), $purgeEvent->tags),
+        );
     }
 
     public function testCancelledElementPurgeDoesNotQueueFetch(): void
@@ -369,7 +386,10 @@ class StaticCacheTest extends Unit
             flags: JSON_THROW_ON_ERROR,
         );
 
-        $this->assertSame(['123-environment-id:/news'], $payload['tags']);
+        $this->assertSame([
+            '123-environment-id:/news',
+            'origin:123-environment-id:/news',
+        ], $payload['tags']);
         $this->assertSame([
             'https://example.com/news',
             'https://example.com/fr/nouvelles',

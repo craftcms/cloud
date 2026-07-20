@@ -27,8 +27,10 @@ use yii\caching\TagDependency;
  * The values are comma-separated and can be in several formats:
  *
  * - Added by the gateway:
- *   - `{environmentId}`
- *   - `{environmentId}:{uri}` (URI has a leading and no trailing slash)
+ *   - `{environmentId}` (legacy)
+ *   - `{environmentId}:{uri}` (legacy; URI has a leading and no trailing slash)
+ *   - `origin:{environmentId}`
+ *   - `origin:{environmentId}:{uri}` (URI has a leading and no trailing slash)
  * - Added by the CDN:
  *    - `cdn:{environmentId}`
  *    - `cdn:{environmentId}:{objectKey}` (object key has no leading slash)
@@ -225,9 +227,12 @@ class StaticCache extends \yii\base\Component
 
     public function purgeOrigin(): void
     {
+        $environmentId = Module::getInstance()->getConfig()->environmentId;
+        // Purge the legacy unnamespaced tag alongside the origin tag.
         $tags = $this->beforePurge(
             null,
-            Module::getInstance()->getConfig()->environmentId,
+            $environmentId,
+            "origin:$environmentId",
         );
         $this->tagsToPurge->push(...$tags);
     }
@@ -266,7 +271,8 @@ class StaticCache extends \yii\base\Component
             : Path::new($uri)->withLeadingSlash()->withoutTrailingSlash();
 
         $environmentId = Module::getInstance()->getConfig()->environmentId;
-        $tags = $this->beforePurge($element, "$environmentId:$uri");
+        // Purge the legacy unnamespaced URI tag alongside the origin tag.
+        $tags = $this->beforePurge($element, "$environmentId:$uri", "origin:$environmentId:$uri");
         $this->tagsToPurge = $tags->concat($this->tagsToPurge);
 
         return $tags->isNotEmpty();
