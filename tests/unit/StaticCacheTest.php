@@ -239,6 +239,7 @@ class StaticCacheTest extends Unit
         Module::getInstance()->set('staticCache', $staticCache);
         $fs = new AssetsFs();
         $method = new ReflectionMethod($fs, 'invalidateCdnPath');
+        $method->setAccessible(true);
 
         $this->assertTrue($method->invoke($fs, 'image.jpg'));
         $this->assertSame(
