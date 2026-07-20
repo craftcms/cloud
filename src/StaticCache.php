@@ -195,8 +195,8 @@ class StaticCache extends \yii\base\Component
     private function handleRegisterCacheOptions(RegisterCacheOptionsEvent $event): void
     {
         $event->options[] = [
-            'key' => 'craft-cloud-caches',
-            'label' => Craft::t('app', 'Craft Cloud caches'),
+            'key' => 'craft-cloud-static-cache',
+            'label' => Craft::t('app', 'Craft Cloud static cache'),
             'action' => [$this, 'purgeAll'],
         ];
     }
