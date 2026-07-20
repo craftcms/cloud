@@ -28,7 +28,7 @@ use yii\caching\TagDependency;
  *
  * - Added by the gateway:
  *   - `{environmentId}` (legacy)
- *   - `{environmentId}:{uri}` (legacy; homepage URI is empty, otherwise with a leading and no trailing slash)
+ *   - `{environmentId}:{uri}` (legacy; non-homepage URI has a leading and no trailing slash)
  *   - `origin:{environmentId}`
  *   - `origin:{environmentId}:{uri}` (homepage URI is `/`, otherwise with a leading and no trailing slash)
  * - Added by the CDN:
@@ -272,9 +272,11 @@ class StaticCache extends \yii\base\Component
             : Path::new($uri)->withLeadingSlash()->withoutTrailingSlash();
 
         $environmentId = Module::getInstance()->getConfig()->environmentId;
-        // Legacy URI tags used an empty homepage URI.
-        $legacyTag = $isHomepage ? "$environmentId:" : "$environmentId:$uri";
-        $tags = $this->beforePurge($element, $legacyTag, "origin:$environmentId:$uri");
+        // Keep the legacy unnamespaced tag for non-homepage URIs during rollout.
+        $tagValues = $isHomepage
+            ? ["origin:$environmentId:$uri"]
+            : ["$environmentId:$uri", "origin:$environmentId:$uri"];
+        $tags = $this->beforePurge($element, ...$tagValues);
         $this->tagsToPurge = $tags->concat($this->tagsToPurge);
 
         return $tags->isNotEmpty();
