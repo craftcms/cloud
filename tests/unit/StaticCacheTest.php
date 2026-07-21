@@ -248,7 +248,7 @@ class StaticCacheTest extends Unit
         );
     }
 
-    public function testOverlongAssetCdnPurgeUsesOverflowTags(): void
+    public function testOverlongAssetCdnPurgeUsesOverflowTag(): void
     {
         $staticCache = new StaticCache();
         Module::getInstance()->set('staticCache', $staticCache);
@@ -258,7 +258,7 @@ class StaticCacheTest extends Unit
 
         $this->assertTrue($method->invoke($fs, str_repeat('x', 1024)));
         $this->assertSame(
-            '123-environment-id:overflow,123-environment-id:cdn:overflow',
+            '123-environment-id:overflow',
             Craft::$app->getResponse()->getHeaders()->get(HeaderEnum::CACHE_PURGE_TAG->value),
         );
     }
@@ -394,7 +394,7 @@ class StaticCacheTest extends Unit
             flags: JSON_THROW_ON_ERROR,
         );
 
-        $this->assertSame(['123-environment-id:uri:overflow'], $payload['tags']);
+        $this->assertSame(['123-environment-id:overflow'], $payload['tags']);
     }
 
     public function testCancelledElementPurgeDoesNotQueueFetch(): void

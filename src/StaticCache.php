@@ -31,16 +31,14 @@ use yii\caching\TagDependency;
  *   - `{environmentId}:{uri}` (legacy; non-homepage URI has a leading and no trailing slash)
  *   - `{environmentId}:uri`
  *   - `{environmentId}:uri:{uri}` (homepage URI is `/`, otherwise with a leading and no trailing slash)
- *   - `{environmentId}:uri:overflow` (when the URI selector is too long)
  * - Added by the CDN:
  *   - `cdn:{environmentId}` (legacy)
  *   - `cdn:{environmentId}:{objectKey}` (legacy; object key has no leading slash)
  *   - `{environmentId}:cdn`
  *   - `{environmentId}:cdn:{objectKey}` (object key has no leading slash)
- *   - `{environmentId}:cdn:overflow` (when the object key selector is too long)
  * - Added by Craft:
  *   - `{environmentShortId}{hashed}`
- *   - `{environmentId}:overflow` (shared overflow and legacy CDN selector fallback)
+ *   - `{environmentId}:overflow` (when the response has too many tags or a selector is too long)
  */
 class StaticCache extends \yii\base\Component
 {
@@ -283,7 +281,7 @@ class StaticCache extends \yii\base\Component
         $tagValues = $isHomepage
             ? [StaticCacheTag::create("$environmentId:uri:$uri")]
             : [StaticCacheTag::create("$environmentId:$uri"), StaticCacheTag::create("$environmentId:uri:$uri")];
-        $overflowTag = StaticCacheTag::create("$environmentId:uri:overflow");
+        $overflowTag = $this->overflowTag();
         $tags = $this->beforePurge(
             $element,
             ...array_map(

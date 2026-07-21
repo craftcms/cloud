@@ -210,7 +210,7 @@ abstract class Fs extends FlysystemFs
             // Purge the legacy cache-family-first tag alongside the environment-first tag.
             Module::getInstance()->getStaticCache()->purgeTags(
                 strlen($legacyTag->getValue()) > StaticCache::MAX_TAG_VALUE_LENGTH ? "$environmentId:overflow" : $legacyTag,
-                strlen($cdnTag->getValue()) > StaticCache::MAX_TAG_VALUE_LENGTH ? "$environmentId:cdn:overflow" : $cdnTag,
+                strlen($cdnTag->getValue()) > StaticCache::MAX_TAG_VALUE_LENGTH ? "$environmentId:overflow" : $cdnTag,
             );
 
             return true;
