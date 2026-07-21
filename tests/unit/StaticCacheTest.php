@@ -226,14 +226,14 @@ class StaticCacheTest extends Unit
         $staticCache->purgeAll();
 
         $this->assertSame(
-            ['123-environment-id', '123-environment-id:uri', 'cdn:123-environment-id', '123-environment-id:cdn'],
+            ['123-environment-id:uri', '123-environment-id:cdn'],
             $this->collectionProperty($staticCache, 'tagsToPurge')
                 ->map(fn(StaticCacheTag $tag) => $tag->getValue())
                 ->all(),
         );
     }
 
-    public function testAssetCdnPurgeUsesLegacyAndEnvironmentFirstTags(): void
+    public function testAssetCdnPurgeUsesEnvironmentFirstTag(): void
     {
         $staticCache = new StaticCache();
         Module::getInstance()->set('staticCache', $staticCache);
@@ -243,7 +243,7 @@ class StaticCacheTest extends Unit
 
         $this->assertTrue($method->invoke($fs, 'image.jpg'));
         $this->assertSame(
-            'cdn:123-environment-id:123-environment-id/assets/image.jpg,123-environment-id:cdn:123-environment-id/assets/image.jpg',
+            '123-environment-id:cdn:123-environment-id/assets/image.jpg',
             Craft::$app->getResponse()->getHeaders()->get(HeaderEnum::CACHE_PURGE_TAG->value),
         );
     }
@@ -311,7 +311,7 @@ class StaticCacheTest extends Unit
         }
 
         $this->assertSame(
-            '123-environment-id:/news,123-environment-id:uri:/news',
+            '123-environment-id:uri:/news',
             Craft::$app->getResponse()->getHeaders()->get(HeaderEnum::CACHE_PURGE_TAG->value),
         );
     }
@@ -359,7 +359,7 @@ class StaticCacheTest extends Unit
 
         $this->assertSame($element, $purgeEvent->element);
         $this->assertSame(
-            ['123-environment-id:/news', '123-environment-id:uri:/news'],
+            ['123-environment-id:uri:/news'],
             array_map(fn(StaticCacheTag $tag) => $tag->getValue(), $purgeEvent->tags),
         );
     }
@@ -450,10 +450,7 @@ class StaticCacheTest extends Unit
             flags: JSON_THROW_ON_ERROR,
         );
 
-        $this->assertSame([
-            '123-environment-id:/news',
-            '123-environment-id:uri:/news',
-        ], $payload['tags']);
+        $this->assertSame(['123-environment-id:uri:/news'], $payload['tags']);
         $this->assertSame([
             'https://example.com/news',
             'https://example.com/fr/nouvelles',

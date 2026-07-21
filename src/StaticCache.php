@@ -42,8 +42,6 @@ use yii\caching\TagDependency;
  */
 class StaticCache extends \yii\base\Component
 {
-    public const CDN_PREFIX = 'cdn:';
-
     /**
      * @event PurgeEvent The event that is triggered before static cache tags are purged.
      */
@@ -230,10 +228,8 @@ class StaticCache extends \yii\base\Component
     public function purgeOrigin(): void
     {
         $environmentId = Module::getInstance()->getConfig()->environmentId;
-        // Purge the legacy unscoped tag alongside the URI-family tag.
         $tags = $this->beforePurge(
             null,
-            $environmentId,
             "$environmentId:uri",
         );
         $this->tagsToPurge->push(...$tags);
@@ -254,10 +250,8 @@ class StaticCache extends \yii\base\Component
     public function purgeCdn(): void
     {
         $environmentId = Module::getInstance()->getConfig()->environmentId;
-        // Purge the legacy cache-family-first tag alongside the environment-first tag.
         $tags = $this->beforePurge(
             null,
-            self::CDN_PREFIX . $environmentId,
             "$environmentId:cdn",
         );
         $this->tagsToPurge->push(...$tags);
@@ -271,23 +265,16 @@ class StaticCache extends \yii\base\Component
             return false;
         }
 
-        $isHomepage = $element->getIsHomepage();
-        $uri = $isHomepage
+        $uri = $element->getIsHomepage()
             ? '/'
             : Path::new($uri)->withLeadingSlash()->withoutTrailingSlash();
 
         $environmentId = Module::getInstance()->getConfig()->environmentId;
-        // Keep the legacy unnamespaced tag for non-homepage URIs during rollout.
-        $tagValues = $isHomepage
-            ? [StaticCacheTag::create("$environmentId:uri:$uri")]
-            : [StaticCacheTag::create("$environmentId:$uri"), StaticCacheTag::create("$environmentId:uri:$uri")];
+        $tag = StaticCacheTag::create("$environmentId:uri:$uri");
         $overflowTag = $this->overflowTag();
         $tags = $this->beforePurge(
             $element,
-            ...array_map(
-                fn(StaticCacheTag $tag) => strlen($tag->getValue()) > self::MAX_TAG_VALUE_LENGTH ? $overflowTag : $tag,
-                $tagValues,
-            ),
+            strlen($tag->getValue()) > self::MAX_TAG_VALUE_LENGTH ? $overflowTag : $tag,
         );
         $this->tagsToPurge = $tags->concat($this->tagsToPurge);
 

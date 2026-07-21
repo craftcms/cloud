@@ -204,12 +204,9 @@ abstract class Fs extends FlysystemFs
         try {
             $environmentId = Module::getInstance()->getConfig()->environmentId;
             $objectKey = $this->createBucketPath($path)->toString();
-            $legacyTag = StaticCacheTag::create(StaticCache::CDN_PREFIX . "$environmentId:$objectKey");
             $cdnTag = StaticCacheTag::create("$environmentId:cdn:$objectKey");
 
-            // Purge the legacy cache-family-first tag alongside the environment-first tag.
             Module::getInstance()->getStaticCache()->purgeTags(
-                strlen($legacyTag->getValue()) > StaticCache::MAX_TAG_VALUE_LENGTH ? "$environmentId:overflow" : $legacyTag,
                 strlen($cdnTag->getValue()) > StaticCache::MAX_TAG_VALUE_LENGTH ? "$environmentId:overflow" : $cdnTag,
             );
 
