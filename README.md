@@ -245,4 +245,4 @@ return [
 ];
 ```
 
-When a saved element purge proceeds, its non-null site URL is included in tag-based gateway API requests as the optional `fetchUrls` field. URLs are deduplicated, and the gateway asynchronously fetches them after a successful purge to repopulate the cache. Drafts, revisions, deletions, and canceled purges do not enqueue URLs.
+When a saved element purge proceeds, a Craft queue job sends its non-null site URL to the gateway as the optional `fetchUrls` field rather than making the gateway request inline. URLs are deduplicated, and the gateway asynchronously fetches them after a successful purge to repopulate the cache. Drafts, revisions, deletions, and canceled purges do not enqueue URLs. If the job cannot be queued, the purge tags fall back to the `Cache-Purge-Tag` response header.
