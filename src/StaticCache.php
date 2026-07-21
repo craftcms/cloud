@@ -27,19 +27,21 @@ use yii\caching\TagDependency;
  * The values are comma-separated and can be in several formats:
  *
  * - Added by the gateway:
- *   - `{environmentId}`
- *   - `{environmentId}:{uri}` (URI has a leading and no trailing slash)
+ *   - `{environmentId}` (legacy)
+ *   - `{environmentId}:{uri}` (legacy; non-homepage URI has a leading and no trailing slash)
+ *   - `{environmentId}:uri`
+ *   - `{environmentId}:uri:{uri}` (homepage URI is `/`, otherwise with a leading and no trailing slash)
  * - Added by the CDN:
- *    - `cdn:{environmentId}`
- *    - `cdn:{environmentId}:{objectKey}` (object key has no leading slash)
+ *   - `cdn:{environmentId}` (legacy)
+ *   - `cdn:{environmentId}:{objectKey}` (legacy; object key has no leading slash)
+ *   - `{environmentId}:cdn`
+ *   - `{environmentId}:cdn:{objectKey}` (object key has no leading slash)
  * - Added by Craft:
  *   - `{environmentShortId}{hashed}`
- *   - `{environmentId}:overflow` (when the response has too many cache tags)
+ *   - `{environmentId}:overflow` (when the response has too many tags or a selector is too long)
  */
 class StaticCache extends \yii\base\Component
 {
-    public const CDN_PREFIX = 'cdn:';
-
     /**
      * @event PurgeEvent The event that is triggered before static cache tags are purged.
      */
@@ -51,7 +53,7 @@ class StaticCache extends \yii\base\Component
      * @see https://developers.cloudflare.com/workers/cache/configuration/
      */
     private const MAX_TAG_HEADER_VALUE_LENGTH = 16 * 1024;
-    private const MAX_TAG_VALUE_LENGTH = 1024;
+    public const MAX_TAG_VALUE_LENGTH = 1024;
     private const MAX_TAG_COUNT = 1000;
     private ?int $cacheDuration = null;
     private Collection $tags;
@@ -225,9 +227,10 @@ class StaticCache extends \yii\base\Component
 
     public function purgeOrigin(): void
     {
+        $environmentId = Module::getInstance()->getConfig()->environmentId;
         $tags = $this->beforePurge(
             null,
-            Module::getInstance()->getConfig()->environmentId,
+            "$environmentId:uri",
         );
         $this->tagsToPurge->push(...$tags);
     }
@@ -246,9 +249,10 @@ class StaticCache extends \yii\base\Component
 
     public function purgeCdn(): void
     {
+        $environmentId = Module::getInstance()->getConfig()->environmentId;
         $tags = $this->beforePurge(
             null,
-            self::CDN_PREFIX . Module::getInstance()->getConfig()->environmentId,
+            "$environmentId:cdn",
         );
         $this->tagsToPurge->push(...$tags);
     }
@@ -266,7 +270,12 @@ class StaticCache extends \yii\base\Component
             : Path::new($uri)->withLeadingSlash()->withoutTrailingSlash();
 
         $environmentId = Module::getInstance()->getConfig()->environmentId;
-        $tags = $this->beforePurge($element, "$environmentId:$uri");
+        $tag = StaticCacheTag::create("$environmentId:uri:$uri");
+        $overflowTag = $this->overflowTag();
+        $tags = $this->beforePurge(
+            $element,
+            strlen($tag->getValue()) > self::MAX_TAG_VALUE_LENGTH ? $overflowTag : $tag,
+        );
         $this->tagsToPurge = $tags->concat($this->tagsToPurge);
 
         return $tags->isNotEmpty();

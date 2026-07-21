@@ -202,12 +202,13 @@ abstract class Fs extends FlysystemFs
     protected function invalidateCdnPath(string $path): bool
     {
         try {
-            $prefix = StaticCache::CDN_PREFIX . Module::getInstance()->getConfig()->environmentId . ':';
-            $tag = StaticCacheTag::create($this->createBucketPath($path)->toString())
-                ->minify(false)
-                ->withPrefix($prefix);
+            $environmentId = Module::getInstance()->getConfig()->environmentId;
+            $objectKey = $this->createBucketPath($path)->toString();
+            $cdnTag = StaticCacheTag::create("$environmentId:cdn:$objectKey");
 
-            Module::getInstance()->getStaticCache()->purgeTags($tag);
+            Module::getInstance()->getStaticCache()->purgeTags(
+                strlen($cdnTag->getValue()) > StaticCache::MAX_TAG_VALUE_LENGTH ? "$environmentId:overflow" : $cdnTag,
+            );
 
             return true;
         } catch (\Throwable $e) {

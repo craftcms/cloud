@@ -5,6 +5,7 @@ namespace craft\cloud\tests\unit;
 use Codeception\Test\Unit;
 use Craft;
 use craft\cloud\events\PurgeEvent;
+use craft\cloud\fs\AssetsFs;
 use craft\cloud\HeaderEnum;
 use craft\cloud\Module;
 use craft\cloud\signing\RequestSigner;
@@ -218,6 +219,50 @@ class StaticCacheTest extends Unit
         );
     }
 
+    public function testPurgeAllUsesOriginAndCdnTags(): void
+    {
+        $staticCache = new StaticCache();
+
+        $staticCache->purgeAll();
+
+        $this->assertSame(
+            ['123-environment-id:uri', '123-environment-id:cdn'],
+            $this->collectionProperty($staticCache, 'tagsToPurge')
+                ->map(fn(StaticCacheTag $tag) => $tag->getValue())
+                ->all(),
+        );
+    }
+
+    public function testAssetCdnPurgeUsesEnvironmentFirstTag(): void
+    {
+        $staticCache = new StaticCache();
+        Module::getInstance()->set('staticCache', $staticCache);
+        $fs = new AssetsFs();
+        $method = new ReflectionMethod($fs, 'invalidateCdnPath');
+        $method->setAccessible(true);
+
+        $this->assertTrue($method->invoke($fs, 'image.jpg'));
+        $this->assertSame(
+            '123-environment-id:cdn:123-environment-id/assets/image.jpg',
+            Craft::$app->getResponse()->getHeaders()->get(HeaderEnum::CACHE_PURGE_TAG->value),
+        );
+    }
+
+    public function testOverlongAssetCdnPurgeUsesOverflowTag(): void
+    {
+        $staticCache = new StaticCache();
+        Module::getInstance()->set('staticCache', $staticCache);
+        $fs = new AssetsFs();
+        $method = new ReflectionMethod($fs, 'invalidateCdnPath');
+        $method->setAccessible(true);
+
+        $this->assertTrue($method->invoke($fs, str_repeat('x', 1024)));
+        $this->assertSame(
+            '123-environment-id:overflow',
+            Craft::$app->getResponse()->getHeaders()->get(HeaderEnum::CACHE_PURGE_TAG->value),
+        );
+    }
+
     public function testBeforePurgeEventCanCancelPurge(): void
     {
         $staticCache = new StaticCache();
@@ -266,7 +311,7 @@ class StaticCacheTest extends Unit
         }
 
         $this->assertSame(
-            '123-environment-id:/news',
+            '123-environment-id:uri:/news',
             Craft::$app->getResponse()->getHeaders()->get(HeaderEnum::CACHE_PURGE_TAG->value),
         );
     }
@@ -313,7 +358,43 @@ class StaticCacheTest extends Unit
         $this->saveElement($staticCache, $element);
 
         $this->assertSame($element, $purgeEvent->element);
-        $this->assertSame('123-environment-id:/news', $purgeEvent->tags[0]->getValue());
+        $this->assertSame(
+            ['123-environment-id:uri:/news'],
+            array_map(fn(StaticCacheTag $tag) => $tag->getValue(), $purgeEvent->tags),
+        );
+    }
+
+    public function testHomepagePurgeUsesUriTag(): void
+    {
+        $staticCache = new StaticCache();
+        $element = new Entry(['uri' => Entry::HOMEPAGE_URI]);
+
+        $this->saveElement($staticCache, $element);
+
+        $this->assertSame(
+            ['123-environment-id:uri:/'],
+            $this->collectionProperty($staticCache, 'tagsToPurge')
+                ->map(fn(StaticCacheTag $tag) => $tag->getValue())
+                ->all(),
+        );
+    }
+
+    public function testOverlongElementUriPurgeUsesOverflowTag(): void
+    {
+        $staticCache = new StaticCache();
+        $element = new FetchableElement(['uri' => str_repeat('x', 1024)]);
+        $element->fetchUrl = 'https://example.com/overlong';
+
+        $this->saveElement($staticCache, $element);
+        $this->sendPendingPurgeTags($staticCache);
+
+        $payload = json_decode(
+            (string) $this->gatewayRequest?->getBody(),
+            true,
+            flags: JSON_THROW_ON_ERROR,
+        );
+
+        $this->assertSame(['123-environment-id:overflow'], $payload['tags']);
     }
 
     public function testCancelledElementPurgeDoesNotQueueFetch(): void
@@ -369,7 +450,7 @@ class StaticCacheTest extends Unit
             flags: JSON_THROW_ON_ERROR,
         );
 
-        $this->assertSame(['123-environment-id:/news'], $payload['tags']);
+        $this->assertSame(['123-environment-id:uri:/news'], $payload['tags']);
         $this->assertSame([
             'https://example.com/news',
             'https://example.com/fr/nouvelles',
