@@ -684,6 +684,42 @@ class ImageTransformTest extends Unit
         $this->assertSame(['x' => 0.4, 'y' => 0.6], $focalPoint);
     }
 
+    public function testImageEditorUsesNewFocalPointForTransformGravity(): void
+    {
+        $editor = new TestImageEditor();
+
+        $editor->editImage(
+            asset: $this->makeUrlAssetStub(1, 'image.jpg', 4000, 3000, ['x' => 0.9, 'y' => 0.9]),
+            replace: false,
+            viewportRotation: 0,
+            imageRotation: 0.0,
+            cropData: [
+                'offsetX' => 0,
+                'offsetY' => 0,
+                'width' => 500,
+                'height' => 375,
+            ],
+            focalPoint: [
+                'offsetX' => 100,
+                'offsetY' => -75,
+                'imageDimensions' => [
+                    'width' => 1000,
+                    'height' => 750,
+                ],
+            ],
+            imageDimensions: [
+                'width' => 1000,
+                'height' => 750,
+            ],
+            flipData: null,
+            zoom: 1.0,
+        );
+
+        $this->assertInstanceOf(ImageTransform::class, $editor->createdTransform);
+        $this->assertSame($editor->createdFocalPoint, $this->behavior($editor->createdTransform)->gravity);
+        $this->assertNotSame(['x' => 0.9, 'y' => 0.9], $this->behavior($editor->createdTransform)->gravity);
+    }
+
     public function testImageEditorRejectsNonRightAngleRotationTransform(): void
     {
         $asset = $this->makeUrlAssetStub(1, 'image.jpg', 4000, 3000, ['x' => 0.5, 'y' => 0.5]);
@@ -707,15 +743,35 @@ class ImageTransformTest extends Unit
             ],
             flipData: null,
             zoom: 1.0,
-            focalPoint: [
-                'offsetX' => 0,
-                'offsetY' => 0,
-                'imageDimensions' => [
-                    'width' => 1000,
-                    'height' => 750,
-                ],
-            ],
         );
+    }
+
+    public function testImageEditorRejectsInvalidEditorDimensions(): void
+    {
+        $asset = $this->makeUrlAssetStub(1, 'image.jpg', 4000, 3000, ['x' => 0.5, 'y' => 0.5]);
+
+        foreach ([['width' => 0, 'height' => 750], ['width' => 1000, 'height' => 750, 'zoom' => 0.0]] as $imageDimensions) {
+            try {
+                ImageTransformer::fromImageEditor(
+                    asset: $asset,
+                    viewportRotation: 0,
+                    imageRotation: 0.0,
+                    cropData: [
+                        'offsetX' => 0,
+                        'offsetY' => 0,
+                        'width' => 1000,
+                        'height' => 750,
+                    ],
+                    imageDimensions: $imageDimensions,
+                    flipData: ['x' => true],
+                    zoom: $imageDimensions['zoom'] ?? 1.0,
+                );
+
+                $this->fail('Expected invalid editor dimensions to be rejected.');
+            } catch (NotSupportedException $e) {
+                $this->assertSame('Valid image editor dimensions are required to edit images.', $e->getMessage());
+            }
+        }
     }
 
     public function testImageEditorFallsBackToCraftForNonRightAngleRotation(): void
@@ -957,9 +1013,20 @@ class TestImageTransformer extends ImageTransformer
 
 class TestImageEditor extends ImageEditor
 {
+    public ?ImageTransform $createdTransform = null;
+    public ?array $createdFocalPoint = null;
+
     public function focalPointFromEditor(Asset $asset, ?array $focalPoint, int $viewportRotation, float $imageRotation, array $cropData, array $imageDimensions, ?array $flipData, float $zoom): ?array
     {
         return $this->focalPoint($asset, $focalPoint, $viewportRotation, $imageRotation, $cropData, $imageDimensions, $flipData, $zoom);
+    }
+
+    protected function createAsset(Asset $asset, ?ImageTransform $transform, ?array $focal): Asset
+    {
+        $this->createdTransform = $transform;
+        $this->createdFocalPoint = $focal;
+
+        return $asset;
     }
 }
 

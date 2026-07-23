@@ -63,8 +63,14 @@ class ImageEditor
         ?array $flipData,
         float $zoom,
     ): Asset {
+        $transform = ImageTransformer::fromImageEditor($asset, $viewportRotation, $imageRotation, $cropData, $imageDimensions, $flipData, $zoom);
         $focal = $this->focalPoint($asset, $focalPoint, $viewportRotation, $imageRotation, $cropData, $imageDimensions, $flipData, $zoom);
-        $transform = ImageTransformer::fromImageEditor($asset, $viewportRotation, $imageRotation, $cropData, $imageDimensions, $flipData, $zoom, $focalPoint);
+
+        if ($transform !== null && $focal !== null) {
+            /** @var ImageTransformBehavior $behavior */
+            $behavior = $transform->getBehavior('cloud');
+            $behavior->gravity = $focal;
+        }
 
         if ($transform === null && !$this->focalPointChanged($asset, $focal)) {
             return $replace ? $asset : $this->createAsset($asset, null, $focal);
@@ -87,6 +93,10 @@ class ImageEditor
 
         if (!$asset->width || !$asset->height) {
             throw new NotSupportedException('Image dimensions are required to edit images.');
+        }
+
+        if (!$this->validDimensions($focalPoint['imageDimensions'] ?? [])) {
+            throw new NotSupportedException('Valid image editor dimensions are required to edit images.');
         }
 
         $rotation = $this->rotation($viewportRotation, $imageRotation);
@@ -142,6 +152,15 @@ class ImageEditor
         return in_array($rotation, [90, 270], true)
             ? ['width' => (int)round($height), 'height' => (int)round($width)]
             : ['width' => (int)round($width), 'height' => (int)round($height)];
+    }
+
+    protected function validDimensions(array $dimensions): bool
+    {
+        return isset($dimensions['width'], $dimensions['height']) &&
+            is_numeric($dimensions['width']) &&
+            is_numeric($dimensions['height']) &&
+            (float)$dimensions['width'] > 0 &&
+            (float)$dimensions['height'] > 0;
     }
 
     protected function focalPointChanged(Asset $asset, ?array $focal): bool

@@ -35,7 +35,6 @@ class ImageTransformer extends Component implements ImageTransformerInterface
         array $imageDimensions,
         ?array $flipData,
         float $zoom,
-        ?array $focalPoint = null,
     ): ?ImageTransform {
         $rotation = ((int)round($imageRotation + $viewportRotation) % 360 + 360) % 360;
         $flipX = !empty($flipData['x']);
@@ -46,6 +45,9 @@ class ImageTransformer extends Component implements ImageTransformerInterface
             $flipY => 'v',
             default => null,
         };
+
+        self::ensureImageEditorData($cropData, $imageDimensions, $zoom);
+
         $sourceReferenceDimensions = self::rotatedDimensions($imageDimensions['width'], $imageDimensions['height'], 0);
         $cropReferenceDimensions = self::rotatedDimensions($imageDimensions['width'], $imageDimensions['height'], $rotation);
         $cropDimensions = [
@@ -102,6 +104,29 @@ class ImageTransformer extends Component implements ImageTransformerInterface
         }
 
         return $transform;
+    }
+
+    private static function ensureImageEditorData(array $cropData, array $imageDimensions, float $zoom): void
+    {
+        if (
+            !isset($cropData['offsetX'], $cropData['offsetY']) ||
+            !is_numeric($cropData['offsetX']) ||
+            !is_numeric($cropData['offsetY']) ||
+            !self::validDimensions($cropData) ||
+            !self::validDimensions($imageDimensions) ||
+            $zoom <= 0
+        ) {
+            throw new NotSupportedException('Valid image editor dimensions are required to edit images.');
+        }
+    }
+
+    private static function validDimensions(array $dimensions): bool
+    {
+        return isset($dimensions['width'], $dimensions['height']) &&
+            is_numeric($dimensions['width']) &&
+            is_numeric($dimensions['height']) &&
+            (float)$dimensions['width'] > 0 &&
+            (float)$dimensions['height'] > 0;
     }
 
     private static function crop(Asset $asset, int $rotation, array $cropData, array $imageDimensions, float $zoom): array
