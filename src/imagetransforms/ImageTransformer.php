@@ -54,7 +54,10 @@ class ImageTransformer extends Component implements ImageTransformerInterface
             'width' => (int)round($cropData['width']),
             'height' => (int)round($cropData['height']),
         ];
-        $imageCropped = $cropDimensions !== $sourceReferenceDimensions && $cropDimensions !== $cropReferenceDimensions;
+        $imageCropped = ($cropDimensions !== $sourceReferenceDimensions && $cropDimensions !== $cropReferenceDimensions) ||
+            $zoom !== 1.0 ||
+            (float)$cropData['offsetX'] !== 0.0 ||
+            (float)$cropData['offsetY'] !== 0.0;
         $imageRotated = $rotation !== 0;
         $imageFlipped = $flip !== null;
 

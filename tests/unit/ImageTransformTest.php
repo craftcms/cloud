@@ -650,6 +650,56 @@ class ImageTransformTest extends Unit
         $this->assertSame(0.5, $this->behavior($transform)->zoom);
     }
 
+    public function testImageEditorZoomOnlyEditCreatesTransform(): void
+    {
+        $asset = $this->makeUrlAssetStub(1, 'image.jpg', 4000, 3000, ['x' => 0.25, 'y' => 0.75]);
+        $transform = ImageTransformer::fromImageEditor(
+            asset: $asset,
+            viewportRotation: 0,
+            imageRotation: 0.0,
+            cropData: [
+                'offsetX' => 0,
+                'offsetY' => 0,
+                'width' => 1000,
+                'height' => 750,
+            ],
+            imageDimensions: [
+                'width' => 1000,
+                'height' => 750,
+            ],
+            flipData: null,
+            zoom: 2.0,
+        );
+
+        $this->assertInstanceOf(ImageTransform::class, $transform);
+        $this->assertSame(0.5, $this->behavior($transform)->zoom);
+    }
+
+    public function testImageEditorPanOnlyEditCreatesTransform(): void
+    {
+        $asset = $this->makeUrlAssetStub(1, 'image.jpg', 4000, 3000, ['x' => 0.25, 'y' => 0.75]);
+        $transform = ImageTransformer::fromImageEditor(
+            asset: $asset,
+            viewportRotation: 0,
+            imageRotation: 0.0,
+            cropData: [
+                'offsetX' => 100,
+                'offsetY' => 0,
+                'width' => 1000,
+                'height' => 750,
+            ],
+            imageDimensions: [
+                'width' => 1000,
+                'height' => 750,
+            ],
+            flipData: null,
+            zoom: 1.0,
+        );
+
+        $this->assertInstanceOf(ImageTransform::class, $transform);
+        $this->assertSame(['left' => 400, 'top' => 0, 'width' => 3600, 'height' => 3000], $this->behavior($transform)->trim);
+    }
+
     public function testImageEditorMirrorsFocalPointForFlip(): void
     {
         $focalPoint = (new TestImageEditor())->focalPointFromEditor(
