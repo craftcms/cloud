@@ -60,6 +60,10 @@ class ImageTransformer extends Component implements ImageTransformerInterface
             return null;
         }
 
+        if (!in_array($rotation, [0, 90, 180, 270], true)) {
+            throw new NotSupportedException('Only 90-degree image rotations are supported.');
+        }
+
         if (!$asset->width || !$asset->height) {
             throw new NotSupportedException('Image dimensions are required to edit images.');
         }

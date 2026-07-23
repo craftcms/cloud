@@ -684,11 +684,14 @@ class ImageTransformTest extends Unit
         $this->assertSame(['x' => 0.4, 'y' => 0.6], $focalPoint);
     }
 
-    public function testImageEditorAllowsRotationWithFocalPoint(): void
+    public function testImageEditorRejectsNonRightAngleRotationTransform(): void
     {
         $asset = $this->makeUrlAssetStub(1, 'image.jpg', 4000, 3000, ['x' => 0.5, 'y' => 0.5]);
 
-        $transform = ImageTransformer::fromImageEditor(
+        $this->expectException(NotSupportedException::class);
+        $this->expectExceptionMessage('Only 90-degree image rotations are supported.');
+
+        ImageTransformer::fromImageEditor(
             asset: $asset,
             viewportRotation: 0,
             imageRotation: 135.0,
@@ -713,9 +716,33 @@ class ImageTransformTest extends Unit
                 ],
             ],
         );
+    }
 
-        $this->assertInstanceOf(ImageTransform::class, $transform);
-        $this->assertSame(135, $this->behavior($transform)->rotate);
+    public function testImageEditorFallsBackToCraftForNonRightAngleRotation(): void
+    {
+        $event = new SaveAssetImageEvent([
+            'asset' => new TransformDecisionAsset(),
+            'replace' => true,
+            'viewportRotation' => 0,
+            'imageRotation' => 135.0,
+            'cropData' => [
+                'offsetX' => 0,
+                'offsetY' => 0,
+                'width' => 1000,
+                'height' => 750,
+            ],
+            'focalPoint' => null,
+            'imageDimensions' => [
+                'width' => 1000,
+                'height' => 750,
+            ],
+            'flipData' => null,
+            'zoom' => 1.0,
+        ]);
+
+        (new ImageEditor())->handleSaveImage($event);
+
+        $this->assertFalse($event->handled);
     }
 
     public function testImageEditorReportsMissingAssetDimensionsAsBadRequest(): void

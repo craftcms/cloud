@@ -23,6 +23,10 @@ class ImageEditor
             return;
         }
 
+        if (!in_array($this->rotation($event->viewportRotation, $event->imageRotation), [0, 90, 180, 270], true)) {
+            return;
+        }
+
         $event->handled = true;
 
         try {
