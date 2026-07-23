@@ -295,11 +295,17 @@ class ImageTransformer extends Component implements ImageTransformerInterface
             : ($type instanceof \ReflectionNamedType ? [$type->getName()] : []);
 
         if (in_array('int', $types, true)) {
-            $value = is_int($value) || is_string($value)
+            $intValue = is_int($value) || is_string($value)
                 ? filter_var($value, FILTER_VALIDATE_INT)
                 : false;
 
-            return [$value !== false && ($property->getName() !== 'page' || $value >= 1), $value];
+            if ($intValue !== false) {
+                return [$property->getName() !== 'page' || $intValue >= 1, $intValue];
+            }
+
+            if (!in_array('string', $types, true)) {
+                return [false, $intValue];
+            }
         }
 
         if (in_array('float', $types, true)) {

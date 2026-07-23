@@ -127,6 +127,20 @@ class ImageTransformTest extends Unit
         $this->assertSame(72, $this->behavior($transform)->toOptions()['quality']);
     }
 
+    public function testArrayTransformPreservesStringQuality(): void
+    {
+        $signedUrl = (new ImageTransformer())->getTransformUrl(
+            $this->makePdfAssetStub(),
+            [
+                'width' => 320,
+                'quality' => 'high',
+            ],
+            true,
+        );
+
+        $this->assertSame('high', Query::fromUri($signedUrl)->parameters()['quality']);
+    }
+
     public function testGetTransformUrlDoesNotLeakGravityBetweenAssets(): void
     {
         $transform = new ImageTransform([
@@ -636,6 +650,40 @@ class ImageTransformTest extends Unit
         $this->assertSame(0.5, $this->behavior($transform)->zoom);
     }
 
+    public function testImageEditorMirrorsFocalPointForFlip(): void
+    {
+        $focalPoint = (new TestImageEditor())->focalPointFromEditor(
+            asset: $this->makeUrlAssetStub(1, 'image.jpg', 4000, 3000, ['x' => 0.5, 'y' => 0.5]),
+            focalPoint: [
+                'offsetX' => 100,
+                'offsetY' => -75,
+                'imageDimensions' => [
+                    'width' => 1000,
+                    'height' => 750,
+                ],
+            ],
+            viewportRotation: 0,
+            imageRotation: 0.0,
+            cropData: [
+                'offsetX' => 0,
+                'offsetY' => 0,
+                'width' => 1000,
+                'height' => 750,
+            ],
+            imageDimensions: [
+                'width' => 1000,
+                'height' => 750,
+            ],
+            flipData: [
+                'x' => true,
+                'y' => true,
+            ],
+            zoom: 1.0,
+        );
+
+        $this->assertSame(['x' => 0.4, 'y' => 0.6], $focalPoint);
+    }
+
     public function testImageEditorAllowsRotationWithFocalPoint(): void
     {
         $asset = $this->makeUrlAssetStub(1, 'image.jpg', 4000, 3000, ['x' => 0.5, 'y' => 0.5]);
@@ -877,6 +925,14 @@ class TestImageTransformer extends ImageTransformer
     public function applyFocalPointGravity(Asset $asset, ImageTransform $imageTransform): array|string|null
     {
         return $this->applyAssetFocalPointGravity($asset, $imageTransform);
+    }
+}
+
+class TestImageEditor extends ImageEditor
+{
+    public function focalPointFromEditor(Asset $asset, ?array $focalPoint, int $viewportRotation, float $imageRotation, array $cropData, array $imageDimensions, ?array $flipData, float $zoom): ?array
+    {
+        return $this->focalPoint($asset, $focalPoint, $viewportRotation, $imageRotation, $cropData, $imageDimensions, $flipData, $zoom);
     }
 }
 

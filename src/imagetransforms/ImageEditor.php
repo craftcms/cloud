@@ -59,7 +59,7 @@ class ImageEditor
         ?array $flipData,
         float $zoom,
     ): Asset {
-        $focal = $this->focalPoint($asset, $focalPoint, $viewportRotation, $imageRotation, $cropData, $imageDimensions, $zoom);
+        $focal = $this->focalPoint($asset, $focalPoint, $viewportRotation, $imageRotation, $cropData, $imageDimensions, $flipData, $zoom);
         $transform = ImageTransformer::fromImageEditor($asset, $viewportRotation, $imageRotation, $cropData, $imageDimensions, $flipData, $zoom, $focalPoint);
 
         if ($transform === null && !$this->focalPointChanged($asset, $focal)) {
@@ -75,7 +75,7 @@ class ImageEditor
         return $this->createAsset($asset, $transform, $focal);
     }
 
-    protected function focalPoint(Asset $asset, ?array $focalPoint, int $viewportRotation, float $imageRotation, array $cropData, array $imageDimensions, float $zoom): ?array
+    protected function focalPoint(Asset $asset, ?array $focalPoint, int $viewportRotation, float $imageRotation, array $cropData, array $imageDimensions, ?array $flipData, float $zoom): ?array
     {
         if (!$focalPoint) {
             return null;
@@ -93,10 +93,20 @@ class ImageEditor
             $asset->height / $focalPoint['imageDimensions']['height'],
         );
 
-        return [
+        $focal = [
             'x' => (($editedDimensions['width'] / 2) + ($focalPoint['offsetX'] * $zoom * $adjustmentRatio) - $crop['left']) / $crop['width'],
             'y' => (($editedDimensions['height'] / 2) + ($focalPoint['offsetY'] * $zoom * $adjustmentRatio) - $crop['top']) / $crop['height'],
         ];
+
+        if (!empty($flipData['x'])) {
+            $focal['x'] = 1 - $focal['x'];
+        }
+
+        if (!empty($flipData['y'])) {
+            $focal['y'] = 1 - $focal['y'];
+        }
+
+        return $focal;
     }
 
     protected function crop(Asset $asset, int $rotation, array $cropData, array $imageDimensions, float $zoom): array
