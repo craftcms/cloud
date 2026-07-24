@@ -242,6 +242,12 @@ class StaticCacheTest extends Unit
         $method->setAccessible(true);
 
         $this->assertTrue($method->invoke($fs, 'image.jpg'));
+        $this->assertFalse(
+            Craft::$app->getResponse()->getHeaders()->has(HeaderEnum::CACHE_PURGE_TAG->value),
+        );
+
+        $this->sendPendingPurgeTags($staticCache);
+
         $this->assertSame(
             '123-environment-id:cdn:123-environment-id/assets/image.jpg',
             Craft::$app->getResponse()->getHeaders()->get(HeaderEnum::CACHE_PURGE_TAG->value),
@@ -257,6 +263,8 @@ class StaticCacheTest extends Unit
         $method->setAccessible(true);
 
         $this->assertTrue($method->invoke($fs, str_repeat('x', 1024)));
+        $this->sendPendingPurgeTags($staticCache);
+
         $this->assertSame(
             '123-environment-id:overflow',
             Craft::$app->getResponse()->getHeaders()->get(HeaderEnum::CACHE_PURGE_TAG->value),
@@ -346,20 +354,27 @@ class StaticCacheTest extends Unit
         );
     }
 
-    public function testBeforePurgeEventReceivesElement(): void
+    public function testBeforePurgeEventReceivesElements(): void
     {
         $staticCache = new StaticCache();
-        $element = new Entry(['uri' => 'news']);
+        $news = new Entry(['uri' => 'news']);
+        $about = new Entry(['uri' => 'about']);
         $purgeEvent = null;
         $staticCache->on(StaticCache::EVENT_BEFORE_PURGE, function(PurgeEvent $event) use (&$purgeEvent) {
             $purgeEvent = $event;
         });
 
-        $this->saveElement($staticCache, $element);
+        $this->saveElement($staticCache, $news);
+        $this->saveElement($staticCache, $about);
+        $this->assertNull($purgeEvent);
+        $this->sendPendingPurgeTags($staticCache);
 
-        $this->assertSame($element, $purgeEvent->element);
+        $this->assertSame([$news, $about], $purgeEvent->elements);
         $this->assertSame(
-            ['123-environment-id:uri:/news'],
+            [
+                '123-environment-id:uri:/news',
+                '123-environment-id:uri:/about',
+            ],
             array_map(fn(StaticCacheTag $tag) => $tag->getValue(), $purgeEvent->tags),
         );
     }
@@ -397,7 +412,7 @@ class StaticCacheTest extends Unit
         $this->assertSame(['123-environment-id:overflow'], $payload['tags']);
     }
 
-    public function testCancelledElementPurgeDoesNotQueueFetch(): void
+    public function testCancelledElementPurgeDoesNotSendFetch(): void
     {
         $staticCache = new StaticCache();
         $element = new FetchableElement(['uri' => 'news']);
@@ -407,12 +422,14 @@ class StaticCacheTest extends Unit
         });
 
         $this->saveElement($staticCache, $element);
+        $this->sendPendingPurgeTags($staticCache);
 
         $this->assertTrue($this->collectionProperty($staticCache, 'tagsToPurge')->isEmpty());
         $this->assertTrue($this->collectionProperty($staticCache, 'fetchUrls')->isEmpty());
+        $this->assertNull($this->gatewayRequest);
     }
 
-    public function testDeletedElementPurgeDoesNotQueueFetch(): void
+    public function testDeletedElementPurgeDoesNotCollectFetch(): void
     {
         $staticCache = new StaticCache();
         $element = new FetchableElement(['uri' => 'news']);
@@ -427,10 +444,6 @@ class StaticCacheTest extends Unit
     public function testSavedElementPurgeRequestIncludesFetchUrls(): void
     {
         $staticCache = new StaticCache();
-        Craft::$app->getResponse()->getHeaders()->set(HeaderEnum::CACHE_PURGE_TAG->value, 'cancelled');
-        $staticCache->on(StaticCache::EVENT_BEFORE_PURGE, function(PurgeEvent $event) {
-            $event->isValid = $event->element !== null;
-        });
         $englishElement = new FetchableElement(['uri' => 'news']);
         $englishElement->fetchUrl = 'https://example.com/news';
         $frenchElement = clone $englishElement;
@@ -458,6 +471,27 @@ class StaticCacheTest extends Unit
         $this->assertFalse(
             Craft::$app->getResponse()->getHeaders()->has(HeaderEnum::CACHE_PURGE_TAG->value),
         );
+    }
+
+    public function testBeforePurgeEventFiresOnceForCollectedBatch(): void
+    {
+        $staticCache = new StaticCache();
+        $eventCount = 0;
+        $eventTags = [];
+        $staticCache->on(StaticCache::EVENT_BEFORE_PURGE, function(PurgeEvent $event) use (&$eventCount, &$eventTags) {
+            $eventCount++;
+            $eventTags = array_map(fn(StaticCacheTag $tag) => $tag->getValue(), $event->tags);
+        });
+
+        $staticCache->purgeAll();
+
+        $this->assertSame(0, $eventCount);
+        $this->sendPendingPurgeTags($staticCache);
+        $this->assertSame(1, $eventCount);
+        $this->assertSame([
+            '123-environment-id:uri',
+            '123-environment-id:cdn',
+        ], $eventTags);
     }
 
     public function testExistingCacheTagHeaderIsSplit(): void
@@ -527,13 +561,9 @@ class StaticCacheTest extends Unit
 
     private function sendPendingPurgeTags(StaticCache $staticCache): void
     {
-        $method = new ReflectionMethod($staticCache, 'sendTagPurgeRequest');
+        $method = new ReflectionMethod($staticCache, 'sendPurgeTagsRequest');
         $method->setAccessible(true);
-        $method->invoke(
-            $staticCache,
-            $this->collectionProperty($staticCache, 'tagsToPurge'),
-            $this->collectionProperty($staticCache, 'fetchUrls'),
-        );
+        $method->invoke($staticCache);
     }
 
     private function collectionProperty(StaticCache $staticCache, string $name): Collection

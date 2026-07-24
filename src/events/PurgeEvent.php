@@ -14,7 +14,7 @@ class PurgeEvent extends CancelableEvent
     public array $tags = [];
 
     /**
-     * @var ElementInterface|null The element that caused the purge, if any.
+     * @var ElementInterface[] The elements that caused the purge.
      */
-    public ?ElementInterface $element = null;
+    public array $elements = [];
 }

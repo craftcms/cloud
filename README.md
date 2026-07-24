@@ -235,8 +235,11 @@ return [
             StaticCache::class => [
                 'class' => StaticCache::class,
                 'on ' . StaticCache::EVENT_BEFORE_PURGE => static function(PurgeEvent $event): void {
-                    if ($event->element?->uri === 'health-check') {
-                        $event->isValid = false;
+                    foreach ($event->elements as $element) {
+                        if ($element->uri === 'health-check') {
+                            $event->isValid = false;
+                            break;
+                        }
                     }
                 },
             ],
@@ -245,4 +248,6 @@ return [
 ];
 ```
 
-When a saved element purge proceeds, its non-null site URL is included in tag-based gateway API requests as the optional `fetchUrls` field. URLs are deduplicated, and the gateway asynchronously fetches them after a successful purge to repopulate the cache. Drafts, revisions, deletions, and canceled purges do not enqueue URLs.
+The event fires once immediately before each collected batch is sent. Its `elements` property contains the unique elements associated with the batch.
+
+When a saved element purge proceeds, its non-null site URL is included in tag-based gateway API requests as the optional `fetchUrls` field. URLs are deduplicated, and the gateway asynchronously fetches them after a successful purge to repopulate the cache. Drafts, revisions, deletions, and canceled purges do not send URLs.

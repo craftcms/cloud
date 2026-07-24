@@ -8,7 +8,6 @@ use Aws\S3\S3Client;
 use Craft;
 use craft\behaviors\EnvAttributeParserBehavior;
 use craft\cloud\Module;
-use craft\cloud\StaticCache;
 use craft\cloud\StaticCacheTag;
 use craft\elements\Asset;
 use craft\errors\FsException;
@@ -206,9 +205,7 @@ abstract class Fs extends FlysystemFs
             $objectKey = $this->createBucketPath($path)->toString();
             $cdnTag = StaticCacheTag::create("$environmentId:cdn:$objectKey");
 
-            Module::getInstance()->getStaticCache()->purgeTags(
-                strlen($cdnTag->getValue()) > StaticCache::MAX_TAG_VALUE_LENGTH ? "$environmentId:overflow" : $cdnTag,
-            );
+            Module::getInstance()->getStaticCache()->addPurgeTags($cdnTag);
 
             return true;
         } catch (\Throwable $e) {
