@@ -8,7 +8,7 @@ use craft\events\CancelableEvent;
 class PurgeEvent extends CancelableEvent
 {
     /**
-     * @var StaticCacheTag[] The static cache tags being purged.
+     * @var array<array-key, string|StaticCacheTag> The static cache tags being purged.
      */
     public array $tags = [];
 }
