@@ -59,7 +59,20 @@ class Module extends \yii\base\Module implements \yii\base\BootstrapInterface
 
     public static function log(int $level, string $message, array $context = []): void
     {
-        Craft::getLogger()->log(new PsrMessage($message, $context), $level, self::class);
+        $request = Craft::$app->getRequest();
+
+        $defaultContext = array_filter([
+            'requestedRoute' => Craft::$app->requestedRoute,
+            'requestedParams' => Craft::$app->requestedParams,
+            'url' => $request instanceof \craft\web\Request && !$request->getIsConsoleRequest()
+                ? $request->getAbsoluteUrl()
+                : null,
+        ]);
+
+        Craft::getLogger()->log(new PsrMessage(
+            $message,
+            $context + $defaultContext,
+        ), $level, self::class);
     }
 
     public static function info(string $message, array $context = []): void

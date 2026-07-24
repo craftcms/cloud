@@ -20,12 +20,12 @@ class StaticCacheTag implements \Stringable, \JsonSerializable
         return new self($value);
     }
 
-    public function jsonSerialize(): false|string
+    public function jsonSerialize(): array
     {
-        return json_encode([
+        return [
             'value' => $this->getValue(),
             'originalValue' => $this->originalValue,
-        ]);
+        ];
     }
 
     public function __toString(): string

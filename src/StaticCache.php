@@ -124,6 +124,8 @@ class StaticCache extends \yii\base\Component
                         'Failed to purge tags after request',
                         [
                             'exception' => $e,
+                            'tags' => $this->tagsToPurge->all(),
+                            'fetchUrls' => $this->fetchUrls->unique()->values()->all(),
                         ],
                     );
                 }

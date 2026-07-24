@@ -61,4 +61,14 @@ class StaticCacheTagTest extends Unit
             StaticCacheTag::create('tag value')->minify(true)->getValue(),
         );
     }
+
+    public function testSerializesCurrentAndOriginalValues(): void
+    {
+        $tag = StaticCacheTag::create('tag value')->minify(true);
+
+        $this->assertSame([
+            'value' => $tag->getValue(),
+            'originalValue' => 'tag value',
+        ], $tag->jsonSerialize());
+    }
 }
