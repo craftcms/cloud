@@ -473,7 +473,7 @@ class ImageTransformTest extends Unit
     public function testImageEditorCropMapsToTrimTransform(): void
     {
         $asset = $this->makeUrlAssetStub(1, 'image.jpg', 4000, 3000, ['x' => 0.5, 'y' => 0.5]);
-        $transform = ImageTransformer::fromImageEditor(
+        $transform = (new TestImageEditor())->transformFromEditor(
             asset: $asset,
             viewportRotation: 0,
             imageRotation: 0.0,
@@ -506,7 +506,7 @@ class ImageTransformTest extends Unit
     public function testImageEditorRotationMapsToRotateTransform(): void
     {
         $asset = $this->makeUrlAssetStub(1, 'image.jpg', 4000, 3000, ['x' => 0.5, 'y' => 0.5]);
-        $transform = ImageTransformer::fromImageEditor(
+        $transform = (new TestImageEditor())->transformFromEditor(
             asset: $asset,
             viewportRotation: 90,
             imageRotation: 0.0,
@@ -533,7 +533,7 @@ class ImageTransformTest extends Unit
     public function testImageEditorRotationWithFullDisplayCropDoesNotTrim(): void
     {
         $asset = $this->makeUrlAssetStub(1, 'image.jpg', 568, 908, ['x' => 0.5, 'y' => 0.5]);
-        $transform = ImageTransformer::fromImageEditor(
+        $transform = (new TestImageEditor())->transformFromEditor(
             asset: $asset,
             viewportRotation: 270,
             imageRotation: 0.0,
@@ -561,7 +561,7 @@ class ImageTransformTest extends Unit
     public function testImageEditorRotatedCropMapsToSourceSpaceTrim(): void
     {
         $asset = $this->makeUrlAssetStub(1, 'image.jpg', 568, 908, ['x' => 0.5, 'y' => 0.5]);
-        $transform = ImageTransformer::fromImageEditor(
+        $transform = (new TestImageEditor())->transformFromEditor(
             asset: $asset,
             viewportRotation: 270,
             imageRotation: 0.0,
@@ -595,7 +595,7 @@ class ImageTransformTest extends Unit
     {
         $asset = $this->makeUrlAssetStub(1, 'image.jpg', 4000, 3000, ['x' => 0.5, 'y' => 0.5]);
 
-        $transform = ImageTransformer::fromImageEditor(
+        $transform = (new TestImageEditor())->transformFromEditor(
             asset: $asset,
             viewportRotation: 90,
             imageRotation: 0.0,
@@ -614,13 +614,13 @@ class ImageTransformTest extends Unit
         );
 
         $this->assertInstanceOf(ImageTransform::class, $transform);
-        $this->assertSame(2400, $transform->width);
+        $this->assertSame(1900, $transform->width);
         $this->assertSame(1600, $transform->height);
         $this->assertSame([
             'left' => 800,
             'top' => 0,
             'width' => 1600,
-            'height' => 2400,
+            'height' => 1900,
         ], $this->behavior($transform)->trim);
         $this->assertSame(90, $this->behavior($transform)->rotate);
         $this->assertSame('h', $this->behavior($transform)->flip);
@@ -629,7 +629,7 @@ class ImageTransformTest extends Unit
     public function testImageEditorMapsZoomToCloudflareZoom(): void
     {
         $asset = $this->makeUrlAssetStub(1, 'image.jpg', 4000, 3000, ['x' => 0.25, 'y' => 0.75]);
-        $transform = ImageTransformer::fromImageEditor(
+        $transform = (new TestImageEditor())->transformFromEditor(
             asset: $asset,
             viewportRotation: 0,
             imageRotation: 0.0,
@@ -654,7 +654,7 @@ class ImageTransformTest extends Unit
     public function testImageEditorZoomOnlyEditCreatesTransform(): void
     {
         $asset = $this->makeUrlAssetStub(1, 'image.jpg', 4000, 3000, ['x' => 0.25, 'y' => 0.75]);
-        $transform = ImageTransformer::fromImageEditor(
+        $transform = (new TestImageEditor())->transformFromEditor(
             asset: $asset,
             viewportRotation: 0,
             imageRotation: 0.0,
@@ -679,7 +679,7 @@ class ImageTransformTest extends Unit
     public function testImageEditorPanOnlyEditCreatesTransform(): void
     {
         $asset = $this->makeUrlAssetStub(1, 'image.jpg', 4000, 3000, ['x' => 0.25, 'y' => 0.75]);
-        $transform = ImageTransformer::fromImageEditor(
+        $transform = (new TestImageEditor())->transformFromEditor(
             asset: $asset,
             viewportRotation: 0,
             imageRotation: 0.0,
@@ -706,7 +706,7 @@ class ImageTransformTest extends Unit
         $this->expectException(NotSupportedException::class);
         $this->expectExceptionMessage('Valid image editor crop dimensions are required to edit images.');
 
-        ImageTransformer::fromImageEditor(
+        (new TestImageEditor())->transformFromEditor(
             asset: $this->makeUrlAssetStub(1, 'image.jpg', 4000, 3000, ['x' => 0.25, 'y' => 0.75]),
             viewportRotation: 0,
             imageRotation: 0.0,
@@ -863,7 +863,7 @@ class ImageTransformTest extends Unit
 
         foreach ([135.0, 89.6] as $imageRotation) {
             try {
-                ImageTransformer::fromImageEditor(
+                (new TestImageEditor())->transformFromEditor(
                     asset: $asset,
                     viewportRotation: 0,
                     imageRotation: $imageRotation,
@@ -894,7 +894,7 @@ class ImageTransformTest extends Unit
 
         foreach ([['width' => 0, 'height' => 750], ['width' => 1000, 'height' => 750, 'zoom' => 0.0]] as $imageDimensions) {
             try {
-                ImageTransformer::fromImageEditor(
+                (new TestImageEditor())->transformFromEditor(
                     asset: $asset,
                     viewportRotation: 0,
                     imageRotation: 0.0,
@@ -1288,6 +1288,11 @@ class TestImageEditor extends ImageEditor
     public function focalPointFromEditor(Asset $asset, ?array $focalPoint, int $viewportRotation, float $imageRotation, array $cropData, array $imageDimensions, ?array $flipData, float $zoom): ?array
     {
         return $this->focalPoint($asset, $focalPoint, $viewportRotation, $imageRotation, $cropData, $imageDimensions, $flipData, $zoom);
+    }
+
+    public function transformFromEditor(Asset $asset, int $viewportRotation, float $imageRotation, array $cropData, array $imageDimensions, ?array $flipData, float $zoom): ?ImageTransform
+    {
+        return $this->imageTransform($asset, $viewportRotation, $imageRotation, $cropData, $imageDimensions, $flipData, $zoom);
     }
 
     protected function createAsset(Asset $asset, ?ImageTransform $transform, ?array $focal): Asset

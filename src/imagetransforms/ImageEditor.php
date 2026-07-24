@@ -63,7 +63,7 @@ class ImageEditor
         ?array $flipData,
         float $zoom,
     ): Asset {
-        $transform = ImageTransformer::fromImageEditor($asset, $viewportRotation, $imageRotation, $cropData, $imageDimensions, $flipData, $zoom);
+        $transform = $this->imageTransform($asset, $viewportRotation, $imageRotation, $cropData, $imageDimensions, $flipData, $zoom);
         $focal = $this->focalPoint($asset, $focalPoint, $viewportRotation, $imageRotation, $cropData, $imageDimensions, $flipData, $zoom);
 
         if ($transform !== null && $focal !== null) {
@@ -83,6 +83,92 @@ class ImageEditor
         }
 
         return $this->createAsset($asset, $transform, $focal);
+    }
+
+    protected function imageTransform(
+        Asset $asset,
+        int $viewportRotation,
+        float $imageRotation,
+        array $cropData,
+        array $imageDimensions,
+        ?array $flipData,
+        float $zoom,
+    ): ?ImageTransform {
+        $rotation = $this->rotation($viewportRotation, $imageRotation);
+        $flipX = !empty($flipData['x']);
+        $flipY = !empty($flipData['y']);
+        $flip = match (true) {
+            $flipX && $flipY => 'hv',
+            $flipX => 'h',
+            $flipY => 'v',
+            default => null,
+        };
+
+        $this->ensureImageEditorData($cropData, $imageDimensions, $zoom);
+
+        $sourceReferenceDimensions = $this->rotatedDimensions($imageDimensions['width'], $imageDimensions['height'], 0);
+        $cropReferenceDimensions = $this->rotatedDimensions($imageDimensions['width'], $imageDimensions['height'], $rotation);
+        $cropDimensions = [
+            'width' => (int)round($cropData['width']),
+            'height' => (int)round($cropData['height']),
+        ];
+        $imageCropped = ($cropDimensions !== $sourceReferenceDimensions && $cropDimensions !== $cropReferenceDimensions) ||
+            $zoom !== 1.0 ||
+            (float)$cropData['offsetX'] !== 0.0 ||
+            (float)$cropData['offsetY'] !== 0.0;
+        $imageRotated = $rotation !== 0;
+        $imageFlipped = $flip !== null;
+
+        if (!$imageCropped && !$imageRotated && !$imageFlipped) {
+            return null;
+        }
+
+        if (!$this->hasRightAngleRotation($viewportRotation, $imageRotation)) {
+            throw new NotSupportedException('Only 90-degree image rotations are supported.');
+        }
+
+        if (!$asset->width || !$asset->height) {
+            throw new NotSupportedException('Image dimensions are required to edit images.');
+        }
+
+        $transform = new ImageTransform([
+            'width' => $asset->width,
+            'height' => $asset->height,
+        ]);
+
+        /** @var ImageTransformBehavior $behavior */
+        $behavior = $transform->getBehavior('cloud');
+        $behavior->fit = 'crop';
+
+        if ($zoom !== 1.0) {
+            $behavior->zoom = max(0, min(1, 1 - (1 / $zoom)));
+        }
+
+        if ($imageCropped) {
+            $crop = $this->constrainCrop(
+                $this->sourceCrop($this->crop($asset, $rotation, $cropData, $imageDimensions, $zoom), $asset->width, $asset->height, $rotation),
+                $asset->width,
+                $asset->height,
+            );
+
+            $transform->width = $crop['width'];
+            $transform->height = $crop['height'];
+            $behavior->trim = $crop;
+        }
+
+        if ($imageRotated) {
+            $behavior->rotate = $rotation;
+
+            if (in_array($rotation, [90, 270], true)) {
+                [$transform->width, $transform->height] = [$transform->height, $transform->width];
+            }
+        }
+
+        if ($imageFlipped) {
+            $behavior->flip = $flip;
+        }
+
+        return $transform;
     }
 
     protected function supportsEdgeEditing(Asset $asset): bool
@@ -172,21 +258,65 @@ class ImageEditor
             'height' => $height,
         ];
 
+        return $this->constrainCrop($crop, $editedDimensions['width'], $editedDimensions['height']);
+    }
+
+    protected function sourceCrop(array $crop, int $sourceWidth, int $sourceHeight, int $rotation): array
+    {
+        return match ($rotation) {
+            90 => [
+                'left' => $crop['top'],
+                'top' => $sourceHeight - $crop['left'] - $crop['width'],
+                'width' => $crop['height'],
+                'height' => $crop['width'],
+            ],
+            180 => [
+                'left' => $sourceWidth - $crop['left'] - $crop['width'],
+                'top' => $sourceHeight - $crop['top'] - $crop['height'],
+                'width' => $crop['width'],
+                'height' => $crop['height'],
+            ],
+            270 => [
+                'left' => $sourceWidth - $crop['top'] - $crop['height'],
+                'top' => $crop['left'],
+                'width' => $crop['height'],
+                'height' => $crop['width'],
+            ],
+            default => $crop,
+        };
+    }
+
+    protected function constrainCrop(array $crop, int $width, int $height): array
+    {
         $left = max(0, $crop['left']);
         $top = max(0, $crop['top']);
-        $width = min($crop['width'], $editedDimensions['width'] - $left);
-        $height = min($crop['height'], $editedDimensions['height'] - $top);
+        $cropWidth = min($crop['width'], $width - $left);
+        $cropHeight = min($crop['height'], $height - $top);
 
-        if ($width <= 0 || $height <= 0) {
+        if ($cropWidth <= 0 || $cropHeight <= 0) {
             throw new NotSupportedException('Valid image editor crop dimensions are required to edit images.');
         }
 
         return [
             'left' => $left,
             'top' => $top,
-            'width' => $width,
-            'height' => $height,
+            'width' => $cropWidth,
+            'height' => $cropHeight,
         ];
+    }
+
+    protected function ensureImageEditorData(array $cropData, array $imageDimensions, float $zoom): void
+    {
+        if (
+            !isset($cropData['offsetX'], $cropData['offsetY']) ||
+            !is_numeric($cropData['offsetX']) ||
+            !is_numeric($cropData['offsetY']) ||
+            !$this->validDimensions($cropData) ||
+            !$this->validDimensions($imageDimensions) ||
+            $zoom <= 0
+        ) {
+            throw new NotSupportedException('Valid image editor dimensions are required to edit images.');
+        }
     }
 
     protected function rotation(int $viewportRotation, float $imageRotation): int
