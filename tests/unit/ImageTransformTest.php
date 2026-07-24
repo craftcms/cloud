@@ -20,6 +20,7 @@ use craft\fs\Local;
 use craft\helpers\Template;
 use craft\models\ImageTransform;
 use craft\models\Volume;
+use GuzzleHttp\Exception\RequestException;
 use League\Uri\Components\Query;
 use ReflectionProperty;
 use Twig\Markup;
@@ -1003,6 +1004,70 @@ class ImageTransformTest extends Unit
         } finally {
             $generalConfig->transformGifs = $transformGifs;
         }
+    }
+
+    public function testImageEditorFallsBackToCraftForUnsupportedImageFormats(): void
+    {
+        $event = new SaveAssetImageEvent([
+            'asset' => $this->makeTransformUrlAsset('image.bmp', ['x' => 0.5, 'y' => 0.5], false, 'image/bmp'),
+            'replace' => true,
+            'viewportRotation' => 90,
+            'imageRotation' => 0.0,
+            'cropData' => [
+                'offsetX' => 0,
+                'offsetY' => 0,
+                'width' => 1000,
+                'height' => 750,
+            ],
+            'focalPoint' => null,
+            'imageDimensions' => [
+                'width' => 1000,
+                'height' => 750,
+            ],
+            'flipData' => null,
+            'zoom' => 1.0,
+        ]);
+
+        (new ImageEditor())->handleSaveImage($event);
+
+        $this->assertFalse($event->handled);
+    }
+
+    public function testImageEditorDoesNotExposeSignedUrlFromRequestException(): void
+    {
+        $editor = new class() extends ImageEditor {
+            public function editImage(Asset $asset, bool $replace, int $viewportRotation, float $imageRotation, array $cropData, ?array $focalPoint, array $imageDimensions, ?array $flipData, float $zoom): Asset
+            {
+                throw new RequestException(
+                    'GET https://cdn.craft.cloud/assets/image.jpg?width=100&s=secret-signature',
+                    new \GuzzleHttp\Psr7\Request('GET', 'https://cdn.craft.cloud/assets/image.jpg?width=100&s=secret-signature'),
+                );
+            }
+        };
+        $event = new SaveAssetImageEvent([
+            'asset' => $this->makeTransformUrlAsset('image.jpg', ['x' => 0.5, 'y' => 0.5]),
+            'replace' => true,
+            'viewportRotation' => 90,
+            'imageRotation' => 0.0,
+            'cropData' => [
+                'offsetX' => 0,
+                'offsetY' => 0,
+                'width' => 1000,
+                'height' => 750,
+            ],
+            'focalPoint' => null,
+            'imageDimensions' => [
+                'width' => 1000,
+                'height' => 750,
+            ],
+            'flipData' => null,
+            'zoom' => 1.0,
+        ]);
+
+        $this->expectException(BadRequestHttpException::class);
+        $this->expectExceptionMessage('Could not save the edited image.');
+
+        $editor->handleSaveImage($event);
     }
 
     public function testImageEditorReportsMissingAssetDimensionsAsBadRequest(): void

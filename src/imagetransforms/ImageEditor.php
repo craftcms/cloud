@@ -44,7 +44,7 @@ class ImageEditor
         } catch (NotSupportedException $e) {
             throw new BadRequestHttpException($e->getMessage(), 0, $e);
         } catch (RequestException $e) {
-            $message = trim((string)$e->getResponse()?->getBody()) ?: $e->getMessage();
+            $message = trim((string)$e->getResponse()?->getBody()) ?: 'Could not save the edited image.';
 
             throw new BadRequestHttpException($message, 0, $e);
         }
@@ -94,6 +94,10 @@ class ImageEditor
         }
 
         if ($asset->kind !== Asset::KIND_PDF) {
+            if (!in_array(strtolower(pathinfo($asset->getFilename(), PATHINFO_EXTENSION)), ImageTransformer::SUPPORTED_IMAGE_FORMATS, true)) {
+                return false;
+            }
+
             $mimeType = $asset->getMimeType();
             $generalConfig = Craft::$app->getConfig()->getGeneral();
 
