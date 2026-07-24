@@ -354,31 +354,6 @@ class StaticCacheTest extends Unit
         );
     }
 
-    public function testBeforePurgeEventReceivesElements(): void
-    {
-        $staticCache = new StaticCache();
-        $news = new Entry(['uri' => 'news']);
-        $about = new Entry(['uri' => 'about']);
-        $purgeEvent = null;
-        $staticCache->on(StaticCache::EVENT_BEFORE_PURGE, function(PurgeEvent $event) use (&$purgeEvent) {
-            $purgeEvent = $event;
-        });
-
-        $this->saveElement($staticCache, $news);
-        $this->saveElement($staticCache, $about);
-        $this->assertNull($purgeEvent);
-        $this->sendPendingPurgeTags($staticCache);
-
-        $this->assertSame([$news, $about], $purgeEvent->elements);
-        $this->assertSame(
-            [
-                '123-environment-id:uri:/news',
-                '123-environment-id:uri:/about',
-            ],
-            array_map(fn(StaticCacheTag $tag) => $tag->getValue(), $purgeEvent->tags),
-        );
-    }
-
     public function testHomepagePurgeUsesUriTag(): void
     {
         $staticCache = new StaticCache();
@@ -495,22 +470,16 @@ class StaticCacheTest extends Unit
     public function testPurgeTagsDoesNotSendCollectedBatch(): void
     {
         $staticCache = new StaticCache();
-        $element = new Entry(['uri' => 'news']);
-        $purgeElements = null;
-        $staticCache->on(StaticCache::EVENT_BEFORE_PURGE, function(PurgeEvent $event) use (&$purgeElements) {
-            $purgeElements = $event->elements;
-        });
 
-        $this->saveElement($staticCache, $element);
+        $staticCache->addPurgeTags(['collected']);
         $staticCache->purgeTags('immediate');
 
-        $this->assertSame([], $purgeElements);
         $this->assertSame(
             'immediate',
             Craft::$app->getResponse()->getHeaders()->get(HeaderEnum::CACHE_PURGE_TAG->value),
         );
         $this->assertSame(
-            ['123-environment-id:uri:/news'],
+            ['collected'],
             $this->collectionProperty($staticCache, 'tagsToPurge')
                 ->map(fn(StaticCacheTag $tag) => $tag->getValue())
                 ->all(),
@@ -589,7 +558,6 @@ class StaticCacheTest extends Unit
         $method->invoke(
             $staticCache,
             $this->collectionProperty($staticCache, 'tagsToPurge'),
-            $this->collectionProperty($staticCache, 'elementsToPurge'),
             $this->collectionProperty($staticCache, 'fetchUrls'),
         );
     }

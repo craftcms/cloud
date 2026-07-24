@@ -58,7 +58,6 @@ class StaticCache extends \yii\base\Component
     private ?int $cacheDuration = null;
     private Collection $tags;
     private Collection $tagsToPurge;
-    private Collection $elementsToPurge;
     private Collection $fetchUrls;
     private bool $collectingCacheInfo = false;
 
@@ -66,7 +65,6 @@ class StaticCache extends \yii\base\Component
     {
         $this->tags = Collection::make();
         $this->tagsToPurge = Collection::make();
-        $this->elementsToPurge = Collection::make();
         $this->fetchUrls = Collection::make();
     }
 
@@ -119,7 +117,6 @@ class StaticCache extends \yii\base\Component
                 try {
                     $this->sendPurgeTagsRequest(
                         $this->tagsToPurge,
-                        $this->elementsToPurge,
                         $this->fetchUrls,
                     );
                 } catch (\Throwable $e) {
@@ -194,7 +191,7 @@ class StaticCache extends \yii\base\Component
             return;
         }
 
-        $this->addPurgeTags($tags->all(), $element);
+        $this->addPurgeTags($tags->all());
     }
 
     private function handleRegisterCacheOptions(RegisterCacheOptionsEvent $event): void
@@ -268,7 +265,7 @@ class StaticCache extends \yii\base\Component
 
         $environmentId = Module::getInstance()->getConfig()->environmentId;
         $tag = StaticCacheTag::create("$environmentId:uri:$uri");
-        $this->addPurgeTags([$tag], $element);
+        $this->addPurgeTags([$tag]);
         return true;
     }
 
@@ -301,19 +298,13 @@ class StaticCache extends \yii\base\Component
     /**
      * @param array<array-key, string|StaticCacheTag> $tags
      */
-    public function addPurgeTags(array $tags, ?ElementInterface $element = null): void
+    public function addPurgeTags(array $tags): void
     {
-        $tags = $this->normalizeCacheTags(...$tags);
-        $this->tagsToPurge->push(...$tags);
-
-        if ($element && $tags->isNotEmpty()) {
-            $this->elementsToPurge->push($element);
-        }
+        $this->tagsToPurge->push(...$this->normalizeCacheTags(...$tags));
     }
 
     private function sendPurgeTagsRequest(
         Collection $tags,
-        ?Collection $elements = null,
         ?Collection $fetchUrls = null,
     ): void {
         $response = Craft::$app->getResponse();
@@ -333,10 +324,6 @@ class StaticCache extends \yii\base\Component
 
         $event = new PurgeEvent([
             'tags' => $tags->values()->all(),
-            'elements' => ($elements ?? Collection::make())
-                ->unique(fn(ElementInterface $element) => spl_object_id($element))
-                ->values()
-                ->all(),
         ]);
         $this->trigger(self::EVENT_BEFORE_PURGE, $event);
         $overflowTag = $this->overflowTag();
