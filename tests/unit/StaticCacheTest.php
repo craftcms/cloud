@@ -18,6 +18,7 @@ use craft\helpers\StringHelper;
 use GuzzleHttp\HandlerStack;
 use GuzzleHttp\Promise\Create;
 use GuzzleHttp\Psr7\Response;
+use GuzzleHttp\RequestOptions;
 use Illuminate\Support\Collection;
 use Psr\Http\Message\RequestInterface;
 use ReflectionMethod;
@@ -34,6 +35,7 @@ class StaticCacheTest extends Unit
     private ?string $environmentId = null;
     private ?Module $previousModule = null;
     private ?RequestInterface $gatewayRequest = null;
+    private array $gatewayRequestOptions = [];
     private ?\Throwable $gatewayException = null;
 
     protected function _before(): void
@@ -51,8 +53,9 @@ class StaticCacheTest extends Unit
         $this->environmentId = $module->getConfig()->environmentId;
         $module->getConfig()->environmentId = '123-environment-id';
         $module->getConfig()->signingKey = 'test-signing-key';
-        $module->set('requestSigner', new class(function(RequestInterface $request) {
+        $module->set('requestSigner', new class(function(RequestInterface $request, array $options) {
             $this->gatewayRequest = $request;
+            $this->gatewayRequestOptions = $options;
 
             if ($this->gatewayException) {
                 throw $this->gatewayException;
@@ -65,8 +68,8 @@ class StaticCacheTest extends Unit
 
             public function createHandlerStack(?HandlerStack $handlerStack = null): HandlerStack
             {
-                return new HandlerStack(function(RequestInterface $request) {
-                    ($this->capture)($request);
+                return new HandlerStack(function(RequestInterface $request, array $options) {
+                    ($this->capture)($request, $options);
 
                     return Create::promiseFor(new Response(204));
                 });
@@ -322,6 +325,18 @@ class StaticCacheTest extends Unit
             '123-environment-id:uri:/news',
             Craft::$app->getResponse()->getHeaders()->get(HeaderEnum::CACHE_PURGE_TAG->value),
         );
+    }
+
+    public function testGatewayPurgeAllowsBoundedRetries(): void
+    {
+        $staticCache = new StaticCache();
+        $element = new FetchableElement(['uri' => 'news']);
+        $element->fetchUrl = 'https://example.com/news';
+
+        $this->saveElement($staticCache, $element);
+        $this->sendPendingPurgeTags($staticCache);
+
+        $this->assertSame(40, $this->gatewayRequestOptions[RequestOptions::TIMEOUT]);
     }
 
     public function testBeforePurgeEventCanCancelExistingHeaderTags(): void

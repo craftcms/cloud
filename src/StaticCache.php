@@ -380,7 +380,7 @@ class StaticCache extends \yii\base\Component
         try {
             Helper::createGatewayApiClient()->request('POST', 'cache/purge', [
                 RequestOptions::JSON => $payload,
-                RequestOptions::TIMEOUT => 3,
+                RequestOptions::TIMEOUT => 40,
             ]);
         } catch (\Throwable $e) {
             if ($isWebResponse) {
