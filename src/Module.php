@@ -64,7 +64,7 @@ class Module extends \yii\base\Module implements \yii\base\BootstrapInterface
         $defaultContext = array_filter([
             'requestedRoute' => Craft::$app->requestedRoute,
             'requestedParams' => Craft::$app->requestedParams,
-            'url' => !$request->getIsConsoleRequest()
+            'url' => $request instanceof \craft\web\Request
                 ? $request->getAbsoluteUrl()
                 : null,
         ]);
