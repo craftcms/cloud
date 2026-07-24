@@ -223,6 +223,6 @@ Most configuration (to Craft and the extension itself) is handled directly by Cl
 
 ### Static cache
 
-The `StaticCache::EVENT_BEFORE_PURGE` event fires once immediately before each collected batch is sent. Listeners can modify its `tags` or cancel the purge.
+The `StaticCache::EVENT_BEFORE_PURGE` event fires immediately before each tag purge, including the collected end-of-request batch. Listeners can modify its `tags` or cancel the purge.
 
 When a saved element purge proceeds, its non-null site URL is included in tag-based gateway API requests as the optional `fetchUrls` field. URLs are deduplicated, and the gateway asynchronously fetches them after a successful purge to repopulate the cache. Drafts, revisions, deletions, and canceled purges do not send URLs.

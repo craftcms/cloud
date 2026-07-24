@@ -313,7 +313,6 @@ class StaticCache extends \yii\base\Component
         // Add any existing tags from the response headers
         if ($isWebResponse) {
             $tags->push(...$this->parseCacheTagsFromHeader(HeaderEnum::CACHE_PURGE_TAG->value));
-            $response->getHeaders()->remove(HeaderEnum::CACHE_PURGE_TAG->value);
         }
 
         $tags = $this->normalizeCacheTags(...$tags);
@@ -326,6 +325,11 @@ class StaticCache extends \yii\base\Component
             'tags' => $tags->values()->all(),
         ]);
         $this->trigger(self::EVENT_BEFORE_PURGE, $event);
+
+        if ($isWebResponse) {
+            $response->getHeaders()->remove(HeaderEnum::CACHE_PURGE_TAG->value);
+        }
+
         $overflowTag = $this->overflowTag();
         $tags = $event->isValid
             ? $this->normalizeCacheTags(...$event->tags)

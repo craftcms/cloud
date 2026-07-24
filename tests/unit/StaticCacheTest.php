@@ -339,6 +339,25 @@ class StaticCacheTest extends Unit
         );
     }
 
+    public function testBeforePurgeEventExceptionPreservesExistingHeaderTags(): void
+    {
+        $staticCache = new StaticCache();
+        Craft::$app->getResponse()->getHeaders()->set(HeaderEnum::CACHE_PURGE_TAG->value, 'first');
+        $staticCache->on(StaticCache::EVENT_BEFORE_PURGE, function() {
+            throw new \RuntimeException();
+        });
+
+        try {
+            $staticCache->purgeTags('second');
+        } catch (\RuntimeException) {
+        }
+
+        $this->assertSame(
+            'first',
+            Craft::$app->getResponse()->getHeaders()->get(HeaderEnum::CACHE_PURGE_TAG->value),
+        );
+    }
+
     public function testBeforePurgeEventCanReplaceTags(): void
     {
         $staticCache = new StaticCache();
