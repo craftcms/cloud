@@ -424,8 +424,6 @@ class StaticCacheTest extends Unit
         $this->saveElement($staticCache, $element);
         $this->sendPendingPurgeTags($staticCache);
 
-        $this->assertTrue($this->collectionProperty($staticCache, 'tagsToPurge')->isEmpty());
-        $this->assertTrue($this->collectionProperty($staticCache, 'fetchUrls')->isEmpty());
         $this->assertNull($this->gatewayRequest);
     }
 
@@ -492,6 +490,31 @@ class StaticCacheTest extends Unit
             '123-environment-id:uri',
             '123-environment-id:cdn',
         ], $eventTags);
+    }
+
+    public function testPurgeTagsDoesNotSendCollectedBatch(): void
+    {
+        $staticCache = new StaticCache();
+        $element = new Entry(['uri' => 'news']);
+        $purgeElements = null;
+        $staticCache->on(StaticCache::EVENT_BEFORE_PURGE, function(PurgeEvent $event) use (&$purgeElements) {
+            $purgeElements = $event->elements;
+        });
+
+        $this->saveElement($staticCache, $element);
+        $staticCache->purgeTags('immediate');
+
+        $this->assertSame([], $purgeElements);
+        $this->assertSame(
+            'immediate',
+            Craft::$app->getResponse()->getHeaders()->get(HeaderEnum::CACHE_PURGE_TAG->value),
+        );
+        $this->assertSame(
+            ['123-environment-id:uri:/news'],
+            $this->collectionProperty($staticCache, 'tagsToPurge')
+                ->map(fn(StaticCacheTag $tag) => $tag->getValue())
+                ->all(),
+        );
     }
 
     public function testExistingCacheTagHeaderIsSplit(): void
@@ -563,7 +586,12 @@ class StaticCacheTest extends Unit
     {
         $method = new ReflectionMethod($staticCache, 'sendPurgeTagsRequest');
         $method->setAccessible(true);
-        $method->invoke($staticCache);
+        $method->invoke(
+            $staticCache,
+            $this->collectionProperty($staticCache, 'tagsToPurge'),
+            $this->collectionProperty($staticCache, 'elementsToPurge'),
+            $this->collectionProperty($staticCache, 'fetchUrls'),
+        );
     }
 
     private function collectionProperty(StaticCache $staticCache, string $name): Collection

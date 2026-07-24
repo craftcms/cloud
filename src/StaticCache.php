@@ -117,7 +117,11 @@ class StaticCache extends \yii\base\Component
         Craft::$app->onAfterRequest(function() {
             if ($this->tagsToPurge->isNotEmpty()) {
                 try {
-                    $this->sendPurgeTagsRequest();
+                    $this->sendPurgeTagsRequest(
+                        $this->tagsToPurge,
+                        $this->elementsToPurge,
+                        $this->fetchUrls,
+                    );
                 } catch (\Throwable $e) {
                     Module::error(
                         'Failed to purge tags after request',
@@ -291,8 +295,7 @@ class StaticCache extends \yii\base\Component
 
     public function purgeTags(string|StaticCacheTag ...$tags): void
     {
-        $this->addPurgeTags($tags);
-        $this->sendPurgeTagsRequest();
+        $this->sendPurgeTagsRequest(Collection::make($tags));
     }
 
     /**
@@ -308,11 +311,13 @@ class StaticCache extends \yii\base\Component
         }
     }
 
-    private function sendPurgeTagsRequest(): void
-    {
+    private function sendPurgeTagsRequest(
+        Collection $tags,
+        ?Collection $elements = null,
+        ?Collection $fetchUrls = null,
+    ): void {
         $response = Craft::$app->getResponse();
         $isWebResponse = $response instanceof \craft\web\Response;
-        $tags = $this->tagsToPurge;
 
         // Add any existing tags from the response headers
         if ($isWebResponse) {
@@ -328,7 +333,7 @@ class StaticCache extends \yii\base\Component
 
         $event = new PurgeEvent([
             'tags' => $tags->values()->all(),
-            'elements' => $this->elementsToPurge
+            'elements' => ($elements ?? Collection::make())
                 ->unique(fn(ElementInterface $element) => spl_object_id($element))
                 ->values()
                 ->all(),
@@ -340,15 +345,12 @@ class StaticCache extends \yii\base\Component
                 ->map(fn(StaticCacheTag $tag) => StringHelper::byteLength($tag->getValue()) > self::MAX_TAG_VALUE_LENGTH ? $overflowTag : $tag)
                 ->unique(fn(StaticCacheTag $tag) => $tag->getValue())
             : Collection::make();
-        $fetchUrls = $this->fetchUrls;
-        $this->tagsToPurge = Collection::make();
-        $this->elementsToPurge = Collection::make();
-        $this->fetchUrls = Collection::make();
 
         if ($tags->isEmpty()) {
             return;
         }
 
+        $fetchUrls ??= Collection::make();
         $sendApiRequest = !$isWebResponse || $fetchUrls->isNotEmpty();
 
         if (!$sendApiRequest) {
