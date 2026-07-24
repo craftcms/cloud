@@ -223,26 +223,6 @@ Most configuration (to Craft and the extension itself) is handled directly by Cl
 
 ### Static cache
 
-Static cache purge events can be configured through Yii’s dependency injection container in `config/app.php`:
+The `StaticCache::EVENT_BEFORE_PURGE` event fires immediately before each tag purge, including the collected end-of-request batch. Listeners can modify its `tags` or cancel the purge.
 
-```php
-use craft\cloud\events\PurgeEvent;
-use craft\cloud\StaticCache;
-
-return [
-    'container' => [
-        'definitions' => [
-            StaticCache::class => [
-                'class' => StaticCache::class,
-                'on ' . StaticCache::EVENT_BEFORE_PURGE => static function(PurgeEvent $event): void {
-                    if ($event->element?->uri === 'health-check') {
-                        $event->isValid = false;
-                    }
-                },
-            ],
-        ],
-    ],
-];
-```
-
-When a saved element purge proceeds, its non-null site URL is included in tag-based gateway API requests as the optional `fetchUrls` field. URLs are deduplicated, and the gateway asynchronously fetches them after a successful purge to repopulate the cache. Drafts, revisions, deletions, and canceled purges do not enqueue URLs.
+When a saved element purge proceeds, its non-null site URL is included in tag-based gateway API requests as the optional `fetchUrls` field. URLs are deduplicated, and the gateway asynchronously fetches them after a successful purge to repopulate the cache. Drafts, revisions, deletions, and canceled purges do not send URLs.
