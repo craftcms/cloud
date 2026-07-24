@@ -789,6 +789,37 @@ class ImageTransformTest extends Unit
         $this->assertSame(['x' => 1, 'y' => 0], $focalPoint);
     }
 
+    public function testImageEditorUsesConstrainedCropForFocalPoint(): void
+    {
+        $focalPoint = (new TestImageEditor())->focalPointFromEditor(
+            asset: $this->makeUrlAssetStub(1, 'image.jpg', 4000, 3000, ['x' => 0.5, 'y' => 0.5]),
+            focalPoint: [
+                'offsetX' => 0,
+                'offsetY' => 0,
+                'imageDimensions' => [
+                    'width' => 1000,
+                    'height' => 750,
+                ],
+            ],
+            viewportRotation: 0,
+            imageRotation: 0.0,
+            cropData: [
+                'offsetX' => 200,
+                'offsetY' => 0,
+                'width' => 1000,
+                'height' => 750,
+            ],
+            imageDimensions: [
+                'width' => 1000,
+                'height' => 750,
+            ],
+            flipData: null,
+            zoom: 1.0,
+        );
+
+        $this->assertSame(['x' => 0.375, 'y' => 0.5], $focalPoint);
+    }
+
     public function testImageEditorUsesNewFocalPointForTransformGravity(): void
     {
         $editor = new TestImageEditor();
@@ -911,6 +942,69 @@ class ImageTransformTest extends Unit
         $this->assertFalse($event->handled);
     }
 
+    public function testImageEditorFallsBackToCraftForLocalCloudFs(): void
+    {
+        $event = new SaveAssetImageEvent([
+            'asset' => $this->makeTransformUrlAsset('local.jpg', ['x' => 0.5, 'y' => 0.5], true),
+            'replace' => true,
+            'viewportRotation' => 90,
+            'imageRotation' => 0.0,
+            'cropData' => [
+                'offsetX' => 0,
+                'offsetY' => 0,
+                'width' => 1000,
+                'height' => 750,
+            ],
+            'focalPoint' => null,
+            'imageDimensions' => [
+                'width' => 1000,
+                'height' => 750,
+            ],
+            'flipData' => null,
+            'zoom' => 1.0,
+        ]);
+
+        (new ImageEditor())->handleSaveImage($event);
+
+        $this->assertFalse($event->handled);
+    }
+
+    public function testImageEditorFallsBackToCraftWhenGifTransformsAreDisabled(): void
+    {
+        $generalConfig = Craft::$app->getConfig()->getGeneral();
+        $transformGifs = $generalConfig->transformGifs;
+
+        try {
+            $generalConfig->transformGifs = false;
+
+            $event = new SaveAssetImageEvent([
+                'asset' => $this->makeTransformUrlAsset('image.gif', ['x' => 0.5, 'y' => 0.5], false, 'image/gif'),
+                'replace' => true,
+                'viewportRotation' => 90,
+                'imageRotation' => 0.0,
+                'cropData' => [
+                    'offsetX' => 0,
+                    'offsetY' => 0,
+                    'width' => 1000,
+                    'height' => 750,
+                ],
+                'focalPoint' => null,
+                'imageDimensions' => [
+                    'width' => 1000,
+                    'height' => 750,
+                ],
+                'flipData' => null,
+                'zoom' => 1.0,
+            ]);
+
+            (new ImageEditor())->handleSaveImage($event);
+
+            $this->assertFalse($event->handled);
+        } finally {
+            $generalConfig->transformGifs = $transformGifs;
+        }
+    }
+
     public function testImageEditorReportsMissingAssetDimensionsAsBadRequest(): void
     {
         $event = new SaveAssetImageEvent([
@@ -970,9 +1064,9 @@ class ImageTransformTest extends Unit
         };
     }
 
-    private function makeTransformUrlAsset(string $filename, array $focalPoint, bool $useLocalFs = false): Asset
+    private function makeTransformUrlAsset(string $filename, array $focalPoint, bool $useLocalFs = false, string $mimeType = 'image/jpeg'): Asset
     {
-        return new TransformUrlAsset($filename, $focalPoint, $useLocalFs);
+        return new TransformUrlAsset($filename, $focalPoint, $useLocalFs, $mimeType);
     }
 
     private function makeUrlAssetStub(int $id, string $filename, int $width, int $height, array $focalPoint): Asset
@@ -1163,6 +1257,22 @@ class TestCloudModule extends CloudModule
 
 class TransformDecisionAsset extends Asset
 {
+    public function __construct()
+    {
+        parent::__construct();
+        $this->kind = self::KIND_IMAGE;
+    }
+
+    public function getFilename(bool $withExtension = true): string
+    {
+        return 'image.jpg';
+    }
+
+    public function getMimeType(mixed $transform = null): ?string
+    {
+        return 'image/jpeg';
+    }
+
     public function getVolume(): Volume
     {
         return new class() extends Volume {
@@ -1263,6 +1373,7 @@ class TransformUrlAsset extends Asset
         private string $filenameValue,
         private array $focalPointValue,
         private bool $useLocalFs = false,
+        private string $mimeType = 'image/jpeg',
     ) {
         parent::__construct();
         $this->kind = self::KIND_IMAGE;
@@ -1294,7 +1405,7 @@ class TransformUrlAsset extends Asset
 
     public function getMimeType(mixed $transform = null): ?string
     {
-        return 'image/jpeg';
+        return $this->mimeType;
     }
 
     public function getVolume(): Volume

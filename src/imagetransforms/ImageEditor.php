@@ -19,7 +19,7 @@ class ImageEditor
     {
         $asset = $event->asset ?? null;
 
-        if (!$asset instanceof Asset || !$asset->getVolume()->getFs() instanceof AssetsFs) {
+        if (!$asset instanceof Asset || !$this->supportsEdgeEditing($asset)) {
             return;
         }
 
@@ -85,6 +85,30 @@ class ImageEditor
         return $this->createAsset($asset, $transform, $focal);
     }
 
+    protected function supportsEdgeEditing(Asset $asset): bool
+    {
+        $assetFs = $asset->getVolume()->getFs();
+
+        if (!$assetFs instanceof AssetsFs || $assetFs->useLocalFs) {
+            return false;
+        }
+
+        if ($asset->kind !== Asset::KIND_PDF) {
+            $mimeType = $asset->getMimeType();
+            $generalConfig = Craft::$app->getConfig()->getGeneral();
+
+            if ($mimeType === 'image/gif' && !$generalConfig->transformGifs) {
+                return false;
+            }
+
+            if ($mimeType === 'image/svg+xml' && !$generalConfig->transformSvgs) {
+                return false;
+            }
+        }
+
+        return true;
+    }
+
     protected function focalPoint(Asset $asset, ?array $focalPoint, int $viewportRotation, float $imageRotation, array $cropData, array $imageDimensions, ?array $flipData, float $zoom): ?array
     {
         if (!$focalPoint) {
@@ -137,9 +161,25 @@ class ImageEditor
         $width = (int)round($cropData['width'] * $zoom * $adjustmentRatio);
         $height = (int)round($cropData['height'] * $zoom * $adjustmentRatio);
 
-        return [
+        $crop = [
             'left' => (int)round(($editedDimensions['width'] / 2) + ($cropData['offsetX'] * $zoom * $adjustmentRatio) - ($width / 2)),
             'top' => (int)round(($editedDimensions['height'] / 2) + ($cropData['offsetY'] * $zoom * $adjustmentRatio) - ($height / 2)),
+            'width' => $width,
+            'height' => $height,
+        ];
+
+        $left = max(0, $crop['left']);
+        $top = max(0, $crop['top']);
+        $width = min($crop['width'], $editedDimensions['width'] - $left);
+        $height = min($crop['height'], $editedDimensions['height'] - $top);
+
+        if ($width <= 0 || $height <= 0) {
+            throw new NotSupportedException('Valid image editor crop dimensions are required to edit images.');
+        }
+
+        return [
+            'left' => $left,
+            'top' => $top,
             'width' => $width,
             'height' => $height,
         ];
@@ -248,6 +288,8 @@ class ImageEditor
         try {
             Craft::createGuzzleClient()->get((new ImageTransformer())->getTransformUrl($asset, $transform, true), [
                 RequestOptions::SINK => $path,
+                RequestOptions::CONNECT_TIMEOUT => 5,
+                RequestOptions::TIMEOUT => 30,
             ]);
         } catch (\Throwable $e) {
             if (file_exists($path)) {
