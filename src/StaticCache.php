@@ -190,11 +190,7 @@ class StaticCache extends \yii\base\Component
             return;
         }
 
-        $this->addPurgeTags(...$tags);
-
-        if ($element) {
-            $this->elementsToPurge->push($element);
-        }
+        $this->addPurgeTags($tags->all(), $element);
     }
 
     private function handleRegisterCacheOptions(RegisterCacheOptionsEvent $event): void
@@ -233,7 +229,7 @@ class StaticCache extends \yii\base\Component
     public function purgeOrigin(): void
     {
         $environmentId = Module::getInstance()->getConfig()->environmentId;
-        $this->addPurgeTags("$environmentId:uri");
+        $this->addPurgeTags(["$environmentId:uri"]);
     }
 
     /**
@@ -251,7 +247,7 @@ class StaticCache extends \yii\base\Component
     public function purgeCdn(): void
     {
         $environmentId = Module::getInstance()->getConfig()->environmentId;
-        $this->addPurgeTags("$environmentId:cdn");
+        $this->addPurgeTags(["$environmentId:cdn"]);
     }
 
     private function purgeElementUri(ElementInterface $element): bool
@@ -268,8 +264,7 @@ class StaticCache extends \yii\base\Component
 
         $environmentId = Module::getInstance()->getConfig()->environmentId;
         $tag = StaticCacheTag::create("$environmentId:uri:$uri");
-        $this->addPurgeTags($tag);
-        $this->elementsToPurge->push($element);
+        $this->addPurgeTags([$tag], $element);
         return true;
     }
 
@@ -296,13 +291,21 @@ class StaticCache extends \yii\base\Component
 
     public function purgeTags(string|StaticCacheTag ...$tags): void
     {
-        $this->addPurgeTags(...$tags);
+        $this->addPurgeTags($tags);
         $this->sendPurgeTagsRequest();
     }
 
-    public function addPurgeTags(string|StaticCacheTag ...$tags): void
+    /**
+     * @param array<array-key, string|StaticCacheTag> $tags
+     */
+    public function addPurgeTags(array $tags, ?ElementInterface $element = null): void
     {
-        $this->tagsToPurge->push(...$this->normalizeCacheTags(...$tags));
+        $tags = $this->normalizeCacheTags(...$tags);
+        $this->tagsToPurge->push(...$tags);
+
+        if ($element && $tags->isNotEmpty()) {
+            $this->elementsToPurge->push($element);
+        }
     }
 
     private function sendPurgeTagsRequest(): void

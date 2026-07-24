@@ -205,7 +205,7 @@ abstract class Fs extends FlysystemFs
             $objectKey = $this->createBucketPath($path)->toString();
             $cdnTag = StaticCacheTag::create("$environmentId:cdn:$objectKey");
 
-            Module::getInstance()->getStaticCache()->addPurgeTags($cdnTag);
+            Module::getInstance()->getStaticCache()->addPurgeTags([$cdnTag]);
 
             return true;
         } catch (\Throwable $e) {
