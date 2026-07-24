@@ -3,7 +3,7 @@
 use craft\test\TestSetup;
 
 ini_set('date.timezone', 'UTC');
-$_SERVER['REQUEST_URI'] = '/';
+$_SERVER['REQUEST_URI'] ??= '/';
 
 define('CRAFT_ROOT_PATH', dirname(__DIR__));
 
