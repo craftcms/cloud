@@ -23,7 +23,7 @@ class ImageEditor
             return;
         }
 
-        if (!in_array($this->rotation($event->viewportRotation, $event->imageRotation), [0, 90, 180, 270], true)) {
+        if (!$this->hasRightAngleRotation($event->viewportRotation, $event->imageRotation)) {
             return;
         }
 
@@ -148,6 +148,13 @@ class ImageEditor
     protected function rotation(int $viewportRotation, float $imageRotation): int
     {
         return ((int)round($imageRotation + $viewportRotation) % 360 + 360) % 360;
+    }
+
+    protected function hasRightAngleRotation(int $viewportRotation, float $imageRotation): bool
+    {
+        $rotation = fmod($imageRotation + $viewportRotation, 360);
+
+        return in_array($rotation < 0 ? $rotation + 360 : $rotation, [0.0, 90.0, 180.0, 270.0], true);
     }
 
     protected function rotatedDimensions(int|float $width, int|float $height, int $rotation): array

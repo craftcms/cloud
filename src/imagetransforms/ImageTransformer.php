@@ -36,7 +36,7 @@ class ImageTransformer extends Component implements ImageTransformerInterface
         ?array $flipData,
         float $zoom,
     ): ?ImageTransform {
-        $rotation = ((int)round($imageRotation + $viewportRotation) % 360 + 360) % 360;
+        $rotation = self::imageEditorRotation($viewportRotation, $imageRotation);
         $flipX = !empty($flipData['x']);
         $flipY = !empty($flipData['y']);
         $flip = match (true) {
@@ -65,7 +65,7 @@ class ImageTransformer extends Component implements ImageTransformerInterface
             return null;
         }
 
-        if (!in_array($rotation, [0, 90, 180, 270], true)) {
+        if (!self::isRightAngleRotation($viewportRotation, $imageRotation)) {
             throw new NotSupportedException('Only 90-degree image rotations are supported.');
         }
 
@@ -130,6 +130,18 @@ class ImageTransformer extends Component implements ImageTransformerInterface
             is_numeric($dimensions['height']) &&
             (float)$dimensions['width'] > 0 &&
             (float)$dimensions['height'] > 0;
+    }
+
+    private static function imageEditorRotation(int $viewportRotation, float $imageRotation): int
+    {
+        return ((int)round($imageRotation + $viewportRotation) % 360 + 360) % 360;
+    }
+
+    private static function isRightAngleRotation(int $viewportRotation, float $imageRotation): bool
+    {
+        $rotation = fmod($imageRotation + $viewportRotation, 360);
+
+        return in_array($rotation < 0 ? $rotation + 360 : $rotation, [0.0, 90.0, 180.0, 270.0], true);
     }
 
     private static function crop(Asset $asset, int $rotation, array $cropData, array $imageDimensions, float $zoom): array

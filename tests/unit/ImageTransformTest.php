@@ -829,26 +829,31 @@ class ImageTransformTest extends Unit
     {
         $asset = $this->makeUrlAssetStub(1, 'image.jpg', 4000, 3000, ['x' => 0.5, 'y' => 0.5]);
 
-        $this->expectException(NotSupportedException::class);
-        $this->expectExceptionMessage('Only 90-degree image rotations are supported.');
+        foreach ([135.0, 89.6] as $imageRotation) {
+            try {
+                ImageTransformer::fromImageEditor(
+                    asset: $asset,
+                    viewportRotation: 0,
+                    imageRotation: $imageRotation,
+                    cropData: [
+                        'offsetX' => 0,
+                        'offsetY' => 0,
+                        'width' => 1000,
+                        'height' => 750,
+                    ],
+                    imageDimensions: [
+                        'width' => 1000,
+                        'height' => 750,
+                    ],
+                    flipData: null,
+                    zoom: 1.0,
+                );
 
-        ImageTransformer::fromImageEditor(
-            asset: $asset,
-            viewportRotation: 0,
-            imageRotation: 135.0,
-            cropData: [
-                'offsetX' => 0,
-                'offsetY' => 0,
-                'width' => 1000,
-                'height' => 750,
-            ],
-            imageDimensions: [
-                'width' => 1000,
-                'height' => 750,
-            ],
-            flipData: null,
-            zoom: 1.0,
-        );
+                $this->fail('Expected non-right-angle rotation to be rejected.');
+            } catch (NotSupportedException $e) {
+                $this->assertSame('Only 90-degree image rotations are supported.', $e->getMessage());
+            }
+        }
     }
 
     public function testImageEditorRejectsInvalidEditorDimensions(): void
@@ -885,7 +890,7 @@ class ImageTransformTest extends Unit
             'asset' => new TransformDecisionAsset(),
             'replace' => true,
             'viewportRotation' => 0,
-            'imageRotation' => 135.0,
+            'imageRotation' => 89.6,
             'cropData' => [
                 'offsetX' => 0,
                 'offsetY' => 0,
