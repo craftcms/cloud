@@ -120,7 +120,10 @@ class ImageEditor
             $focal['y'] = 1 - $focal['y'];
         }
 
-        return $focal;
+        return [
+            'x' => max(0, min(1, $focal['x'])),
+            'y' => max(0, min(1, $focal['y'])),
+        ];
     }
 
     protected function crop(Asset $asset, int $rotation, array $cropData, array $imageDimensions, float $zoom): array

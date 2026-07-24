@@ -185,12 +185,18 @@ class ImageTransformer extends Component implements ImageTransformerInterface
     {
         $left = max(0, $crop['left']);
         $top = max(0, $crop['top']);
+        $width = min($crop['width'], $sourceWidth - $left);
+        $height = min($crop['height'], $sourceHeight - $top);
+
+        if ($width <= 0 || $height <= 0) {
+            throw new NotSupportedException('Valid image editor crop dimensions are required to edit images.');
+        }
 
         return [
             'left' => $left,
             'top' => $top,
-            'width' => min($crop['width'], $sourceWidth - $left),
-            'height' => min($crop['height'], $sourceHeight - $top),
+            'width' => $width,
+            'height' => $height,
         ];
     }
 

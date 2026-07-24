@@ -700,6 +700,30 @@ class ImageTransformTest extends Unit
         $this->assertSame(['left' => 400, 'top' => 0, 'width' => 3600, 'height' => 3000], $this->behavior($transform)->trim);
     }
 
+    public function testImageEditorRejectsOutOfBoundsCrop(): void
+    {
+        $this->expectException(NotSupportedException::class);
+        $this->expectExceptionMessage('Valid image editor crop dimensions are required to edit images.');
+
+        ImageTransformer::fromImageEditor(
+            asset: $this->makeUrlAssetStub(1, 'image.jpg', 4000, 3000, ['x' => 0.25, 'y' => 0.75]),
+            viewportRotation: 0,
+            imageRotation: 0.0,
+            cropData: [
+                'offsetX' => 2000,
+                'offsetY' => 0,
+                'width' => 1000,
+                'height' => 750,
+            ],
+            imageDimensions: [
+                'width' => 1000,
+                'height' => 750,
+            ],
+            flipData: null,
+            zoom: 1.0,
+        );
+    }
+
     public function testImageEditorMirrorsFocalPointForFlip(): void
     {
         $focalPoint = (new TestImageEditor())->focalPointFromEditor(
@@ -732,6 +756,37 @@ class ImageTransformTest extends Unit
         );
 
         $this->assertSame(['x' => 0.4, 'y' => 0.6], $focalPoint);
+    }
+
+    public function testImageEditorClampsFocalPoint(): void
+    {
+        $focalPoint = (new TestImageEditor())->focalPointFromEditor(
+            asset: $this->makeUrlAssetStub(1, 'image.jpg', 4000, 3000, ['x' => 0.5, 'y' => 0.5]),
+            focalPoint: [
+                'offsetX' => 2000,
+                'offsetY' => -2000,
+                'imageDimensions' => [
+                    'width' => 1000,
+                    'height' => 750,
+                ],
+            ],
+            viewportRotation: 0,
+            imageRotation: 0.0,
+            cropData: [
+                'offsetX' => 0,
+                'offsetY' => 0,
+                'width' => 1000,
+                'height' => 750,
+            ],
+            imageDimensions: [
+                'width' => 1000,
+                'height' => 750,
+            ],
+            flipData: null,
+            zoom: 1.0,
+        );
+
+        $this->assertSame(['x' => 1, 'y' => 0], $focalPoint);
     }
 
     public function testImageEditorUsesNewFocalPointForTransformGravity(): void
