@@ -125,7 +125,7 @@ class StaticCache extends \yii\base\Component
                         [
                             'exception' => $e,
                             'tags' => $this->tagsToPurge->all(),
-                            'fetchUrls' => $this->fetchUrls->unique()->values()->all(),
+                            'fetchUrls' => $this->fetchUrls->all(),
                         ],
                     );
                 }
