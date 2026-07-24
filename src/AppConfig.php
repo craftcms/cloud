@@ -16,6 +16,7 @@ use craft\fs\Temp;
 use craft\helpers\App;
 use craft\log\MonologTarget;
 use craft\queue\Queue as CraftQueue;
+use Monolog\Handler\FormattableHandlerInterface;
 use yii\caching\ArrayCache;
 use yii\redis\Cache as RedisCache;
 
@@ -161,9 +162,17 @@ class AppConfig
         return [
             Temp::class => TmpFs::class,
             MonologTarget::class => function($container, $params, $config) {
-                return new MonologTarget([
+                $target = new MonologTarget([
                     'logContext' => false,
                 ] + $config);
+
+                foreach ($target->getLogger()->getHandlers() as $handler) {
+                    if ($handler instanceof FormattableHandlerInterface) {
+                        $handler->setFormatter(new TruncatingFormatter($handler->getFormatter()));
+                    }
+                }
+
+                return $target;
             },
 
             /**
