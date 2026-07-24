@@ -5,6 +5,7 @@ namespace craft\cloud\tests\unit;
 use Codeception\Test\Unit;
 use Craft;
 use craft\cloud\Module;
+use craft\web\Request;
 use samdark\log\PsrMessage;
 use yii\log\Logger;
 
@@ -13,15 +14,15 @@ class ModuleTest extends Unit
     public function testLogAddsRequestContext(): void
     {
         $originalLogger = Craft::getLogger();
+        $originalRequest = Craft::$app->getRequest();
         $logger = new Logger(['flushInterval' => 0]);
+        $request = new Request();
         $route = Craft::$app->requestedRoute;
         $params = Craft::$app->requestedParams;
-        $request = Craft::$app->getRequest();
-        $hostInfo = $request->getHostInfo();
-        $isConsoleRequest = $request->getIsConsoleRequest();
 
         try {
             Craft::setLogger($logger);
+            Craft::$app->set('request', $request);
             Craft::$app->requestedRoute = 'templates/render';
             Craft::$app->requestedParams = ['template' => 'news/_entry'];
             $request->setHostInfo('https://example.com');
@@ -32,11 +33,9 @@ class ModuleTest extends Unit
             $message = $logger->messages[array_key_last($logger->messages)][0];
         } finally {
             Craft::setLogger($originalLogger);
+            Craft::$app->set('request', $originalRequest);
             Craft::$app->requestedRoute = $route;
             Craft::$app->requestedParams = $params;
-            $request->setHostInfo($hostInfo);
-            $request->setUrl(null);
-            $request->setIsConsoleRequest($isConsoleRequest);
         }
 
         $this->assertInstanceOf(PsrMessage::class, $message);
