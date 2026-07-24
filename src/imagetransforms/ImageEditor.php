@@ -9,6 +9,7 @@ use craft\events\SaveAssetImageEvent;
 use craft\helpers\StringHelper;
 use craft\models\ImageTransform;
 use GuzzleHttp\Exception\RequestException;
+use GuzzleHttp\Exception\TransferException;
 use GuzzleHttp\RequestOptions;
 use yii\base\NotSupportedException;
 use yii\web\BadRequestHttpException;
@@ -43,8 +44,11 @@ class ImageEditor
             );
         } catch (NotSupportedException $e) {
             throw new BadRequestHttpException($e->getMessage(), 0, $e);
-        } catch (RequestException $e) {
-            $message = trim((string)$e->getResponse()?->getBody()) ?: 'Could not save the edited image.';
+        } catch (TransferException $e) {
+            $message = $e instanceof RequestException
+                ? trim((string)$e->getResponse()?->getBody())
+                : '';
+            $message = $message ?: 'Could not save the edited image.';
 
             throw new BadRequestHttpException($message, 0, $e);
         }
