@@ -17,6 +17,7 @@ class StaticCacheController extends Controller
             $module->getStaticCache()->purgeTags(
                 "$environmentId:uri",
                 "$environmentId:cdn",
+                "$environmentId:rasterize",
             );
         });
 
@@ -28,7 +29,10 @@ class StaticCacheController extends Controller
         $this->do('Purging CDN static cache', function() {
             $module = Module::getInstance();
             $environmentId = $this->environmentId();
-            $module->getStaticCache()->purgeTags("$environmentId:cdn");
+            $module->getStaticCache()->purgeTags(
+                "$environmentId:cdn",
+                "$environmentId:rasterize",
+            );
         });
 
         return ExitCode::OK;

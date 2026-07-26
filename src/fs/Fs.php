@@ -8,6 +8,7 @@ use Aws\S3\S3Client;
 use Craft;
 use craft\behaviors\EnvAttributeParserBehavior;
 use craft\cloud\Module;
+use craft\cloud\StaticCache;
 use craft\cloud\StaticCacheTag;
 use craft\elements\Asset;
 use craft\errors\FsException;
@@ -204,8 +205,16 @@ abstract class Fs extends FlysystemFs
             $environmentId = Module::getInstance()->getConfig()->environmentId;
             $objectKey = $this->createBucketPath($path)->toString();
             $cdnTag = StaticCacheTag::create("$environmentId:cdn:$objectKey");
+            $tags = [$cdnTag];
 
-            Module::getInstance()->getStaticCache()->addPurgeTags([$cdnTag]);
+            if ($this instanceof AssetsFs && in_array(strtolower(pathinfo($path, PATHINFO_EXTENSION)), ['pdf', 'svg'], true)) {
+                $rasterizeTag = StaticCacheTag::create("$environmentId:rasterize:$objectKey");
+                $tags[] = strlen($rasterizeTag->getValue()) > StaticCache::MAX_TAG_VALUE_LENGTH
+                    ? "$environmentId:rasterize"
+                    : $rasterizeTag;
+            }
+
+            Module::getInstance()->getStaticCache()->addPurgeTags($tags);
 
             return true;
         } catch (\Throwable $e) {

@@ -42,9 +42,9 @@ class StaticCacheControllerTest extends Unit
         $controller->actionPurgeCdn();
 
         $this->assertSame([
-            ['123-environment-id:uri', '123-environment-id:cdn'],
+            ['123-environment-id:uri', '123-environment-id:cdn', '123-environment-id:rasterize'],
             ['123-environment-id:uri'],
-            ['123-environment-id:cdn'],
+            ['123-environment-id:cdn', '123-environment-id:rasterize'],
         ], $this->staticCache->purges);
     }
 
