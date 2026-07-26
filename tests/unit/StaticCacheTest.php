@@ -229,7 +229,7 @@ class StaticCacheTest extends Unit
         $staticCache->purgeAll();
 
         $this->assertSame(
-            ['123-environment-id:uri', '123-environment-id:cdn'],
+            ['123-environment-id:uri', '123-environment-id:cdn', '123-environment-id:rasterize'],
             $this->collectionProperty($staticCache, 'tagsToPurge')
                 ->map(fn(StaticCacheTag $tag) => $tag->getValue())
                 ->all(),
@@ -254,6 +254,43 @@ class StaticCacheTest extends Unit
         $this->assertSame(
             '123-environment-id:cdn:123-environment-id/assets/image.jpg',
             Craft::$app->getResponse()->getHeaders()->get(HeaderEnum::CACHE_PURGE_TAG->value),
+        );
+    }
+
+    public function testRasterizedAssetCdnPurgeUsesObjectTag(): void
+    {
+        $staticCache = new StaticCache();
+        Module::getInstance()->set('staticCache', $staticCache);
+        $fs = new AssetsFs();
+        $method = new ReflectionMethod($fs, 'invalidateCdnPath');
+        $method->setAccessible(true);
+
+        $this->assertTrue($method->invoke($fs, 'document.pdf'));
+        $this->assertTrue($method->invoke($fs, 'graphic.SVG'));
+
+        $this->assertSame([
+            '123-environment-id:cdn:123-environment-id/assets/document.pdf',
+            '123-environment-id:rasterize:123-environment-id/assets/document.pdf',
+            '123-environment-id:cdn:123-environment-id/assets/graphic.SVG',
+            '123-environment-id:rasterize:123-environment-id/assets/graphic.SVG',
+        ], $this->collectionProperty($staticCache, 'tagsToPurge')
+            ->map(fn(StaticCacheTag $tag) => $tag->getValue())
+            ->all());
+    }
+
+    public function testOverlongRasterizedAssetCdnPurgeUsesEnvironmentTag(): void
+    {
+        $staticCache = new StaticCache();
+        Module::getInstance()->set('staticCache', $staticCache);
+        $fs = new AssetsFs();
+        $method = new ReflectionMethod($fs, 'invalidateCdnPath');
+        $method->setAccessible(true);
+
+        $this->assertTrue($method->invoke($fs, str_repeat(' ', 340) . '.pdf'));
+
+        $this->assertSame(
+            '123-environment-id:rasterize',
+            $this->collectionProperty($staticCache, 'tagsToPurge')->last()->getValue(),
         );
     }
 
@@ -498,6 +535,7 @@ class StaticCacheTest extends Unit
         $this->assertSame([
             '123-environment-id:uri',
             '123-environment-id:cdn',
+            '123-environment-id:rasterize',
         ], $eventTags);
     }
 

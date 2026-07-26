@@ -36,6 +36,8 @@ use yii\caching\TagDependency;
  *   - `cdn:{environmentId}:{objectKey}` (legacy; object key has no leading slash)
  *   - `{environmentId}:cdn`
  *   - `{environmentId}:cdn:{objectKey}` (object key has no leading slash)
+ *   - `{environmentId}:rasterize`
+ *   - `{environmentId}:rasterize:{objectKey}` (object key has no leading slash)
  * - Added by Craft:
  *   - `{environmentShortId}{hashed}`
  *   - `{environmentId}:overflow` (when the response has too many tags or a selector is too long)
@@ -250,7 +252,7 @@ class StaticCache extends \yii\base\Component
     public function purgeCdn(): void
     {
         $environmentId = Module::getInstance()->getConfig()->environmentId;
-        $this->addPurgeTags(["$environmentId:cdn"]);
+        $this->addPurgeTags(["$environmentId:cdn", "$environmentId:rasterize"]);
     }
 
     private function purgeElementUri(ElementInterface $element): bool
