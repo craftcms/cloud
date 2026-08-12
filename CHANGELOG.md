@@ -1,5 +1,34 @@
 # Release Notes for Craft Cloud ⛅️
 
+## 2027-08-07
+- Released version 1.49.0 of the Cloud Gateway Worker.
+  - Improved bot rate limiting logic.
+
+## 2027-07-31
+- Released version 1.118.0 of the Cloud API
+  - Fixed a soft-delete bug with domains and subdomains.
+
+## 2027-07-28
+- Released version 1.118.0 of the Cloud API
+  - Added support for [Bref 3](https://bref.sh/news/03-bref-3.0).
+
+## 2027-07-21
+- Released version 1.115.0 of the Cloud API
+  - Added support for access token reconnects in the GitLab integration.
+- Released version 3.9.1 of the `craftcms/cloud` package.
+  - Added static cache purge console commands. 
+
+## 2026-07-13
+- Released version 1.114.0 of the Cloud API
+  - Added support for an Azure source control integration.
+
+## 2026-07-10
+- Released version 1.43.0 of the Cloud Gateway Worker.
+  - Hardened gateway signature handling.
+  - Improved Refine CDN signature and rewrite handling.
+  - Added gateway visibility headers.
+  - Added support for PDF and SVG raster transforms.
+
 ## 2026-06-30
 - Released version 3.4.3 of the `craftcms/cloud` package.
   - Released support for [request signing](https://craftcms.com/docs/cloud/request-signing.html).
@@ -10,6 +39,10 @@
   - Required version 1.0+ of `craftcms/http-message-signatures`.
 - Release version 1.111.0 of the Cloud API.
   - Sensitive environment variables can be revealed in the Console UI, now.
+
+## 2026-05-26
+- Released version 1.32.0 of the Cloud Gateway Worker.
+  - Add support for [signed requests](https://craftcms.com/docs/cloud/request-signing.html#creating-a-signed-request).
 
 ## 2026-05-19
 - Added Sweden and the United Kingdom as two new regions.
