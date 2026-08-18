@@ -1136,6 +1136,14 @@ class ImageTransformTest extends Unit
         (new ImageEditor())->handleSaveImage($event);
     }
 
+    public function testImageEditorKeepsSanitizationForSvgEdits(): void
+    {
+        $editor = new TestImageEditor();
+
+        $this->assertTrue($editor->sanitizeEditedFile($this->makeTransformUrlAsset('image.svg', ['x' => 0.5, 'y' => 0.5], false, 'image/svg+xml')));
+        $this->assertFalse($editor->sanitizeEditedFile($this->makeTransformUrlAsset('image.jpg', ['x' => 0.5, 'y' => 0.5], false, 'image/jpeg')));
+    }
+
     private function setActionSegments(?array $actionSegments): void
     {
         $property = new ReflectionProperty(Craft::$app->getRequest(), '_actionSegments');
@@ -1322,6 +1330,11 @@ class TestImageEditor extends ImageEditor
 {
     public ?ImageTransform $createdTransform = null;
     public ?array $createdFocalPoint = null;
+
+    public function sanitizeEditedFile(Asset $asset): bool
+    {
+        return parent::sanitizeEditedFile($asset);
+    }
 
     public function focalPointFromEditor(Asset $asset, ?array $focalPoint, int $viewportRotation, float $imageRotation, array $cropData, array $imageDimensions, ?array $flipData, float $zoom): ?array
     {

@@ -372,7 +372,7 @@ class ImageEditor
         try {
             if ($transform !== null) {
                 $tempPath = $this->downloadEditedImage($asset, $transform);
-                $asset->sanitizeOnUpload = false;
+                $asset->sanitizeOnUpload = $this->sanitizeEditedFile($asset);
                 Craft::$app->getAssets()->replaceAssetFile($asset, $tempPath, $asset->getFilename());
                 return;
             }
@@ -391,7 +391,7 @@ class ImageEditor
         $newAsset = new Asset();
         $newAsset->avoidFilenameConflicts = true;
         $newAsset->setScenario(Asset::SCENARIO_CREATE);
-        $newAsset->sanitizeOnUpload = false;
+        $newAsset->sanitizeOnUpload = $this->sanitizeEditedFile($asset);
         $newAsset->setFilename($asset->getFilename());
         $newAsset->newFolderId = $asset->folderId;
         $newAsset->setVolumeId($asset->volumeId);
@@ -412,6 +412,11 @@ class ImageEditor
         }
 
         return $newAsset;
+    }
+
+    protected function sanitizeEditedFile(Asset $asset): bool
+    {
+        return $asset->getMimeType() === 'image/svg+xml';
     }
 
     protected function downloadEditedImage(Asset $asset, ImageTransform $transform): string

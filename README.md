@@ -15,7 +15,7 @@ When installed, the extension automatically [bootstraps](https://www.yiiframewor
 
 ## Installation
 
-The Cloud extension can be installed in any existing Craft 4.6+ project by running `php craft setup/cloud`. Craft will add the `craftcms/cloud` package and run the extension’s own setup wizard.
+The Cloud extension can be installed in any existing Craft 4.18.2+ or Craft 5.10.6+ project by running `php craft setup/cloud`. Craft will add the `craftcms/cloud` package and run the extension’s own setup wizard.
 
 > [!TIP]
 > This process includes the creation of a [`craft-cloud.yaml` configuration file](https://craftcms.com/knowledge-base/cloud-config) which helps Cloud understand your project’s structure and determines which versions of PHP and Node your project will use during builds and at runtime.
@@ -45,7 +45,7 @@ For local compatibility work on `3.x`, it can be helpful to keep your main check
 git worktree add ../cloud-3x-craft4 3.x
 
 # In the Craft 4 worktree:
-composer update "craftcms/cms:^4.6" "craftcms/flysystem:^1.0" --with-all-dependencies --no-audit
+composer update "craftcms/cms:^4.18.2" "craftcms/flysystem:^1.0" --with-all-dependencies --no-audit
 
 # In your main checkout:
 composer update "craftcms/cms:^5" "craftcms/flysystem:^2.0" --with-all-dependencies
