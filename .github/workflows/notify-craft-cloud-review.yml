@@ -8,7 +8,6 @@ permissions: {}
 
 jobs:
   notify:
-    if: github.event.requested_team.slug == 'craft-cloud'
     uses: craftcms/.github/.github/workflows/notify-craft-cloud-review.yml@v3
     secrets:
       slack_webhook_url: ${{ secrets.CRAFT_CLOUD_SLACK_WEBHOOK_URL }}
