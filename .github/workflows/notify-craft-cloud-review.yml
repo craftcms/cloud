@@ -1,0 +1,13 @@
+name: Notify Craft Cloud review requests
+
+on:
+  pull_request_target:
+    types: [review_requested]
+
+permissions: {}
+
+jobs:
+  notify:
+    uses: craftcms/.github/.github/workflows/notify-craft-cloud-review.yml@v3
+    secrets:
+      slack_webhook_url: ${{ secrets.CRAFT_CLOUD_SLACK_WEBHOOK_URL }}
