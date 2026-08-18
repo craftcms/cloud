@@ -10,5 +10,4 @@ jobs:
   notify:
     if: github.event.requested_team.slug == 'craft-cloud'
     uses: craftcms/.github/.github/workflows/pr-slack-notification.yml@v3
-    secrets:
-      slack_webhook_url: ${{ secrets.SLACK_CLOUD_WEBHOOK_URL }}
+    secrets: inherit
