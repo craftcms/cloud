@@ -17,6 +17,7 @@ use ReflectionMethod;
 use yii\base\Module as BaseModule;
 use yii\web\BadRequestHttpException;
 use yii\web\ForbiddenHttpException;
+use yii\web\NotFoundHttpException;
 
 class AssetsControllerTest extends Unit
 {
@@ -87,6 +88,31 @@ class AssetsControllerTest extends Unit
             ->willThrowException(new ForbiddenHttpException());
 
         $this->expectException(ForbiddenHttpException::class);
+
+        try {
+            $controller->actionGetUploadUrl();
+        } finally {
+            Craft::$app->set('assets', $assets);
+            $request->setBodyParams($bodyParams);
+        }
+    }
+
+    public function testGetUploadUrlRejectsUnknownReplacementAsset(): void
+    {
+        $assets = Craft::$app->getAssets();
+        $request = Craft::$app->getRequest();
+        $bodyParams = $request->getBodyParams();
+        $assetsMock = $this->createMock(AssetsService::class);
+        $assetsMock->expects($this->once())->method('getAssetById')->with(1)->willReturn(null);
+        Craft::$app->set('assets', $assetsMock);
+        $request->setBodyParams(['filename' => 'test.jpg', 'assetId' => 1]);
+
+        $controller = $this->getMockBuilder(AssetsController::class)
+            ->setConstructorArgs(['cloud-assets', Craft::$app])
+            ->onlyMethods(['requireAcceptsJson', 'requirePostRequest'])
+            ->getMock();
+
+        $this->expectException(NotFoundHttpException::class);
 
         try {
             $controller->actionGetUploadUrl();

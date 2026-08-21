@@ -41,6 +41,9 @@ class AssetsController extends Controller
 
         if ($assetId) {
             $assetToReplace = Craft::$app->getAssets()->getAssetById($assetId);
+            if (!$assetToReplace) {
+                throw new NotFoundHttpException('Asset not found.');
+            }
             $folderId = $assetToReplace->folderId;
         }
 
