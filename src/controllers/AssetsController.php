@@ -37,9 +37,14 @@ class AssetsController extends Controller
         $fieldId = $this->request->getBodyParam('fieldId');
         $assetId = $this->request->getBodyParam('assetId');
         $folderId = $this->request->getBodyParam('folderId');
+        $assetToReplace = null;
 
-        if ($assetId && !$folderId) {
-            $folderId = Craft::$app->getAssets()->getAssetById($assetId)->folderId;
+        if ($assetId) {
+            $assetToReplace = Craft::$app->getAssets()->getAssetById($assetId);
+            if (!$assetToReplace) {
+                throw new NotFoundHttpException('Asset not found.');
+            }
+            $folderId = $assetToReplace->folderId;
         }
 
         if (!$folderId && !$fieldId) {
@@ -66,6 +71,13 @@ class AssetsController extends Controller
 
         if (!$folder) {
             throw new BadRequestHttpException('The target folder provided for uploading is not valid');
+        }
+
+        if ($assetToReplace) {
+            $this->requireVolumePermissionByAsset('replaceFiles', $assetToReplace);
+            $this->requirePeerVolumePermissionByAsset('replacePeerFiles', $assetToReplace);
+        } else {
+            $this->requireVolumePermissionByFolder('saveAssets', $folder);
         }
 
         $volume = $folder->getVolume();

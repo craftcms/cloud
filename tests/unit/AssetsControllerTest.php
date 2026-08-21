@@ -11,9 +11,13 @@ use craft\cloud\fs\Fs;
 use craft\console\Controller as ConsoleController;
 use craft\elements\Asset;
 use craft\models\Volume;
+use craft\models\VolumeFolder;
+use craft\services\Assets as AssetsService;
 use ReflectionMethod;
 use yii\base\Module as BaseModule;
 use yii\web\BadRequestHttpException;
+use yii\web\ForbiddenHttpException;
+use yii\web\NotFoundHttpException;
 
 class AssetsControllerTest extends Unit
 {
@@ -21,6 +25,102 @@ class AssetsControllerTest extends Unit
      * @var \UnitTester
      */
     protected $tester;
+
+    public function testGetUploadUrlRequiresSaveAssetsPermission(): void
+    {
+        $assets = Craft::$app->getAssets();
+        $request = Craft::$app->getRequest();
+        $bodyParams = $request->getBodyParams();
+        $folder = new VolumeFolder(['id' => 1]);
+        $assetsMock = $this->createMock(AssetsService::class);
+        $assetsMock->method('findFolder')->willReturn($folder);
+        Craft::$app->set('assets', $assetsMock);
+        $request->setBodyParams(['filename' => 'test.jpg', 'folderId' => 1]);
+
+        $controller = $this->getMockBuilder(AssetsController::class)
+            ->setConstructorArgs(['cloud-assets', Craft::$app])
+            ->onlyMethods(['requireAcceptsJson', 'requirePostRequest', 'requireVolumePermissionByFolder'])
+            ->getMock();
+        $controller->expects($this->once())
+            ->method('requireVolumePermissionByFolder')
+            ->with('saveAssets', $folder)
+            ->willThrowException(new ForbiddenHttpException());
+
+        $this->expectException(ForbiddenHttpException::class);
+
+        try {
+            $controller->actionGetUploadUrl();
+        } finally {
+            Craft::$app->set('assets', $assets);
+            $request->setBodyParams($bodyParams);
+        }
+    }
+
+    public function testGetUploadUrlRequiresReplacementPermissions(): void
+    {
+        $assets = Craft::$app->getAssets();
+        $request = Craft::$app->getRequest();
+        $bodyParams = $request->getBodyParams();
+        $asset = new Asset();
+        $asset->folderId = 2;
+        $folder = new VolumeFolder(['id' => 2]);
+        $assetsMock = $this->createMock(AssetsService::class);
+        $assetsMock->expects($this->once())->method('getAssetById')->with(1)->willReturn($asset);
+        $assetsMock->expects($this->once())->method('findFolder')->with(['id' => 2])->willReturn($folder);
+        Craft::$app->set('assets', $assetsMock);
+        $request->setBodyParams(['filename' => 'test.jpg', 'assetId' => 1, 'folderId' => 1]);
+
+        $controller = $this->getMockBuilder(AssetsController::class)
+            ->setConstructorArgs(['cloud-assets', Craft::$app])
+            ->onlyMethods([
+                'requireAcceptsJson',
+                'requirePostRequest',
+                'requireVolumePermissionByAsset',
+                'requirePeerVolumePermissionByAsset',
+            ])
+            ->getMock();
+        $controller->expects($this->once())
+            ->method('requireVolumePermissionByAsset')
+            ->with('replaceFiles', $asset);
+        $controller->expects($this->once())
+            ->method('requirePeerVolumePermissionByAsset')
+            ->with('replacePeerFiles', $asset)
+            ->willThrowException(new ForbiddenHttpException());
+
+        $this->expectException(ForbiddenHttpException::class);
+
+        try {
+            $controller->actionGetUploadUrl();
+        } finally {
+            Craft::$app->set('assets', $assets);
+            $request->setBodyParams($bodyParams);
+        }
+    }
+
+    public function testGetUploadUrlRejectsUnknownReplacementAsset(): void
+    {
+        $assets = Craft::$app->getAssets();
+        $request = Craft::$app->getRequest();
+        $bodyParams = $request->getBodyParams();
+        $assetsMock = $this->createMock(AssetsService::class);
+        $assetsMock->expects($this->once())->method('getAssetById')->with(1)->willReturn(null);
+        Craft::$app->set('assets', $assetsMock);
+        $request->setBodyParams(['filename' => 'test.jpg', 'assetId' => 1]);
+
+        $controller = $this->getMockBuilder(AssetsController::class)
+            ->setConstructorArgs(['cloud-assets', Craft::$app])
+            ->onlyMethods(['requireAcceptsJson', 'requirePostRequest'])
+            ->getMock();
+
+        $this->expectException(NotFoundHttpException::class);
+
+        try {
+            $controller->actionGetUploadUrl();
+        } finally {
+            Craft::$app->set('assets', $assets);
+            $request->setBodyParams($bodyParams);
+        }
+    }
 
     public function testVolumeSubpathReturnsEmptyStringOnCraft4(): void
     {
