@@ -39,7 +39,7 @@ class AssetsController extends Controller
         $folderId = $this->request->getBodyParam('folderId');
         $assetToReplace = null;
 
-        if ($assetId && !$folderId) {
+        if ($assetId) {
             $assetToReplace = Craft::$app->getAssets()->getAssetById($assetId);
             $folderId = $assetToReplace->folderId;
         }

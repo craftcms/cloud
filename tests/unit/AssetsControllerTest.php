@@ -55,6 +55,47 @@ class AssetsControllerTest extends Unit
         }
     }
 
+    public function testGetUploadUrlRequiresReplacementPermissions(): void
+    {
+        $assets = Craft::$app->getAssets();
+        $request = Craft::$app->getRequest();
+        $bodyParams = $request->getBodyParams();
+        $asset = new Asset();
+        $asset->folderId = 2;
+        $folder = new VolumeFolder(['id' => 2]);
+        $assetsMock = $this->createMock(AssetsService::class);
+        $assetsMock->expects($this->once())->method('getAssetById')->with(1)->willReturn($asset);
+        $assetsMock->expects($this->once())->method('findFolder')->with(['id' => 2])->willReturn($folder);
+        Craft::$app->set('assets', $assetsMock);
+        $request->setBodyParams(['filename' => 'test.jpg', 'assetId' => 1, 'folderId' => 1]);
+
+        $controller = $this->getMockBuilder(AssetsController::class)
+            ->setConstructorArgs(['cloud-assets', Craft::$app])
+            ->onlyMethods([
+                'requireAcceptsJson',
+                'requirePostRequest',
+                'requireVolumePermissionByAsset',
+                'requirePeerVolumePermissionByAsset',
+            ])
+            ->getMock();
+        $controller->expects($this->once())
+            ->method('requireVolumePermissionByAsset')
+            ->with('replaceFiles', $asset);
+        $controller->expects($this->once())
+            ->method('requirePeerVolumePermissionByAsset')
+            ->with('replacePeerFiles', $asset)
+            ->willThrowException(new ForbiddenHttpException());
+
+        $this->expectException(ForbiddenHttpException::class);
+
+        try {
+            $controller->actionGetUploadUrl();
+        } finally {
+            Craft::$app->set('assets', $assets);
+            $request->setBodyParams($bodyParams);
+        }
+    }
+
     public function testVolumeSubpathReturnsEmptyStringOnCraft4(): void
     {
         $volume = new Volume();
