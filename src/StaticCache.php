@@ -12,6 +12,7 @@ use craft\events\TemplateEvent;
 use craft\helpers\ElementHelper;
 use craft\helpers\StringHelper;
 use craft\services\Elements;
+use craft\services\Gql;
 use craft\utilities\ClearCaches;
 use craft\web\UrlManager;
 use craft\web\View;
@@ -62,6 +63,8 @@ class StaticCache extends \yii\base\Component
     private Collection $tagsToPurge;
     private Collection $fetchUrls;
     private bool $collectingCacheInfo = false;
+    /** @var bool[] */
+    private array $graphqlCachingStack = [];
 
     public function init(): void
     {
@@ -76,6 +79,18 @@ class StaticCache extends \yii\base\Component
             \craft\web\Application::class,
             \craft\web\Application::EVENT_INIT,
             fn(Event $event) => $this->handleInitWebApplication($event),
+        );
+
+        Event::on(
+            Gql::class,
+            Gql::EVENT_BEFORE_EXECUTE_GQL_QUERY,
+            fn(Event $event) => $this->handleBeforeExecuteGqlQuery($event),
+        );
+
+        Event::on(
+            Gql::class,
+            Gql::EVENT_AFTER_EXECUTE_GQL_QUERY,
+            fn(Event $event) => $this->handleAfterExecuteGqlQuery($event),
         );
 
         Event::on(
@@ -162,6 +177,23 @@ class StaticCache extends \yii\base\Component
         }
 
         $this->addCacheHeadersToWebResponse();
+    }
+
+    private function handleBeforeExecuteGqlQuery(Event $event): void
+    {
+        if ($this->collectingCacheInfo) {
+            // TODO: Remove after https://github.com/craftcms/cms/pull/19508 reaches Cloud's minimum supported Craft version.
+            $generalConfig = Craft::$app->getConfig()->getGeneral();
+            $this->graphqlCachingStack[] = $generalConfig->enableGraphqlCaching;
+            $generalConfig->enableGraphqlCaching = false;
+        }
+    }
+
+    private function handleAfterExecuteGqlQuery(Event $event): void
+    {
+        if ($this->graphqlCachingStack !== []) {
+            Craft::$app->getConfig()->getGeneral()->enableGraphqlCaching = array_pop($this->graphqlCachingStack);
+        }
     }
 
     private function handleBeforeRenderPageTemplate(TemplateEvent $event): void
