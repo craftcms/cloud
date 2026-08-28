@@ -82,11 +82,7 @@ class StaticCache extends \yii\base\Component
         Event::on(
             Gql::class,
             Gql::EVENT_BEFORE_EXECUTE_GQL_QUERY,
-            function() {
-                if ($this->collectingCacheInfo) {
-                    Craft::$app->getConfig()->getGeneral()->enableGraphqlCaching = false;
-                }
-            },
+            fn(Event $event) => $this->handleBeforeExecuteGqlQuery($event),
         );
 
         Event::on(
@@ -173,6 +169,13 @@ class StaticCache extends \yii\base\Component
         }
 
         $this->addCacheHeadersToWebResponse();
+    }
+
+    private function handleBeforeExecuteGqlQuery(Event $event): void
+    {
+        if ($this->collectingCacheInfo) {
+            Craft::$app->getConfig()->getGeneral()->enableGraphqlCaching = false;
+        }
     }
 
     private function handleBeforeRenderPageTemplate(TemplateEvent $event): void
