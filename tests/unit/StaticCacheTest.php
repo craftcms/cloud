@@ -141,6 +141,12 @@ class StaticCacheTest extends Unit
             $this->handleBeforeExecuteGqlQuery($staticCache);
             $this->assertFalse($generalConfig->enableGraphqlCaching);
 
+            $this->handleBeforeExecuteGqlQuery($staticCache);
+            $this->assertFalse($generalConfig->enableGraphqlCaching);
+
+            $this->handleAfterExecuteGqlQuery($staticCache);
+            $this->assertFalse($generalConfig->enableGraphqlCaching);
+
             $this->handleAfterExecuteGqlQuery($staticCache);
             $this->assertTrue($generalConfig->enableGraphqlCaching);
         } finally {

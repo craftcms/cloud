@@ -63,7 +63,8 @@ class StaticCache extends \yii\base\Component
     private Collection $tagsToPurge;
     private Collection $fetchUrls;
     private bool $collectingCacheInfo = false;
-    private ?bool $graphqlCaching = null;
+    /** @var bool[] */
+    private array $graphqlCachingStack = [];
 
     public function init(): void
     {
@@ -183,16 +184,15 @@ class StaticCache extends \yii\base\Component
         if ($this->collectingCacheInfo) {
             // TODO: Remove after https://github.com/craftcms/cms/pull/19508 reaches Cloud's minimum supported Craft version.
             $generalConfig = Craft::$app->getConfig()->getGeneral();
-            $this->graphqlCaching = $generalConfig->enableGraphqlCaching;
+            $this->graphqlCachingStack[] = $generalConfig->enableGraphqlCaching;
             $generalConfig->enableGraphqlCaching = false;
         }
     }
 
     private function handleAfterExecuteGqlQuery(Event $event): void
     {
-        if ($this->graphqlCaching !== null) {
-            Craft::$app->getConfig()->getGeneral()->enableGraphqlCaching = $this->graphqlCaching;
-            $this->graphqlCaching = null;
+        if ($this->graphqlCachingStack !== []) {
+            Craft::$app->getConfig()->getGeneral()->enableGraphqlCaching = array_pop($this->graphqlCachingStack);
         }
     }
 
