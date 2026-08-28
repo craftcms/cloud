@@ -141,6 +141,7 @@ class StaticCache extends \yii\base\Component
             return;
         }
 
+        Craft::$app->getConfig()->getGeneral()->enableGraphqlCaching = false;
         Craft::$app->getElements()->startCollectingCacheInfo();
         $this->collectingCacheInfo = true;
     }
