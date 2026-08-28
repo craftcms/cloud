@@ -129,7 +129,9 @@ class StaticCacheTest extends Unit
     {
         $staticCache = new StaticCache();
         $generalConfig = Craft::$app->getConfig()->getGeneral();
+        $response = Craft::$app->getResponse();
         $enableGraphqlCaching = $generalConfig->enableGraphqlCaching;
+        $statusCode = $response->getStatusCode();
 
         try {
             $generalConfig->enableGraphqlCaching = true;
@@ -149,8 +151,20 @@ class StaticCacheTest extends Unit
 
             $this->handleAfterExecuteGqlQuery($staticCache);
             $this->assertTrue($generalConfig->enableGraphqlCaching);
+
+            $this->handleBeforeExecuteGqlQuery($staticCache);
+            $this->handleBeforeExecuteGqlQuery($staticCache);
+            $this->assertFalse($generalConfig->enableGraphqlCaching);
+
+            $response->setStatusCode(500);
+            $this->handleAfterPrepareWebResponse($staticCache);
+            $this->assertTrue($generalConfig->enableGraphqlCaching);
+
+            $graphqlCachingStack = new ReflectionProperty($staticCache, 'graphqlCachingStack');
+            $this->assertSame([], $graphqlCachingStack->getValue($staticCache));
         } finally {
             $generalConfig->enableGraphqlCaching = $enableGraphqlCaching;
+            $response->setStatusCode($statusCode);
         }
     }
 
@@ -640,6 +654,12 @@ class StaticCacheTest extends Unit
     private function handleAfterExecuteGqlQuery(StaticCache $staticCache): void
     {
         $method = new ReflectionMethod($staticCache, 'handleAfterExecuteGqlQuery');
+        $method->invoke($staticCache, new \yii\base\Event());
+    }
+
+    private function handleAfterPrepareWebResponse(StaticCache $staticCache): void
+    {
+        $method = new ReflectionMethod($staticCache, 'handleAfterPrepareWebResponse');
         $method->invoke($staticCache, new \yii\base\Event());
     }
 
