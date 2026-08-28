@@ -12,6 +12,7 @@ use craft\events\TemplateEvent;
 use craft\helpers\ElementHelper;
 use craft\helpers\StringHelper;
 use craft\services\Elements;
+use craft\services\Gql;
 use craft\utilities\ClearCaches;
 use craft\web\UrlManager;
 use craft\web\View;
@@ -79,6 +80,16 @@ class StaticCache extends \yii\base\Component
         );
 
         Event::on(
+            Gql::class,
+            Gql::EVENT_BEFORE_EXECUTE_GQL_QUERY,
+            function() {
+                if ($this->collectingCacheInfo) {
+                    Craft::$app->getConfig()->getGeneral()->enableGraphqlCaching = false;
+                }
+            },
+        );
+
+        Event::on(
             View::class,
             View::EVENT_BEFORE_RENDER_PAGE_TEMPLATE,
             fn(TemplateEvent $event) => $this->handleBeforeRenderPageTemplate($event),
@@ -141,7 +152,6 @@ class StaticCache extends \yii\base\Component
             return;
         }
 
-        Craft::$app->getConfig()->getGeneral()->enableGraphqlCaching = false;
         Craft::$app->getElements()->startCollectingCacheInfo();
         $this->collectingCacheInfo = true;
     }
