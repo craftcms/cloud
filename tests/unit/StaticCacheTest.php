@@ -125,7 +125,7 @@ class StaticCacheTest extends Unit
         $this->assertFalse($this->isCacheable($staticCache));
     }
 
-    public function testGraphqlCachingIsDisabledWhileCollectingCacheInfo(): void
+    public function testGraphqlCachingIsOnlyDisabledWhileCollectingCacheInfo(): void
     {
         $staticCache = new StaticCache();
         $generalConfig = Craft::$app->getConfig()->getGeneral();
@@ -140,6 +140,9 @@ class StaticCacheTest extends Unit
             $collectingCacheInfo->setValue($staticCache, true);
             $this->handleBeforeExecuteGqlQuery($staticCache);
             $this->assertFalse($generalConfig->enableGraphqlCaching);
+
+            $this->handleAfterExecuteGqlQuery($staticCache);
+            $this->assertTrue($generalConfig->enableGraphqlCaching);
         } finally {
             $generalConfig->enableGraphqlCaching = $enableGraphqlCaching;
         }
@@ -625,6 +628,12 @@ class StaticCacheTest extends Unit
     private function handleBeforeExecuteGqlQuery(StaticCache $staticCache): void
     {
         $method = new ReflectionMethod($staticCache, 'handleBeforeExecuteGqlQuery');
+        $method->invoke($staticCache, new \yii\base\Event());
+    }
+
+    private function handleAfterExecuteGqlQuery(StaticCache $staticCache): void
+    {
+        $method = new ReflectionMethod($staticCache, 'handleAfterExecuteGqlQuery');
         $method->invoke($staticCache, new \yii\base\Event());
     }
 

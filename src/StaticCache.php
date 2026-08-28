@@ -63,6 +63,7 @@ class StaticCache extends \yii\base\Component
     private Collection $tagsToPurge;
     private Collection $fetchUrls;
     private bool $collectingCacheInfo = false;
+    private ?bool $graphqlCaching = null;
 
     public function init(): void
     {
@@ -83,6 +84,12 @@ class StaticCache extends \yii\base\Component
             Gql::class,
             Gql::EVENT_BEFORE_EXECUTE_GQL_QUERY,
             fn(Event $event) => $this->handleBeforeExecuteGqlQuery($event),
+        );
+
+        Event::on(
+            Gql::class,
+            Gql::EVENT_AFTER_EXECUTE_GQL_QUERY,
+            fn(Event $event) => $this->handleAfterExecuteGqlQuery($event),
         );
 
         Event::on(
@@ -175,7 +182,17 @@ class StaticCache extends \yii\base\Component
     {
         if ($this->collectingCacheInfo) {
             // TODO: Remove after https://github.com/craftcms/cms/pull/19505 reaches Cloud's minimum supported Craft version.
-            Craft::$app->getConfig()->getGeneral()->enableGraphqlCaching = false;
+            $generalConfig = Craft::$app->getConfig()->getGeneral();
+            $this->graphqlCaching = $generalConfig->enableGraphqlCaching;
+            $generalConfig->enableGraphqlCaching = false;
+        }
+    }
+
+    private function handleAfterExecuteGqlQuery(Event $event): void
+    {
+        if ($this->graphqlCaching !== null) {
+            Craft::$app->getConfig()->getGeneral()->enableGraphqlCaching = $this->graphqlCaching;
+            $this->graphqlCaching = null;
         }
     }
 
