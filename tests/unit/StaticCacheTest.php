@@ -8,6 +8,7 @@ use craft\cloud\events\PurgeEvent;
 use craft\cloud\fs\AssetsFs;
 use craft\cloud\HeaderEnum;
 use craft\cloud\Module;
+use craft\cloud\queue\PurgeStaticCacheJob;
 use craft\cloud\signing\RequestSigner;
 use craft\cloud\StaticCache;
 use craft\cloud\StaticCacheTag;
@@ -15,6 +16,7 @@ use craft\elements\Entry;
 use craft\events\ElementEvent;
 use craft\events\InvalidateElementCachesEvent;
 use craft\helpers\StringHelper;
+use craft\queue\Queue;
 use GuzzleHttp\HandlerStack;
 use GuzzleHttp\Promise\Create;
 use GuzzleHttp\Psr7\Response;
@@ -23,6 +25,7 @@ use Illuminate\Support\Collection;
 use Psr\Http\Message\RequestInterface;
 use ReflectionMethod;
 use ReflectionProperty;
+use Throwable;
 
 class StaticCacheTest extends Unit
 {
@@ -34,15 +37,19 @@ class StaticCacheTest extends Unit
     private ?string $requestMethod = null;
     private ?string $environmentId = null;
     private ?Module $previousModule = null;
+    private mixed $previousQueue = null;
+    private ?CapturingQueue $queue = null;
     private ?RequestInterface $gatewayRequest = null;
     private array $gatewayRequestOptions = [];
-    private ?\Throwable $gatewayException = null;
 
     protected function _before(): void
     {
         parent::_before();
 
         $this->previousModule = Module::getInstance();
+        $this->previousQueue = Craft::$app->getComponents()['queue'];
+        $this->queue = new CapturingQueue();
+        Craft::$app->set('queue', $this->queue);
         $module = new Module('cloud');
         Module::setInstance($module);
 
@@ -56,10 +63,6 @@ class StaticCacheTest extends Unit
         $module->set('requestSigner', new class(function(RequestInterface $request, array $options) {
             $this->gatewayRequest = $request;
             $this->gatewayRequestOptions = $options;
-
-            if ($this->gatewayException) {
-                throw $this->gatewayException;
-            }
         }) extends RequestSigner {
             public function __construct(private readonly \Closure $capture)
             {
@@ -84,6 +87,7 @@ class StaticCacheTest extends Unit
     {
         Craft::$app->getRequest()->setIsCpRequest(null);
         Craft::$app->getResponse()->clear();
+        Craft::$app->set('queue', $this->previousQueue);
         Module::getInstance()->getConfig()->environmentId = $this->environmentId;
         Module::setInstance($this->previousModule);
 
@@ -387,12 +391,12 @@ class StaticCacheTest extends Unit
         $this->assertTrue($this->collectionProperty($staticCache, 'tagsToPurge')->isEmpty());
     }
 
-    public function testFailedFetchRequestFallsBackToPurgeHeader(): void
+    public function testFailedQueueDispatchFallsBackToPurgeHeader(): void
     {
         $staticCache = new StaticCache();
         $element = new FetchableElement(['uri' => 'news']);
         $element->fetchUrl = 'https://example.com/news';
-        $this->gatewayException = new \RuntimeException();
+        $this->queue->exception = new \RuntimeException();
 
         $this->saveElement($staticCache, $element);
 
@@ -405,9 +409,10 @@ class StaticCacheTest extends Unit
             '123-environment-id:uri:/news',
             Craft::$app->getResponse()->getHeaders()->get(HeaderEnum::CACHE_PURGE_TAG->value),
         );
+        $this->assertNull($this->gatewayRequest);
     }
 
-    public function testGatewayPurgeAllowsBoundedRetries(): void
+    public function testQueuedGatewayPurgeAllowsBoundedRetries(): void
     {
         $staticCache = new StaticCache();
         $element = new FetchableElement(['uri' => 'news']);
@@ -415,8 +420,27 @@ class StaticCacheTest extends Unit
 
         $this->saveElement($staticCache, $element);
         $this->sendPendingPurgeTags($staticCache);
+        $this->queue->job->execute($this->queue);
 
         $this->assertSame(40, $this->gatewayRequestOptions[RequestOptions::TIMEOUT]);
+    }
+
+    public function testConsolePurgeRunsGatewayRequestImmediately(): void
+    {
+        $response = Craft::$app->getResponse();
+        Craft::$app->set('response', new \yii\console\Response());
+
+        try {
+            (new StaticCache())->purgeTags('immediate');
+        } finally {
+            Craft::$app->set('response', $response);
+        }
+
+        $this->assertNull($this->queue->job);
+        $this->assertSame(
+            ['tags' => ['immediate']],
+            json_decode((string) $this->gatewayRequest?->getBody(), true, flags: JSON_THROW_ON_ERROR),
+        );
     }
 
     public function testBeforePurgeEventCanCancelExistingHeaderTags(): void
@@ -491,6 +515,7 @@ class StaticCacheTest extends Unit
 
         $this->saveElement($staticCache, $element);
         $this->sendPendingPurgeTags($staticCache);
+        $this->queue->job->execute($this->queue);
 
         $payload = json_decode(
             (string) $this->gatewayRequest?->getBody(),
@@ -513,6 +538,7 @@ class StaticCacheTest extends Unit
         $this->saveElement($staticCache, $element);
         $this->sendPendingPurgeTags($staticCache);
 
+        $this->assertNull($this->queue->job);
         $this->assertNull($this->gatewayRequest);
     }
 
@@ -523,12 +549,18 @@ class StaticCacheTest extends Unit
         $element->fetchUrl = 'https://example.com/news';
 
         $this->deleteElement($staticCache, $element);
+        $this->sendPendingPurgeTags($staticCache);
 
         $this->assertTrue($this->collectionProperty($staticCache, 'tagsToPurge')->isNotEmpty());
         $this->assertTrue($this->collectionProperty($staticCache, 'fetchUrls')->isEmpty());
+        $this->assertNull($this->queue->job);
+        $this->assertSame(
+            '123-environment-id:uri:/news',
+            Craft::$app->getResponse()->getHeaders()->get(HeaderEnum::CACHE_PURGE_TAG->value),
+        );
     }
 
-    public function testSavedElementPurgeRequestIncludesFetchUrls(): void
+    public function testSavedElementPurgeQueuesGatewayJob(): void
     {
         $staticCache = new StaticCache();
         $englishElement = new FetchableElement(['uri' => 'news']);
@@ -543,6 +575,16 @@ class StaticCacheTest extends Unit
         $this->saveElement($staticCache, $frenchElement);
         $this->saveElement($staticCache, $urlLessElement);
         $this->sendPendingPurgeTags($staticCache);
+
+        $this->assertInstanceOf(PurgeStaticCacheJob::class, $this->queue->job);
+        $this->assertSame(['123-environment-id:uri:/news'], $this->queue->job->tags);
+        $this->assertSame([
+            'https://example.com/news',
+            'https://example.com/fr/nouvelles',
+        ], $this->queue->job->fetchUrls);
+        $this->assertNull($this->gatewayRequest);
+
+        $this->queue->job->execute($this->queue);
 
         $payload = json_decode(
             (string) $this->gatewayRequest?->getBody(),
@@ -718,5 +760,26 @@ class FetchableElement extends Entry
     public function getUrl(): ?string
     {
         return $this->fetchUrl;
+    }
+}
+
+class CapturingQueue extends Queue
+{
+    public mixed $job = null;
+    public ?Throwable $exception = null;
+
+    public function init(): void
+    {
+    }
+
+    public function push($job): ?string
+    {
+        if ($this->exception) {
+            throw $this->exception;
+        }
+
+        $this->job = $job;
+
+        return '1';
     }
 }
