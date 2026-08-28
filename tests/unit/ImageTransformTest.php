@@ -7,6 +7,7 @@ use Craft;
 use craft\base\FsInterface;
 use craft\base\MemoizableArray;
 use craft\cloud\fs\AssetsFs;
+use craft\cloud\imagetransforms\ImageEditor;
 use craft\cloud\imagetransforms\ImageTransformBehavior;
 use craft\cloud\imagetransforms\ImageTransformer;
 use craft\cloud\Module as CloudModule;
@@ -14,14 +15,18 @@ use craft\cloud\signing\UrlSigner;
 use craft\cloud\twig\CloudVariable;
 use craft\elements\Asset;
 use craft\events\GenerateTransformEvent;
+use craft\events\SaveAssetImageEvent;
 use craft\fs\Local;
 use craft\helpers\Template;
 use craft\models\ImageTransform;
 use craft\models\Volume;
+use GuzzleHttp\Exception\ConnectException;
+use GuzzleHttp\Exception\RequestException;
 use League\Uri\Components\Query;
 use ReflectionProperty;
 use Twig\Markup;
 use yii\base\NotSupportedException;
+use yii\web\BadRequestHttpException;
 
 class ImageTransformTest extends Unit
 {
@@ -112,6 +117,30 @@ class ImageTransformTest extends Unit
             'fit' => 'cover',
             'width' => 200,
         ], $this->behavior($transform)->toOptions());
+    }
+
+    public function testQualityMapsToCloudflareOptions(): void
+    {
+        $transform = new ImageTransform([
+            'width' => 200,
+            'quality' => 72,
+        ]);
+
+        $this->assertSame(72, $this->behavior($transform)->toOptions()['quality']);
+    }
+
+    public function testArrayTransformPreservesStringQuality(): void
+    {
+        $signedUrl = (new ImageTransformer())->getTransformUrl(
+            $this->makePdfAssetStub(),
+            [
+                'width' => 320,
+                'quality' => 'high',
+            ],
+            true,
+        );
+
+        $this->assertSame('high', Query::fromUri($signedUrl)->parameters()['quality']);
     }
 
     public function testGetTransformUrlDoesNotLeakGravityBetweenAssets(): void
@@ -442,6 +471,679 @@ class ImageTransformTest extends Unit
         ], ImageTransformer::SUPPORTED_IMAGE_FORMATS);
     }
 
+    public function testImageEditorCropMapsToTrimTransform(): void
+    {
+        $asset = $this->makeUrlAssetStub(1, 'image.jpg', 4000, 3000, ['x' => 0.5, 'y' => 0.5]);
+        $transform = (new TestImageEditor())->transformFromEditor(
+            asset: $asset,
+            viewportRotation: 0,
+            imageRotation: 0.0,
+            cropData: [
+                'offsetX' => 200,
+                'offsetY' => -100,
+                'width' => 600,
+                'height' => 400,
+            ],
+            imageDimensions: [
+                'width' => 1000,
+                'height' => 750,
+            ],
+            flipData: null,
+            zoom: 1.0,
+        );
+
+        $this->assertInstanceOf(ImageTransform::class, $transform);
+        $this->assertSame(2400, $transform->width);
+        $this->assertSame(1600, $transform->height);
+        $this->assertSame([
+            'left' => 1600,
+            'top' => 300,
+            'width' => 2400,
+            'height' => 1600,
+        ], $this->behavior($transform)->trim);
+        $this->assertSame('crop', $this->behavior($transform)->fit);
+    }
+
+    public function testImageEditorRotationMapsToRotateTransform(): void
+    {
+        $asset = $this->makeUrlAssetStub(1, 'image.jpg', 4000, 3000, ['x' => 0.5, 'y' => 0.5]);
+        $transform = (new TestImageEditor())->transformFromEditor(
+            asset: $asset,
+            viewportRotation: 90,
+            imageRotation: 0.0,
+            cropData: [
+                'offsetX' => 0,
+                'offsetY' => 0,
+                'width' => 1000,
+                'height' => 750,
+            ],
+            imageDimensions: [
+                'width' => 1000,
+                'height' => 750,
+            ],
+            flipData: null,
+            zoom: 1.0,
+        );
+
+        $this->assertInstanceOf(ImageTransform::class, $transform);
+        $this->assertSame(3000, $transform->width);
+        $this->assertSame(4000, $transform->height);
+        $this->assertSame(90, $this->behavior($transform)->rotate);
+    }
+
+    public function testImageEditorRotationWithFullDisplayCropDoesNotTrim(): void
+    {
+        $asset = $this->makeUrlAssetStub(1, 'image.jpg', 568, 908, ['x' => 0.5, 'y' => 0.5]);
+        $transform = (new TestImageEditor())->transformFromEditor(
+            asset: $asset,
+            viewportRotation: 270,
+            imageRotation: 0.0,
+            cropData: [
+                'offsetX' => 0,
+                'offsetY' => 0,
+                'width' => 908,
+                'height' => 568,
+            ],
+            imageDimensions: [
+                'width' => 568,
+                'height' => 908,
+            ],
+            flipData: null,
+            zoom: 1.0,
+        );
+
+        $this->assertInstanceOf(ImageTransform::class, $transform);
+        $this->assertSame(908, $transform->width);
+        $this->assertSame(568, $transform->height);
+        $this->assertSame(270, $this->behavior($transform)->rotate);
+        $this->assertNull($this->behavior($transform)->trim);
+    }
+
+    public function testImageEditorRotatedCropMapsToSourceSpaceTrim(): void
+    {
+        $asset = $this->makeUrlAssetStub(1, 'image.jpg', 568, 908, ['x' => 0.5, 'y' => 0.5]);
+        $transform = (new TestImageEditor())->transformFromEditor(
+            asset: $asset,
+            viewportRotation: 270,
+            imageRotation: 0.0,
+            cropData: [
+                'offsetX' => 0,
+                'offsetY' => 0,
+                'width' => 454,
+                'height' => 284,
+            ],
+            imageDimensions: [
+                'width' => 568,
+                'height' => 908,
+            ],
+            flipData: null,
+            zoom: 1.0,
+        );
+
+        $this->assertInstanceOf(ImageTransform::class, $transform);
+        $this->assertSame(454, $transform->width);
+        $this->assertSame(284, $transform->height);
+        $this->assertSame([
+            'left' => 142,
+            'top' => 227,
+            'width' => 284,
+            'height' => 454,
+        ], $this->behavior($transform)->trim);
+        $this->assertSame(270, $this->behavior($transform)->rotate);
+    }
+
+    public function testImageEditorCombinesCropRotationAndFlip(): void
+    {
+        $asset = $this->makeUrlAssetStub(1, 'image.jpg', 4000, 3000, ['x' => 0.5, 'y' => 0.5]);
+
+        $transform = (new TestImageEditor())->transformFromEditor(
+            asset: $asset,
+            viewportRotation: 90,
+            imageRotation: 0.0,
+            cropData: [
+                'offsetX' => 200,
+                'offsetY' => -100,
+                'width' => 600,
+                'height' => 400,
+            ],
+            imageDimensions: [
+                'width' => 1000,
+                'height' => 750,
+            ],
+            flipData: ['x' => true],
+            zoom: 1.0,
+        );
+
+        $this->assertInstanceOf(ImageTransform::class, $transform);
+        $this->assertSame(1900, $transform->width);
+        $this->assertSame(1600, $transform->height);
+        $this->assertSame([
+            'left' => 800,
+            'top' => 0,
+            'width' => 1600,
+            'height' => 1900,
+        ], $this->behavior($transform)->trim);
+        $this->assertSame(90, $this->behavior($transform)->rotate);
+        $this->assertSame('h', $this->behavior($transform)->flip);
+    }
+
+    public function testImageEditorMapsZoomToCloudflareZoom(): void
+    {
+        $asset = $this->makeUrlAssetStub(1, 'image.jpg', 4000, 3000, ['x' => 0.25, 'y' => 0.75]);
+        $transform = (new TestImageEditor())->transformFromEditor(
+            asset: $asset,
+            viewportRotation: 0,
+            imageRotation: 0.0,
+            cropData: [
+                'offsetX' => 0,
+                'offsetY' => 0,
+                'width' => 1000,
+                'height' => 750,
+            ],
+            imageDimensions: [
+                'width' => 1000,
+                'height' => 750,
+            ],
+            flipData: ['x' => true],
+            zoom: 2.0,
+        );
+
+        $this->assertInstanceOf(ImageTransform::class, $transform);
+        $this->assertSame(0.5, $this->behavior($transform)->zoom);
+    }
+
+    public function testImageEditorZoomOnlyEditCreatesTransform(): void
+    {
+        $asset = $this->makeUrlAssetStub(1, 'image.jpg', 4000, 3000, ['x' => 0.25, 'y' => 0.75]);
+        $transform = (new TestImageEditor())->transformFromEditor(
+            asset: $asset,
+            viewportRotation: 0,
+            imageRotation: 0.0,
+            cropData: [
+                'offsetX' => 0,
+                'offsetY' => 0,
+                'width' => 1000,
+                'height' => 750,
+            ],
+            imageDimensions: [
+                'width' => 1000,
+                'height' => 750,
+            ],
+            flipData: null,
+            zoom: 2.0,
+        );
+
+        $this->assertInstanceOf(ImageTransform::class, $transform);
+        $this->assertSame(0.5, $this->behavior($transform)->zoom);
+    }
+
+    public function testImageEditorPanOnlyEditCreatesTransform(): void
+    {
+        $asset = $this->makeUrlAssetStub(1, 'image.jpg', 4000, 3000, ['x' => 0.25, 'y' => 0.75]);
+        $transform = (new TestImageEditor())->transformFromEditor(
+            asset: $asset,
+            viewportRotation: 0,
+            imageRotation: 0.0,
+            cropData: [
+                'offsetX' => 100,
+                'offsetY' => 0,
+                'width' => 1000,
+                'height' => 750,
+            ],
+            imageDimensions: [
+                'width' => 1000,
+                'height' => 750,
+            ],
+            flipData: null,
+            zoom: 1.0,
+        );
+
+        $this->assertInstanceOf(ImageTransform::class, $transform);
+        $this->assertSame(['left' => 400, 'top' => 0, 'width' => 3600, 'height' => 3000], $this->behavior($transform)->trim);
+    }
+
+    public function testImageEditorRejectsOutOfBoundsCrop(): void
+    {
+        $this->expectException(NotSupportedException::class);
+        $this->expectExceptionMessage('Valid image editor crop dimensions are required to edit images.');
+
+        (new TestImageEditor())->transformFromEditor(
+            asset: $this->makeUrlAssetStub(1, 'image.jpg', 4000, 3000, ['x' => 0.25, 'y' => 0.75]),
+            viewportRotation: 0,
+            imageRotation: 0.0,
+            cropData: [
+                'offsetX' => 2000,
+                'offsetY' => 0,
+                'width' => 1000,
+                'height' => 750,
+            ],
+            imageDimensions: [
+                'width' => 1000,
+                'height' => 750,
+            ],
+            flipData: null,
+            zoom: 1.0,
+        );
+    }
+
+    public function testImageEditorMirrorsFocalPointForFlip(): void
+    {
+        $focalPoint = (new TestImageEditor())->focalPointFromEditor(
+            asset: $this->makeUrlAssetStub(1, 'image.jpg', 4000, 3000, ['x' => 0.5, 'y' => 0.5]),
+            focalPoint: [
+                'offsetX' => 100,
+                'offsetY' => -75,
+                'imageDimensions' => [
+                    'width' => 1000,
+                    'height' => 750,
+                ],
+            ],
+            viewportRotation: 0,
+            imageRotation: 0.0,
+            cropData: [
+                'offsetX' => 0,
+                'offsetY' => 0,
+                'width' => 1000,
+                'height' => 750,
+            ],
+            imageDimensions: [
+                'width' => 1000,
+                'height' => 750,
+            ],
+            flipData: [
+                'x' => true,
+                'y' => true,
+            ],
+            zoom: 1.0,
+        );
+
+        $this->assertSame(['x' => 0.4, 'y' => 0.6], $focalPoint);
+    }
+
+    public function testImageEditorClampsFocalPoint(): void
+    {
+        $focalPoint = (new TestImageEditor())->focalPointFromEditor(
+            asset: $this->makeUrlAssetStub(1, 'image.jpg', 4000, 3000, ['x' => 0.5, 'y' => 0.5]),
+            focalPoint: [
+                'offsetX' => 2000,
+                'offsetY' => -2000,
+                'imageDimensions' => [
+                    'width' => 1000,
+                    'height' => 750,
+                ],
+            ],
+            viewportRotation: 0,
+            imageRotation: 0.0,
+            cropData: [
+                'offsetX' => 0,
+                'offsetY' => 0,
+                'width' => 1000,
+                'height' => 750,
+            ],
+            imageDimensions: [
+                'width' => 1000,
+                'height' => 750,
+            ],
+            flipData: null,
+            zoom: 1.0,
+        );
+
+        $this->assertSame(['x' => 1, 'y' => 0], $focalPoint);
+    }
+
+    public function testImageEditorUsesConstrainedCropForFocalPoint(): void
+    {
+        $focalPoint = (new TestImageEditor())->focalPointFromEditor(
+            asset: $this->makeUrlAssetStub(1, 'image.jpg', 4000, 3000, ['x' => 0.5, 'y' => 0.5]),
+            focalPoint: [
+                'offsetX' => 0,
+                'offsetY' => 0,
+                'imageDimensions' => [
+                    'width' => 1000,
+                    'height' => 750,
+                ],
+            ],
+            viewportRotation: 0,
+            imageRotation: 0.0,
+            cropData: [
+                'offsetX' => 200,
+                'offsetY' => 0,
+                'width' => 1000,
+                'height' => 750,
+            ],
+            imageDimensions: [
+                'width' => 1000,
+                'height' => 750,
+            ],
+            flipData: null,
+            zoom: 1.0,
+        );
+
+        $this->assertSame(['x' => 0.375, 'y' => 0.5], $focalPoint);
+    }
+
+    public function testImageEditorUsesNewFocalPointForTransformGravity(): void
+    {
+        $editor = new TestImageEditor();
+
+        $editor->editImage(
+            asset: $this->makeUrlAssetStub(1, 'image.jpg', 4000, 3000, ['x' => 0.9, 'y' => 0.9]),
+            replace: false,
+            viewportRotation: 0,
+            imageRotation: 0.0,
+            cropData: [
+                'offsetX' => 0,
+                'offsetY' => 0,
+                'width' => 500,
+                'height' => 375,
+            ],
+            focalPoint: [
+                'offsetX' => 100,
+                'offsetY' => -75,
+                'imageDimensions' => [
+                    'width' => 1000,
+                    'height' => 750,
+                ],
+            ],
+            imageDimensions: [
+                'width' => 1000,
+                'height' => 750,
+            ],
+            flipData: null,
+            zoom: 1.0,
+        );
+
+        $this->assertInstanceOf(ImageTransform::class, $editor->createdTransform);
+        $this->assertSame($editor->createdFocalPoint, $this->behavior($editor->createdTransform)->gravity);
+        $this->assertNotSame(['x' => 0.9, 'y' => 0.9], $this->behavior($editor->createdTransform)->gravity);
+    }
+
+    public function testImageEditorRejectsNonRightAngleRotationTransform(): void
+    {
+        $asset = $this->makeUrlAssetStub(1, 'image.jpg', 4000, 3000, ['x' => 0.5, 'y' => 0.5]);
+
+        foreach ([135.0, 89.6] as $imageRotation) {
+            try {
+                (new TestImageEditor())->transformFromEditor(
+                    asset: $asset,
+                    viewportRotation: 0,
+                    imageRotation: $imageRotation,
+                    cropData: [
+                        'offsetX' => 0,
+                        'offsetY' => 0,
+                        'width' => 1000,
+                        'height' => 750,
+                    ],
+                    imageDimensions: [
+                        'width' => 1000,
+                        'height' => 750,
+                    ],
+                    flipData: null,
+                    zoom: 1.0,
+                );
+
+                $this->fail('Expected non-right-angle rotation to be rejected.');
+            } catch (NotSupportedException $e) {
+                $this->assertSame('Only 90-degree image rotations are supported.', $e->getMessage());
+            }
+        }
+    }
+
+    public function testImageEditorRejectsInvalidEditorDimensions(): void
+    {
+        $asset = $this->makeUrlAssetStub(1, 'image.jpg', 4000, 3000, ['x' => 0.5, 'y' => 0.5]);
+
+        foreach ([['width' => 0, 'height' => 750], ['width' => 1000, 'height' => 750, 'zoom' => 0.0]] as $imageDimensions) {
+            try {
+                (new TestImageEditor())->transformFromEditor(
+                    asset: $asset,
+                    viewportRotation: 0,
+                    imageRotation: 0.0,
+                    cropData: [
+                        'offsetX' => 0,
+                        'offsetY' => 0,
+                        'width' => 1000,
+                        'height' => 750,
+                    ],
+                    imageDimensions: $imageDimensions,
+                    flipData: ['x' => true],
+                    zoom: $imageDimensions['zoom'] ?? 1.0,
+                );
+
+                $this->fail('Expected invalid editor dimensions to be rejected.');
+            } catch (NotSupportedException $e) {
+                $this->assertSame('Valid image editor dimensions are required to edit images.', $e->getMessage());
+            }
+        }
+    }
+
+    public function testImageEditorFallsBackToCraftForNonRightAngleRotation(): void
+    {
+        $event = new SaveAssetImageEvent([
+            'asset' => new TransformDecisionAsset(),
+            'replace' => true,
+            'viewportRotation' => 0,
+            'imageRotation' => 89.6,
+            'cropData' => [
+                'offsetX' => 0,
+                'offsetY' => 0,
+                'width' => 1000,
+                'height' => 750,
+            ],
+            'focalPoint' => null,
+            'imageDimensions' => [
+                'width' => 1000,
+                'height' => 750,
+            ],
+            'flipData' => null,
+            'zoom' => 1.0,
+        ]);
+
+        (new ImageEditor())->handleSaveImage($event);
+
+        $this->assertFalse($event->handled);
+    }
+
+    public function testImageEditorFallsBackToCraftForLocalCloudFs(): void
+    {
+        $event = new SaveAssetImageEvent([
+            'asset' => $this->makeTransformUrlAsset('local.jpg', ['x' => 0.5, 'y' => 0.5], true),
+            'replace' => true,
+            'viewportRotation' => 90,
+            'imageRotation' => 0.0,
+            'cropData' => [
+                'offsetX' => 0,
+                'offsetY' => 0,
+                'width' => 1000,
+                'height' => 750,
+            ],
+            'focalPoint' => null,
+            'imageDimensions' => [
+                'width' => 1000,
+                'height' => 750,
+            ],
+            'flipData' => null,
+            'zoom' => 1.0,
+        ]);
+
+        (new ImageEditor())->handleSaveImage($event);
+
+        $this->assertFalse($event->handled);
+    }
+
+    public function testImageEditorFallsBackToCraftWhenGifTransformsAreDisabled(): void
+    {
+        $generalConfig = Craft::$app->getConfig()->getGeneral();
+        $transformGifs = $generalConfig->transformGifs;
+
+        try {
+            $generalConfig->transformGifs = false;
+
+            $event = new SaveAssetImageEvent([
+                'asset' => $this->makeTransformUrlAsset('image.gif', ['x' => 0.5, 'y' => 0.5], false, 'image/gif'),
+                'replace' => true,
+                'viewportRotation' => 90,
+                'imageRotation' => 0.0,
+                'cropData' => [
+                    'offsetX' => 0,
+                    'offsetY' => 0,
+                    'width' => 1000,
+                    'height' => 750,
+                ],
+                'focalPoint' => null,
+                'imageDimensions' => [
+                    'width' => 1000,
+                    'height' => 750,
+                ],
+                'flipData' => null,
+                'zoom' => 1.0,
+            ]);
+
+            (new ImageEditor())->handleSaveImage($event);
+
+            $this->assertFalse($event->handled);
+        } finally {
+            $generalConfig->transformGifs = $transformGifs;
+        }
+    }
+
+    public function testImageEditorFallsBackToCraftForUnsupportedImageFormats(): void
+    {
+        $event = new SaveAssetImageEvent([
+            'asset' => $this->makeTransformUrlAsset('image.bmp', ['x' => 0.5, 'y' => 0.5], false, 'image/bmp'),
+            'replace' => true,
+            'viewportRotation' => 90,
+            'imageRotation' => 0.0,
+            'cropData' => [
+                'offsetX' => 0,
+                'offsetY' => 0,
+                'width' => 1000,
+                'height' => 750,
+            ],
+            'focalPoint' => null,
+            'imageDimensions' => [
+                'width' => 1000,
+                'height' => 750,
+            ],
+            'flipData' => null,
+            'zoom' => 1.0,
+        ]);
+
+        (new ImageEditor())->handleSaveImage($event);
+
+        $this->assertFalse($event->handled);
+    }
+
+    public function testImageEditorDoesNotExposeSignedUrlFromRequestException(): void
+    {
+        $editor = new class() extends ImageEditor {
+            public function editImage(Asset $asset, bool $replace, int $viewportRotation, float $imageRotation, array $cropData, ?array $focalPoint, array $imageDimensions, ?array $flipData, float $zoom): Asset
+            {
+                throw new RequestException(
+                    'GET https://cdn.craft.cloud/assets/image.jpg?width=100&s=secret-signature',
+                    new \GuzzleHttp\Psr7\Request('GET', 'https://cdn.craft.cloud/assets/image.jpg?width=100&s=secret-signature'),
+                );
+            }
+        };
+        $event = new SaveAssetImageEvent([
+            'asset' => $this->makeTransformUrlAsset('image.jpg', ['x' => 0.5, 'y' => 0.5]),
+            'replace' => true,
+            'viewportRotation' => 90,
+            'imageRotation' => 0.0,
+            'cropData' => [
+                'offsetX' => 0,
+                'offsetY' => 0,
+                'width' => 1000,
+                'height' => 750,
+            ],
+            'focalPoint' => null,
+            'imageDimensions' => [
+                'width' => 1000,
+                'height' => 750,
+            ],
+            'flipData' => null,
+            'zoom' => 1.0,
+        ]);
+
+        $this->expectException(BadRequestHttpException::class);
+        $this->expectExceptionMessage('Could not save the edited image.');
+
+        $editor->handleSaveImage($event);
+    }
+
+    public function testImageEditorReportsConnectExceptionAsBadRequest(): void
+    {
+        $editor = new class() extends ImageEditor {
+            public function editImage(Asset $asset, bool $replace, int $viewportRotation, float $imageRotation, array $cropData, ?array $focalPoint, array $imageDimensions, ?array $flipData, float $zoom): Asset
+            {
+                throw new ConnectException(
+                    'Connection failed',
+                    new \GuzzleHttp\Psr7\Request('GET', 'https://cdn.craft.cloud/assets/image.jpg?width=100&s=secret-signature'),
+                );
+            }
+        };
+        $event = new SaveAssetImageEvent([
+            'asset' => $this->makeTransformUrlAsset('image.jpg', ['x' => 0.5, 'y' => 0.5]),
+            'replace' => true,
+            'viewportRotation' => 90,
+            'imageRotation' => 0.0,
+            'cropData' => [
+                'offsetX' => 0,
+                'offsetY' => 0,
+                'width' => 1000,
+                'height' => 750,
+            ],
+            'focalPoint' => null,
+            'imageDimensions' => [
+                'width' => 1000,
+                'height' => 750,
+            ],
+            'flipData' => null,
+            'zoom' => 1.0,
+        ]);
+
+        $this->expectException(BadRequestHttpException::class);
+        $this->expectExceptionMessage('Could not save the edited image.');
+
+        $editor->handleSaveImage($event);
+    }
+
+    public function testImageEditorReportsMissingAssetDimensionsAsBadRequest(): void
+    {
+        $event = new SaveAssetImageEvent([
+            'asset' => new TransformDecisionAsset(),
+            'replace' => true,
+            'viewportRotation' => 0,
+            'imageRotation' => 0.0,
+            'cropData' => [
+                'offsetX' => 0,
+                'offsetY' => 0,
+                'width' => 500,
+                'height' => 500,
+            ],
+            'focalPoint' => null,
+            'imageDimensions' => [
+                'width' => 1000,
+                'height' => 750,
+            ],
+            'flipData' => null,
+            'zoom' => 1.0,
+        ]);
+
+        $this->expectException(BadRequestHttpException::class);
+        $this->expectExceptionMessage('Image dimensions are required to edit images.');
+
+        (new ImageEditor())->handleSaveImage($event);
+    }
+
+    public function testImageEditorKeepsSanitizationForSvgEdits(): void
+    {
+        $editor = new TestImageEditor();
+
+        $this->assertTrue($editor->sanitizeEditedFile($this->makeTransformUrlAsset('image.svg', ['x' => 0.5, 'y' => 0.5], false, 'image/svg+xml')));
+        $this->assertFalse($editor->sanitizeEditedFile($this->makeTransformUrlAsset('image.jpg', ['x' => 0.5, 'y' => 0.5], false, 'image/jpeg')));
+    }
+
     private function setActionSegments(?array $actionSegments): void
     {
         $property = new ReflectionProperty(Craft::$app->getRequest(), '_actionSegments');
@@ -473,9 +1175,65 @@ class ImageTransformTest extends Unit
         };
     }
 
-    private function makeTransformUrlAsset(string $filename, array $focalPoint, bool $useLocalFs = false): Asset
+    private function makeTransformUrlAsset(string $filename, array $focalPoint, bool $useLocalFs = false, string $mimeType = 'image/jpeg'): Asset
     {
-        return new TransformUrlAsset($filename, $focalPoint, $useLocalFs);
+        return new TransformUrlAsset($filename, $focalPoint, $useLocalFs, $mimeType);
+    }
+
+    private function makeUrlAssetStub(int $id, string $filename, int $width, int $height, array $focalPoint): Asset
+    {
+        return new class($id, $filename, $width, $height, $focalPoint) extends Asset {
+            public function __construct(
+                int $id,
+                private string $filenameValue,
+                private int $widthValue,
+                private int $heightValue,
+                private array $focalPointValue,
+            ) {
+                parent::__construct();
+                $this->id = $id;
+                $this->kind = self::KIND_IMAGE;
+            }
+
+            public function getHasFocalPoint(): bool
+            {
+                return true;
+            }
+
+            public function getFocalPoint(bool $asCss = false): array|string|null
+            {
+                if ($asCss) {
+                    return ($this->focalPointValue['x'] * 100) . '% ' . ($this->focalPointValue['y'] * 100) . '%';
+                }
+
+                return $this->focalPointValue;
+            }
+
+            public function getWidth(array|string|\craft\models\ImageTransform|null $transform = null): ?int
+            {
+                return $this->widthValue;
+            }
+
+            public function getHeight(mixed $transform = null): ?int
+            {
+                return $this->heightValue;
+            }
+
+            public function getFilename(bool $withExtension = true): string
+            {
+                return $this->filenameValue;
+            }
+
+            public function getPath(?string $filename = null): string
+            {
+                return 'tests/' . ($filename ?? $this->filenameValue);
+            }
+
+            public function getMimeType(mixed $transform = null): ?string
+            {
+                return 'image/jpeg';
+            }
+        };
     }
 
     private function makePdfAssetStub(bool $useAssetCdn = true, bool $useLocalFs = false): Asset
@@ -568,6 +1326,35 @@ class TestImageTransformer extends ImageTransformer
     }
 }
 
+class TestImageEditor extends ImageEditor
+{
+    public ?ImageTransform $createdTransform = null;
+    public ?array $createdFocalPoint = null;
+
+    public function sanitizeEditedFile(Asset $asset): bool
+    {
+        return parent::sanitizeEditedFile($asset);
+    }
+
+    public function focalPointFromEditor(Asset $asset, ?array $focalPoint, int $viewportRotation, float $imageRotation, array $cropData, array $imageDimensions, ?array $flipData, float $zoom): ?array
+    {
+        return $this->focalPoint($asset, $focalPoint, $viewportRotation, $imageRotation, $cropData, $imageDimensions, $flipData, $zoom);
+    }
+
+    public function transformFromEditor(Asset $asset, int $viewportRotation, float $imageRotation, array $cropData, array $imageDimensions, ?array $flipData, float $zoom): ?ImageTransform
+    {
+        return $this->imageTransform($asset, $viewportRotation, $imageRotation, $cropData, $imageDimensions, $flipData, $zoom);
+    }
+
+    protected function createAsset(Asset $asset, ?ImageTransform $transform, ?array $focal): Asset
+    {
+        $this->createdTransform = $transform;
+        $this->createdFocalPoint = $focal;
+
+        return $asset;
+    }
+}
+
 class UrlTestImageTransformer extends ImageTransformer
 {
     public function buildTransformQuery(Asset $asset, ImageTransform $imageTransform): string
@@ -591,6 +1378,22 @@ class TestCloudModule extends CloudModule
 
 class TransformDecisionAsset extends Asset
 {
+    public function __construct()
+    {
+        parent::__construct();
+        $this->kind = self::KIND_IMAGE;
+    }
+
+    public function getFilename(bool $withExtension = true): string
+    {
+        return 'image.jpg';
+    }
+
+    public function getMimeType(mixed $transform = null): ?string
+    {
+        return 'image/jpeg';
+    }
+
     public function getVolume(): Volume
     {
         return new class() extends Volume {
@@ -691,6 +1494,7 @@ class TransformUrlAsset extends Asset
         private string $filenameValue,
         private array $focalPointValue,
         private bool $useLocalFs = false,
+        private string $mimeType = 'image/jpeg',
     ) {
         parent::__construct();
         $this->kind = self::KIND_IMAGE;
@@ -722,7 +1526,7 @@ class TransformUrlAsset extends Asset
 
     public function getMimeType(mixed $transform = null): ?string
     {
-        return 'image/jpeg';
+        return $this->mimeType;
     }
 
     public function getVolume(): Volume
