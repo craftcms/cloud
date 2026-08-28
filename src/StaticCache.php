@@ -181,7 +181,7 @@ class StaticCache extends \yii\base\Component
     private function handleBeforeExecuteGqlQuery(Event $event): void
     {
         if ($this->collectingCacheInfo) {
-            // TODO: Remove after https://github.com/craftcms/cms/pull/19505 reaches Cloud's minimum supported Craft version.
+            // TODO: Remove after https://github.com/craftcms/cms/pull/19508 reaches Cloud's minimum supported Craft version.
             $generalConfig = Craft::$app->getConfig()->getGeneral();
             $this->graphqlCaching = $generalConfig->enableGraphqlCaching;
             $generalConfig->enableGraphqlCaching = false;
