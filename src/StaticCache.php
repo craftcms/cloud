@@ -162,6 +162,11 @@ class StaticCache extends \yii\base\Component
 
     private function handleAfterPrepareWebResponse(Event $event): void
     {
+        if ($this->graphqlCachingStack !== []) {
+            Craft::$app->getConfig()->getGeneral()->enableGraphqlCaching = $this->graphqlCachingStack[0];
+            $this->graphqlCachingStack = [];
+        }
+
         if (!$this->isCacheable()) {
             return;
         }
