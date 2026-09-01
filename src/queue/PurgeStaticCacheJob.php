@@ -42,7 +42,6 @@ class PurgeStaticCacheJob extends BaseJob
 
         Helper::createGatewayApiClient()->request('POST', 'cache/purge', [
             RequestOptions::JSON => $payload,
-            RequestOptions::TIMEOUT => 40,
         ]);
     }
 }

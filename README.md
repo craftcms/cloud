@@ -225,4 +225,4 @@ Most configuration (to Craft and the extension itself) is handled directly by Cl
 
 The `StaticCache::EVENT_BEFORE_PURGE` event fires immediately before each tag purge, including the collected end-of-request batch. Listeners can modify its `tags` or cancel the purge.
 
-When a saved element purge proceeds, a Craft queue job sends its non-null site URL to the gateway as the optional `fetchUrls` field rather than making the gateway request inline. URLs are deduplicated, and the gateway asynchronously fetches them after a successful purge to repopulate the cache. Drafts, revisions, deletions, and canceled purges do not enqueue URLs. If the job cannot be queued, the purge tags fall back to the `Cache-Purge-Tag` response header.
+Web requests dispatch tag purges to the gateway with a Craft queue job. When a saved element purge proceeds, its non-null site URL is included as the optional `fetchUrls` field. URLs are deduplicated, and the gateway asynchronously fetches them after a successful purge to repopulate the cache. Drafts, revisions, deletions, and canceled purges do not enqueue URLs. Non-web purges execute the same job immediately.

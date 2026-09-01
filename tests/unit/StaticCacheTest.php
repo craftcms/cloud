@@ -20,7 +20,6 @@ use craft\queue\Queue;
 use GuzzleHttp\HandlerStack;
 use GuzzleHttp\Promise\Create;
 use GuzzleHttp\Psr7\Response;
-use GuzzleHttp\RequestOptions;
 use Illuminate\Support\Collection;
 use Psr\Http\Message\RequestInterface;
 use ReflectionMethod;
@@ -40,7 +39,6 @@ class StaticCacheTest extends Unit
     private mixed $previousQueue = null;
     private ?CapturingQueue $queue = null;
     private ?RequestInterface $gatewayRequest = null;
-    private array $gatewayRequestOptions = [];
 
     protected function _before(): void
     {
@@ -60,9 +58,8 @@ class StaticCacheTest extends Unit
         $this->environmentId = $module->getConfig()->environmentId;
         $module->getConfig()->environmentId = '123-environment-id';
         $module->getConfig()->signingKey = 'test-signing-key';
-        $module->set('requestSigner', new class(function(RequestInterface $request, array $options) {
+        $module->set('requestSigner', new class(function(RequestInterface $request) {
             $this->gatewayRequest = $request;
-            $this->gatewayRequestOptions = $options;
         }) extends RequestSigner {
             public function __construct(private readonly \Closure $capture)
             {
@@ -72,7 +69,7 @@ class StaticCacheTest extends Unit
             public function createHandlerStack(?HandlerStack $handlerStack = null): HandlerStack
             {
                 return new HandlerStack(function(RequestInterface $request, array $options) {
-                    ($this->capture)($request, $options);
+                    ($this->capture)($request);
 
                     return Create::promiseFor(new Response(204));
                 });
@@ -256,19 +253,6 @@ class StaticCacheTest extends Unit
         $this->assertNotContains('tag-1000', $tags);
     }
 
-    public function testPurgeTagsKeepExistingHeaderTags(): void
-    {
-        $staticCache = new StaticCache();
-        Craft::$app->getResponse()->getHeaders()->set(HeaderEnum::CACHE_PURGE_TAG->value, 'first,second');
-
-        $staticCache->purgeTags();
-
-        $this->assertSame(
-            'first,second',
-            Craft::$app->getResponse()->getHeaders()->get(HeaderEnum::CACHE_PURGE_TAG->value),
-        );
-    }
-
     public function testPurgeAllUsesOriginAndCdnTags(): void
     {
         $staticCache = new StaticCache();
@@ -292,16 +276,12 @@ class StaticCacheTest extends Unit
         $method->setAccessible(true);
 
         $this->assertTrue($method->invoke($fs, 'image.jpg'));
-        $this->assertFalse(
-            Craft::$app->getResponse()->getHeaders()->has(HeaderEnum::CACHE_PURGE_TAG->value),
-        );
-
         $this->sendPendingPurgeTags($staticCache);
 
-        $this->assertSame(
+        $this->assertInstanceOf(PurgeStaticCacheJob::class, $this->queue->job);
+        $this->assertSame([
             '123-environment-id:cdn:123-environment-id/assets/image.jpg',
-            Craft::$app->getResponse()->getHeaders()->get(HeaderEnum::CACHE_PURGE_TAG->value),
-        );
+        ], $this->queue->job->tags);
     }
 
     public function testRasterizedAssetCdnPurgeUsesObjectTag(): void
@@ -352,10 +332,8 @@ class StaticCacheTest extends Unit
         $this->assertTrue($method->invoke($fs, str_repeat('x', 1024)));
         $this->sendPendingPurgeTags($staticCache);
 
-        $this->assertSame(
-            '123-environment-id:overflow',
-            Craft::$app->getResponse()->getHeaders()->get(HeaderEnum::CACHE_PURGE_TAG->value),
-        );
+        $this->assertInstanceOf(PurgeStaticCacheJob::class, $this->queue->job);
+        $this->assertSame(['123-environment-id:overflow'], $this->queue->job->tags);
     }
 
     public function testBeforePurgeEventCanCancelPurge(): void
@@ -368,9 +346,7 @@ class StaticCacheTest extends Unit
 
         $staticCache->purgeTags('first');
 
-        $this->assertFalse(
-            Craft::$app->getResponse()->getHeaders()->has(HeaderEnum::CACHE_PURGE_TAG->value),
-        );
+        $this->assertNull($this->queue->job);
     }
 
     public function testDraftCacheInvalidationDoesNotPurge(): void
@@ -391,7 +367,7 @@ class StaticCacheTest extends Unit
         $this->assertTrue($this->collectionProperty($staticCache, 'tagsToPurge')->isEmpty());
     }
 
-    public function testFailedQueueDispatchFallsBackToPurgeHeader(): void
+    public function testFailedQueueDispatchThrows(): void
     {
         $staticCache = new StaticCache();
         $element = new FetchableElement(['uri' => 'news']);
@@ -400,29 +376,8 @@ class StaticCacheTest extends Unit
 
         $this->saveElement($staticCache, $element);
 
-        try {
-            $this->sendPendingPurgeTags($staticCache);
-        } catch (\RuntimeException) {
-        }
-
-        $this->assertSame(
-            '123-environment-id:uri:/news',
-            Craft::$app->getResponse()->getHeaders()->get(HeaderEnum::CACHE_PURGE_TAG->value),
-        );
-        $this->assertNull($this->gatewayRequest);
-    }
-
-    public function testQueuedGatewayPurgeAllowsBoundedRetries(): void
-    {
-        $staticCache = new StaticCache();
-        $element = new FetchableElement(['uri' => 'news']);
-        $element->fetchUrl = 'https://example.com/news';
-
-        $this->saveElement($staticCache, $element);
+        $this->expectException(\RuntimeException::class);
         $this->sendPendingPurgeTags($staticCache);
-        $this->queue->job->execute($this->queue);
-
-        $this->assertSame(40, $this->gatewayRequestOptions[RequestOptions::TIMEOUT]);
     }
 
     public function testConsolePurgeRunsGatewayRequestImmediately(): void
@@ -443,40 +398,6 @@ class StaticCacheTest extends Unit
         );
     }
 
-    public function testBeforePurgeEventCanCancelExistingHeaderTags(): void
-    {
-        $staticCache = new StaticCache();
-        Craft::$app->getResponse()->getHeaders()->set(HeaderEnum::CACHE_PURGE_TAG->value, 'first');
-        $staticCache->on(StaticCache::EVENT_BEFORE_PURGE, function(PurgeEvent $event) {
-            $event->isValid = false;
-        });
-
-        $staticCache->purgeTags();
-
-        $this->assertFalse(
-            Craft::$app->getResponse()->getHeaders()->has(HeaderEnum::CACHE_PURGE_TAG->value),
-        );
-    }
-
-    public function testBeforePurgeEventExceptionPreservesExistingHeaderTags(): void
-    {
-        $staticCache = new StaticCache();
-        Craft::$app->getResponse()->getHeaders()->set(HeaderEnum::CACHE_PURGE_TAG->value, 'first');
-        $staticCache->on(StaticCache::EVENT_BEFORE_PURGE, function() {
-            throw new \RuntimeException();
-        });
-
-        try {
-            $staticCache->purgeTags('second');
-        } catch (\RuntimeException) {
-        }
-
-        $this->assertSame(
-            'first',
-            Craft::$app->getResponse()->getHeaders()->get(HeaderEnum::CACHE_PURGE_TAG->value),
-        );
-    }
-
     public function testBeforePurgeEventCanReplaceTags(): void
     {
         $staticCache = new StaticCache();
@@ -486,10 +407,8 @@ class StaticCacheTest extends Unit
 
         $staticCache->purgeTags('first');
 
-        $this->assertSame(
-            'second',
-            Craft::$app->getResponse()->getHeaders()->get(HeaderEnum::CACHE_PURGE_TAG->value),
-        );
+        $this->assertInstanceOf(PurgeStaticCacheJob::class, $this->queue->job);
+        $this->assertSame(['second'], $this->queue->job->tags);
     }
 
     public function testHomepagePurgeUsesUriTag(): void
@@ -553,11 +472,9 @@ class StaticCacheTest extends Unit
 
         $this->assertTrue($this->collectionProperty($staticCache, 'tagsToPurge')->isNotEmpty());
         $this->assertTrue($this->collectionProperty($staticCache, 'fetchUrls')->isEmpty());
-        $this->assertNull($this->queue->job);
-        $this->assertSame(
-            '123-environment-id:uri:/news',
-            Craft::$app->getResponse()->getHeaders()->get(HeaderEnum::CACHE_PURGE_TAG->value),
-        );
+        $this->assertInstanceOf(PurgeStaticCacheJob::class, $this->queue->job);
+        $this->assertSame(['123-environment-id:uri:/news'], $this->queue->job->tags);
+        $this->assertSame([], $this->queue->job->fetchUrls);
     }
 
     public function testSavedElementPurgeQueuesGatewayJob(): void
@@ -597,9 +514,6 @@ class StaticCacheTest extends Unit
             'https://example.com/news',
             'https://example.com/fr/nouvelles',
         ], $payload['fetchUrls']);
-        $this->assertFalse(
-            Craft::$app->getResponse()->getHeaders()->has(HeaderEnum::CACHE_PURGE_TAG->value),
-        );
     }
 
     public function testBeforePurgeEventFiresOnceForCollectedBatch(): void
@@ -631,10 +545,8 @@ class StaticCacheTest extends Unit
         $staticCache->addPurgeTags(['collected']);
         $staticCache->purgeTags('immediate');
 
-        $this->assertSame(
-            'immediate',
-            Craft::$app->getResponse()->getHeaders()->get(HeaderEnum::CACHE_PURGE_TAG->value),
-        );
+        $this->assertInstanceOf(PurgeStaticCacheJob::class, $this->queue->job);
+        $this->assertSame(['immediate'], $this->queue->job->tags);
         $this->assertSame(
             ['collected'],
             $this->collectionProperty($staticCache, 'tagsToPurge')
@@ -654,21 +566,6 @@ class StaticCacheTest extends Unit
             '0,second',
             Craft::$app->getResponse()->getHeaders()->get(HeaderEnum::CACHE_TAG->value),
         );
-    }
-
-    public function testPurgeTagHeaderUsesOverflowFallbackWhenItIsTooLong(): void
-    {
-        $staticCache = new StaticCache();
-        $tags = Collection::range(1, 1000)
-            ->map(fn(int $index) => "tag-$index-" . str_repeat('x', 24))
-            ->all();
-
-        $staticCache->purgeTags(...$tags);
-
-        $cachePurgeTagHeader = Craft::$app->getResponse()->getHeaders()->get(HeaderEnum::CACHE_PURGE_TAG->value);
-
-        $this->assertStringStartsWith('123-environment-id:overflow,', $cachePurgeTagHeader);
-        $this->assertLessThanOrEqual(16 * 1024, StringHelper::byteLength($cachePurgeTagHeader));
     }
 
     private function isCacheable(StaticCache $staticCache): bool
