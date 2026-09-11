@@ -1,18 +1,18 @@
 # Release Notes for Craft Cloud ⛅️
 
-## 2027-08-07
+## 2026-08-07
 - Released version 1.49.0 of the Cloud Gateway Worker.
   - Improved bot rate limiting logic.
 
-## 2027-07-31
+## 2026-07-31
 - Released version 1.118.0 of the Cloud API
   - Fixed a soft-delete bug with domains and subdomains.
 
-## 2027-07-28
+## 2026-07-28
 - Released version 1.118.0 of the Cloud API
   - Added support for [Bref 3](https://bref.sh/news/03-bref-3.0).
 
-## 2027-07-21
+## 2026-07-21
 - Released version 1.115.0 of the Cloud API
   - Added support for access token reconnects in the GitLab integration.
 - Released version 3.9.1 of the `craftcms/cloud` package.
