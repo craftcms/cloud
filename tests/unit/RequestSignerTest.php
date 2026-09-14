@@ -9,6 +9,7 @@ use GuzzleHttp\Promise\Create;
 use GuzzleHttp\Psr7\Request;
 use GuzzleHttp\Psr7\Response;
 use HttpMessageSignatures\Algorithm\HmacSha256;
+use HttpMessageSignatures\Exception\VerificationException;
 use HttpMessageSignatures\Verifier;
 use Psr\Http\Message\RequestInterface;
 
@@ -44,6 +45,19 @@ class RequestSignerTest extends Unit
         $this->assertSame(204, $response->getStatusCode());
         $this->assertInstanceOf(RequestInterface::class, $capturedRequest);
         $this->assertSignedRequest($capturedRequest);
+    }
+
+    public function testRejectsTamperedSignatureTag(): void
+    {
+        $request = (new RequestSigner('test-signing-key'))
+            ->sign(new Request('GET', 'https://example.test/status'));
+        $request = $request->withHeader(
+            'Signature-Input',
+            str_replace('tag="craft-cloud"', 'tag="other"', $request->getHeaderLine('Signature-Input')),
+        );
+
+        $this->expectException(VerificationException::class);
+        (new Verifier(new HmacSha256('test-signing-key')))->verify($request);
     }
 
     private function assertSignedRequest(RequestInterface $request): void
