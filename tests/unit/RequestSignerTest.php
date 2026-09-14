@@ -57,6 +57,7 @@ class RequestSignerTest extends Unit
         $this->assertStringContainsString('"@target-uri"', $signatureInput);
         $this->assertStringContainsString('alg="hmac-sha256"', $signatureInput);
         $this->assertStringContainsString('keyid="hmac"', $signatureInput);
+        $this->assertStringContainsString('tag="craft-cloud"', $signatureInput);
 
         $matches = [];
         $this->assertSame(1, preg_match('/created=(\d+);expires=(\d+)/', $signatureInput, $matches));
