@@ -36,6 +36,7 @@ class RequestSigner
                 'keyid' => $this->keyId,
                 'created' => $created,
                 'expires' => $created + $this->expiresAfter,
+                'tag' => 'craft-cloud',
             ],
         );
 
