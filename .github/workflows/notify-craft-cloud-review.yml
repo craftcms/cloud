@@ -1,0 +1,13 @@
+name: Notify Craft Cloud review requests
+
+on:
+  pull_request_target:
+    types: [review_requested]
+
+permissions: {}
+
+jobs:
+  notify:
+    if: github.event.requested_team.slug == 'craft-cloud'
+    uses: craftcms/.github/.github/workflows/pr-slack-notification.yml@v3
+    secrets: inherit
