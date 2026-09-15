@@ -6,6 +6,7 @@ use Craft;
 use craft\base\Event;
 use craft\base\Model;
 use craft\cloud\fs\AssetsFs;
+use craft\cloud\imagetransforms\ImageEditor;
 use craft\cloud\imagetransforms\ImageTransformBehavior;
 use craft\cloud\imagetransforms\ImageTransformer;
 use craft\cloud\signing\RequestSigner;
@@ -15,6 +16,7 @@ use craft\cloud\web\assets\assetthumbfallback\AssetThumbFallbackAsset;
 use craft\cloud\web\assets\uploader\UploaderAsset;
 use craft\cloud\web\ResponseEventHandler;
 use craft\console\Application as ConsoleApplication;
+use craft\controllers\AssetsController as CraftAssetsController;
 use craft\elements\Asset;
 use craft\events\DefineAssetThumbUrlEvent;
 use craft\events\DefineAssetUrlEvent;
@@ -23,6 +25,7 @@ use craft\events\DefineRulesEvent;
 use craft\events\GenerateTransformEvent;
 use craft\events\RegisterComponentTypesEvent;
 use craft\events\RegisterTemplateRootsEvent;
+use craft\events\SaveAssetImageEvent;
 use craft\helpers\App;
 use craft\helpers\ConfigHelper;
 use craft\log\MonologTarget;
@@ -136,6 +139,12 @@ class Module extends \yii\base\Module implements \yii\base\BootstrapInterface
 
         if ($this->getConfig()->useAssetCdn) {
             $app->getImages()->supportedImageFormats = ImageTransformer::SUPPORTED_IMAGE_FORMATS;
+
+            Event::on(
+                CraftAssetsController::class,
+                CraftAssetsController::EVENT_BEFORE_SAVE_IMAGE,
+                static fn(SaveAssetImageEvent $event) => (new ImageEditor())->handleSaveImage($event),
+            );
 
             Event::on(
                 Asset::class,
