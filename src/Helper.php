@@ -36,36 +36,24 @@ class Helper
             ->values()
             ->all();
 
-        $tags = [];
         $prefixes = [];
 
         foreach ($headers as $name => $value) {
-            if (HeaderEnum::CACHE_PURGE_TAG->matches((string) $name)) {
-                $tags = $normalizeHeaderValue($value);
-
-                if (!empty($tags)) {
-                    break;
-                }
-
-                continue;
-            }
-
             if (HeaderEnum::CACHE_PURGE_PREFIX->matches((string) $name)) {
                 $prefixes = $normalizeHeaderValue($value);
+                break;
             }
         }
 
-        if (empty($tags) && empty($prefixes)) {
-            throw new Exception('Gateway API requests require a supported purge header.');
+        if (empty($prefixes)) {
+            throw new Exception('Gateway API requests require a Cache-Purge-Prefix header.');
         }
 
         return self::createGatewayApiClient()->request(
             'POST',
             'cache/purge',
             [
-                RequestOptions::JSON => !empty($tags)
-                    ? ['tags' => $tags]
-                    : ['prefixes' => $prefixes],
+                RequestOptions::JSON => ['prefixes' => $prefixes],
             ],
         );
     }
