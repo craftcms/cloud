@@ -2,7 +2,7 @@
 
 ## 2026-08-21
 - Released version 3.11.1 of the `craftcms/cloud` package.
-  Fixed a [moderate-severity](https://github.com/craftcms/cms/security/policy#severity--remediation) missing authorization vulnerability. ([GHSA-j697-8x93-7mp2](https://github.com/craftcms/cloud/security/advisories/GHSA-6w27-48c9-65c6))
+  - Fixed a [moderate-severity](https://github.com/craftcms/cms/security/policy#severity--remediation) missing authorization vulnerability. ([GHSA-j697-8x93-7mp2](https://github.com/craftcms/cloud/security/advisories/GHSA-6w27-48c9-65c6))
 
 ## 2026-08-07
 - Released version 1.49.0 of the Cloud Gateway Worker.
