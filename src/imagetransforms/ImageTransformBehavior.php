@@ -8,7 +8,7 @@ use Illuminate\Support\Collection;
 use yii\base\Behavior;
 
 /**
- * @see https://developers.cloudflare.com/images/transform-images/transform-via-workers/#fetch-options
+ * @see https://developers.cloudflare.com/images/optimization/features/#parameters
  * @see https://github.com/cloudflare/workerd/blob/main/types/defines/cf.d.ts
  *
  * @property ImageTransform $owner
@@ -84,6 +84,11 @@ class ImageTransformBehavior extends Behavior
     public ?int $page = null;
 
     /**
+     * @var int<1, 100>|'high'|'medium-high'|'medium-low'|'low'|null
+     */
+    public int|string|null $quality = null;
+
+    /**
      * @var int|null
      */
     public ?int $rotate = null;
@@ -126,6 +131,7 @@ class ImageTransformBehavior extends Behavior
         $options['background'] = $this->computeBackground();
         $options['gravity'] ??= $gravity ?? $this->computeGravity();
         $options['height'] = $this->owner->height;
+        $options['quality'] ??= $this->owner->quality;
         $options['width'] = $this->owner->width;
 
         return Collection::make($options)
