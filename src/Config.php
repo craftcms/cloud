@@ -18,6 +18,7 @@ use League\Uri\Uri;
 class Config extends BaseConfig
 {
     public ?string $artifactBaseUrl = null;
+    public ?string $resourceBaseUrl = null;
     public string $cdnBaseUrl = 'https://cdn.craft.cloud';
     public string $gatewayBaseUrl = 'https://gateway.craft.cloud';
     public bool $gzipResponse = true;
@@ -30,6 +31,7 @@ class Config extends BaseConfig
     public ?string $accessToken = null;
     public ?string $redisUrl = null;
     public ?string $signingKey = null;
+    /** @deprecated No longer used by the Cloud extension. */
     public ?string $previewDomain = null;
     public bool $useQueue = true;
     public int $staticCacheDuration = DateTimeHelper::SECONDS_YEAR;
@@ -133,6 +135,7 @@ class Config extends BaseConfig
             : null;
     }
 
+    /** @deprecated No longer used by the Cloud extension. */
     public function getPreviewDomainUrl(): ?UriInterface
     {
         if (!$this->previewDomain) {

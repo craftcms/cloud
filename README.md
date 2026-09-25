@@ -198,28 +198,23 @@ Most configuration (to Craft and the extension itself) is handled directly by Cl
 | Option                | Type           | Description                                                                                                                     |
 |-----------------------|----------------|---------------------------------------------------------------------------------------------------------------------------------|
 | `artifactBaseUrl`     | `string\|null` | Directly set a fully-qualified URL to build artifacts.                                                                          |
+| `resourceBaseUrl`     | `string\|null` | Override CP resource URLs, for example `@web/cpresources`. Unset or empty values use the Cloud CDN.                             |
 | `s3ClientOptions`     | `array`        | Additional settings to pass to the `Aws\S3\S3Client` instance when accessing storage APIs.                                      |
-| `cdnBaseUrl`          | `string`       | Used when building URLs to [assets](#filesystem) and other build [artifacts](#artifacturl).                                     |
 | `gatewayBaseUrl`      | `string`       | Used when making gateway API requests.                                                                                          |
-| `sqsUrl`              | `string`       | Determines how Craft communicates with the underlying queue provider.                                                           |
-| `projectId`           | `string`       | UUID of the current project.                                                                                                    |
-| `environmentId`       | `string`       | UUID of the current [environment](https://craftcms.com/knowledge-base/cloud-environments).                                      |
-| `buildId`             | `string`       | UUID of the current [build](https://craftcms.com/knowledge-base/cloud-builds).                                                  |
+| `projectId`           | `string`       | Read-only in Craft Cloud environments. UUID of the current project.                                                                                         |
+| `environmentId`       | `string`       | Read-only in Craft Cloud environments. UUID of the current [environment](https://craftcms.com/knowledge-base/cloud-environments).                           |
+| `buildId`             | `string`       | Read-only in Craft Cloud environments. UUID of the current [build](https://craftcms.com/knowledge-base/cloud-builds).                                       |
 | `accessKey`           | `string`       | AWS access key, used for communicating with storage APIs.                                                                       |
 | `accessSecret`        | `string`       | AWS access secret, used in conjunction with the `accessKey`.                                                                    |
 | `accessToken`         | `string`       | AWS access token.                                                                                                               |
-| `redisUrl`            | `string`       | Connection string for the environment’s Redis instance.                                                                         |
-| `signingKey`          | `string`       | A secret value used to protect transform URLs and sign HTTP requests. |
-| `useAssetBundleCdn`   | `boolean`      | Whether or not to enable the CDN for asset bundles.                                                                             |
-| `previewDomain`       | `string\|null` | Set when accessing an environment from its [preview domain](https://craftcms.com/knowledge-base/cloud-domains#preview-domains). |
+| `signingKey`          | `string`       | Read-only in Craft Cloud environments. A secret value used to protect transform URLs and sign HTTP requests. |
 | `useQueue`            | `boolean`      | Whether or not to use Cloud’s SQS-backed queue driver.                                                                          |
 | `region`              | `string`       | The app region, chosen when creating the project.                                                                               |
 | `useAssetCdn`         | `boolean`      | Whether or not to enable the CDN for uploaded assets.                                                                           |
-| `useArtifactCdn`      | `boolean`      | Whether or not to enable the CDN for build artifacts and asset bundles.                                                         |
 | `staticCacheDuration` | `int`          | The default duration, in seconds, to statically cache requests.                                                                 |
 
 > [!TIP]
-> These options can also be set via environment overrides beginning with `CRAFT_CLOUD_`.
+> Options marked read-only are provided by Craft Cloud. Other options can also be set via environment overrides beginning with `CRAFT_CLOUD_`.
 
 ### Static cache
 
