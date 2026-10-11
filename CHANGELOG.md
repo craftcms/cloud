@@ -1,5 +1,9 @@
 # Release Notes for Craft Cloud ⛅️
 
+## 2026-10-08
+- Released version 1.123.0 of the Cloud API
+  - Scheduled commands can now run every 15 minutes (instead of 60), and each environment can have a maximum of 10 (instead of 5).
+
 ## 2026-08-21
 - Released version 3.11.1 of the `craftcms/cloud` package.
   - Fixed a [moderate-severity](https://github.com/craftcms/cms/security/policy#severity--remediation) missing authorization vulnerability. ([GHSA-j697-8x93-7mp2](https://github.com/craftcms/cloud/security/advisories/GHSA-6w27-48c9-65c6))
