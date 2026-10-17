@@ -40,12 +40,35 @@ class StaticCacheControllerTest extends Unit
         $controller->actionPurgeAll();
         $controller->actionPurgeOrigin();
         $controller->actionPurgeCdn();
+        $controller->actionPurgePrefixes('/first', '/second');
+        $controller->actionPurgeTags('first', 'second');
 
         $this->assertSame([
             ['123-environment-id:uri', '123-environment-id:cdn', '123-environment-id:rasterize'],
             ['123-environment-id:uri'],
             ['123-environment-id:cdn', '123-environment-id:rasterize'],
+            ['first', 'second'],
         ], $this->staticCache->purges);
+        $this->assertSame([['/first', '/second']], $this->staticCache->purgedPrefixes);
+    }
+
+    public function testInvalidateActions(): void
+    {
+        $controller = new StaticCacheController('static-cache', Craft::$app);
+
+        $controller->actionInvalidateAll();
+        $controller->actionInvalidateOrigin();
+        $controller->actionInvalidateCdn();
+        $controller->actionInvalidatePrefixes('/first', '/second');
+        $controller->actionInvalidateTags('first', 'second');
+
+        $this->assertSame([
+            ['123-environment-id:uri', '123-environment-id:cdn', '123-environment-id:rasterize'],
+            ['123-environment-id:uri'],
+            ['123-environment-id:cdn', '123-environment-id:rasterize'],
+            ['first', 'second'],
+        ], $this->staticCache->invalidations);
+        $this->assertSame([['/first', '/second']], $this->staticCache->invalidatedPrefixes);
     }
 
     public function testPurgeFailurePropagates(): void
@@ -78,6 +101,9 @@ class StaticCacheControllerTest extends Unit
 class TestStaticCache extends StaticCache
 {
     public array $purges = [];
+    public array $purgedPrefixes = [];
+    public array $invalidations = [];
+    public array $invalidatedPrefixes = [];
     public bool $fail = false;
 
     public function purgeTags(string|StaticCacheTag ...$tags): void
@@ -87,5 +113,20 @@ class TestStaticCache extends StaticCache
         }
 
         $this->purges[] = $tags;
+    }
+
+    public function purgeUrlPrefixes(string ...$urlPrefixes): void
+    {
+        $this->purgedPrefixes[] = $urlPrefixes;
+    }
+
+    public function invalidateTags(string|StaticCacheTag ...$tags): void
+    {
+        $this->invalidations[] = $tags;
+    }
+
+    public function invalidateUrlPrefixes(string ...$urlPrefixes): void
+    {
+        $this->invalidatedPrefixes[] = $urlPrefixes;
     }
 }
