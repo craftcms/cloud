@@ -23,6 +23,13 @@ class CloudServiceProvider extends ServiceProvider
         $this->configureQueue();
         $this->configureCache();
         $this->configureLogging();
+        Disks::configure();
+    }
+
+    public function boot(): void
+    {
+        // Only does anything on Craft Cloud, where the disks are registered
+        Disks::stageUploads();
     }
 
     private function configureLogging(): void

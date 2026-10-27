@@ -17,6 +17,15 @@ abstract class TestCase extends BaseTestCase
         'CRAFT_CLOUD',
         'CRAFT_CLOUD_CACHE_SRV',
         'CRAFT_CLOUD_SQS_URL',
+        'CRAFT_CLOUD_PROJECT_ID',
+        'CRAFT_CLOUD_ENVIRONMENT_ID',
+        'CRAFT_CLOUD_REGION',
+        'AWS_REGION',
+        'CRAFT_CLOUD_ACCESS_KEY',
+        'CRAFT_CLOUD_ACCESS_SECRET',
+        'CRAFT_CLOUD_ACCESS_TOKEN',
+        'CRAFT_CLOUD_STORAGE_ENDPOINT',
+        'CRAFT_CLOUD_CDN_BASE_URL',
     ];
 
     protected Container $app;
@@ -108,6 +117,11 @@ abstract class TestCase extends BaseTestCase
     protected function registerProvider(): void
     {
         new CloudServiceProvider($this->app)->register();
+    }
+
+    protected function bootProvider(): void
+    {
+        new CloudServiceProvider($this->app)->boot();
     }
 
     protected function server(string $key, string $value): void
