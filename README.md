@@ -22,6 +22,15 @@ The Cloud extension can be installed in any existing Craft 4.6+ project by runni
 
 When you [deploy](https://craftcms.com/knowledge-base/cloud-deployment) a project to Cloud, the `cloud/up` command will run, wrapping Craft’s built-in [`up` command](https://craftcms.com/docs/5.x/reference/cli.html#up) and adding the cache and session tables (if they’re not already present).
 
+### Supported versions
+
+| Version | Craft      | Status         |
+| ------- | ---------- | -------------- |
+| `5.x`   | 6          | In development |
+| `3.x`   | 4.6+ and 5 | Supported      |
+| `2.x`   | 5          | EOL            |
+| `1.x`   | 4.6+       | EOL            |
+
 ## Filesystem
 
 When setting up your project’s assets, use the provided **Craft Cloud** filesystem type. Read more about [managing assets in Cloud projects](https://craftcms.com/knowledge-base/cloud-assets).
