@@ -5,6 +5,7 @@ namespace craft\cloud;
 use Craft;
 use craft\base\ElementInterface;
 use craft\cloud\events\PurgeEvent;
+use craft\cloud\queue\PurgeStaticCacheJob;
 use craft\events\ElementEvent;
 use craft\events\InvalidateElementCachesEvent;
 use craft\events\RegisterCacheOptionsEvent;
@@ -24,7 +25,7 @@ use yii\base\Event;
 use yii\caching\TagDependency;
 
 /**
- * Static Cache tags can appear in the `Cache-Tag` and `Cache-Purge-Tag` headers.
+ * Static Cache tags can appear in the `Cache-Tag` header.
  * The values are comma-separated and can be in several formats:
  *
  * - Added by the gateway:
@@ -348,14 +349,6 @@ class StaticCache extends \yii\base\Component
         Collection $tags,
         ?Collection $fetchUrls = null,
     ): void {
-        $response = Craft::$app->getResponse();
-        $isWebResponse = $response instanceof \craft\web\Response;
-
-        // Add any existing tags from the response headers
-        if ($isWebResponse) {
-            $tags->push(...$this->parseCacheTagsFromHeader(HeaderEnum::CACHE_PURGE_TAG->value));
-        }
-
         $tags = $this->normalizeCacheTags(...$tags);
 
         if ($tags->isEmpty()) {
@@ -366,10 +359,6 @@ class StaticCache extends \yii\base\Component
             'tags' => $tags->values()->all(),
         ]);
         $this->trigger(self::EVENT_BEFORE_PURGE, $event);
-
-        if ($isWebResponse) {
-            $response->getHeaders()->remove(HeaderEnum::CACHE_PURGE_TAG->value);
-        }
 
         $overflowTag = $this->overflowTag();
         $tags = $event->isValid
@@ -383,53 +372,18 @@ class StaticCache extends \yii\base\Component
         }
 
         $fetchUrls ??= Collection::make();
-        $sendApiRequest = !$isWebResponse || $fetchUrls->isNotEmpty();
-
-        if (!$sendApiRequest) {
-            $tags = $this->truncateCacheTagsForHeader($tags);
-
-            Module::info('Purging tags', [
-                'tags' => $tags,
-            ]);
-
-            $this->setCacheTagHeader(
-                HeaderEnum::CACHE_PURGE_TAG->value,
-                $tags,
-            );
-
-            return;
-        }
-
-        Module::info('Purging tags', [
-            'tags' => $tags,
-            'fetchUrls' => $fetchUrls,
-        ]);
-
-        $payload = [
+        $job = new PurgeStaticCacheJob([
             'tags' => $tags->map(fn(StaticCacheTag $tag) => (string) $tag)->values()->all(),
-        ];
-
-        if ($fetchUrls->isNotEmpty()) {
-            $payload['fetchUrls'] = $fetchUrls
+            'fetchUrls' => $fetchUrls
                 ->unique()
                 ->values()
-                ->all();
-        }
+                ->all(),
+        ]);
 
-        try {
-            Helper::createGatewayApiClient()->request('POST', 'cache/purge', [
-                RequestOptions::JSON => $payload,
-                RequestOptions::TIMEOUT => 40,
-            ]);
-        } catch (\Throwable $e) {
-            if ($isWebResponse) {
-                $this->setCacheTagHeader(
-                    HeaderEnum::CACHE_PURGE_TAG->value,
-                    $this->truncateCacheTagsForHeader($tags),
-                );
-            }
-
-            throw $e;
+        if (Craft::$app->getResponse() instanceof \craft\web\Response) {
+            Craft::$app->getQueue()->push($job);
+        } else {
+            $job->execute(Craft::$app->getQueue());
         }
     }
 
