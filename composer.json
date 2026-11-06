@@ -9,7 +9,11 @@
     "bref/bref": "^3",
     "bref/extra-php-extensions": "^3",
     "bref/laravel-bridge": "^3.0",
-    "craftcms/cms": "^6",
+    "craftcms/cms": "^6.0.0-alpha.21",
+    "craftcms/http-message-signatures": "^1.0",
+    "guzzlehttp/guzzle": "^7.4.5",
+    "league/uri": "^7.6",
+    "league/uri-components": "^7.6",
     "symfony/process": "^7.4.5 || ^8.0.5"
   },
   "require-dev": {

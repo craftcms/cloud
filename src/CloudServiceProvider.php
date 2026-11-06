@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace craft\cloud;
 
+use craft\cloud\transforms\AssetTransforms;
 use Illuminate\Support\Facades\Config;
 use Illuminate\Support\ServiceProvider;
 
@@ -23,6 +24,11 @@ class CloudServiceProvider extends ServiceProvider
         $this->configureQueue();
         $this->configureCache();
         $this->configureLogging();
+    }
+
+    public function boot(): void
+    {
+        AssetTransforms::register($this->app, $this->isCraftCloud());
     }
 
     private function configureLogging(): void

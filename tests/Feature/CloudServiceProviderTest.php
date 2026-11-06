@@ -3,6 +3,18 @@
 declare(strict_types=1);
 
 use craft\cloud\tests\Support\DnsRecords;
+use craft\cloud\transforms\CloudAssetTransformDriver;
+use CraftCms\Cms\Asset\AssetTransformDrivers;
+use CraftCms\Cms\Asset\AssetTransformerRegistry;
+use CraftCms\Cms\Asset\AssetTransformers;
+use CraftCms\Cms\Asset\Data\AssetTransformer;
+use CraftCms\Cms\Config\GeneralConfig;
+use Illuminate\Contracts\Container\Container;
+use Illuminate\Contracts\Validation\Factory as ValidationFactoryContract;
+use Illuminate\Events\Dispatcher;
+use Illuminate\Translation\ArrayLoader;
+use Illuminate\Translation\Translator;
+use Illuminate\Validation\Factory as ValidationFactory;
 
 it('does not configure cloud services outside Craft Cloud', function (): void {
     $this->registerProvider();
@@ -96,3 +108,52 @@ it('prepends Redis to the fallback cache when the cache SRV record is available'
             'stores' => ['craft-cloud-redis', 'database', 'array'],
         ]);
 });
+
+it('registers the Cloud transform driver and profile in every environment', function (): void {
+    $this->app->instance(AssetTransformers::class, new class extends AssetTransformers {
+        public function __construct() {}
+    });
+    $this->app->instance(Container::class, $this->app);
+    $this->app->instance('events', new Dispatcher($this->app));
+    $this->app->instance(
+        ValidationFactoryContract::class,
+        new ValidationFactory(new Translator(new ArrayLoader(), 'en')),
+    );
+
+    $this->registerProvider();
+
+    $profiles = collect($this->app->make(AssetTransformerRegistry::class)->all())
+        ->map(fn(AssetTransformer $transformer): array => [$transformer->handle, $transformer->driver])
+        ->values()
+        ->all();
+
+    expect($this->app->make(AssetTransformDrivers::class)->driver('craft-cloud'))
+        ->toBeInstanceOf(CloudAssetTransformDriver::class)
+        ->and($profiles)
+        ->toBe([
+            ['craft',      'craft'],
+            ['craftCloud', 'craft-cloud'],
+        ]);
+});
+
+it('makes Cloud transforms the default transformer on Craft Cloud', function (
+    bool $onCloud,
+    string $configured,
+    string $expected,
+): void {
+    if ($onCloud) {
+        $this->server('CRAFT_CLOUD', '1');
+    }
+
+    $this->app->singleton(GeneralConfig::class, fn(): GeneralConfig => GeneralConfig::create()->defaultAssetTransformer(
+        $configured,
+    ));
+
+    $this->registerProvider();
+
+    expect($this->app->make(GeneralConfig::class)->defaultAssetTransformer)->toBe($expected);
+})->with([
+    'on Cloud' => [true, 'craft', 'craftCloud'],
+    'on Cloud with a project default' => [true, 'imgix', 'imgix'],
+    'outside Cloud' => [false, 'craft', 'craft'],
+]);
