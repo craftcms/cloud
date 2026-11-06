@@ -16,6 +16,9 @@ class CloudServiceProvider extends ServiceProvider
 
     public function register(): void
     {
+        Disks::register($this->app, $this->isCraftCloud());
+        $this->commands([Console\DisksCommand::class]);
+
         if (!$this->isCraftCloud()) {
             return;
         }
