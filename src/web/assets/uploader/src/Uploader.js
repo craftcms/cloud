@@ -175,12 +175,17 @@ Craft.CloudUploader = Craft.BaseUploader.extend(
       }
     },
 
+    addFiles: function (files) {
+      this.uploadFiles(files);
+    },
+
     handleChange: function (event) {
       this.uploadFiles(event.target.files);
       this.$fileInput.val('');
     },
 
     destroy: function () {
+      this.base();
       this.$fileInput.off('change', this._handleChange);
       this.$dropZone.off('dragover drop dragenter dragleave');
 
