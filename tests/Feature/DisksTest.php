@@ -166,14 +166,27 @@ it('falls back to local disks in the webroot off Cloud', function (): void {
 
 it('stages uploads and temporary assets in the bucket on Cloud', function (): void {
     on_cloud();
+    $_SERVER['CRAFT_CLOUD_ACCESS_KEY'] = bin2hex(random_bytes(8));
+    $_SERVER['CRAFT_CLOUD_STORAGE_ENDPOINT'] = 'http://minio:9000';
     $this->registerProvider();
 
     $config = $this->app->make(GeneralConfig::class);
+    $uploads = Storage::disk($config->getUploadSessionDisk());
+    // Craft copies staged uploads within S3 only when both disks have the same credentials and endpoint
+    $account = static fn(array $disk): array => array_intersect_key($disk, array_flip([
+        'bucket',
+        'key',
+        'secret',
+        'token',
+        'endpoint',
+    ]));
 
-    expect(Storage::disk($config->getUploadSessionDisk())->path('session/photo.jpg'))
+    expect($uploads->path('session/photo.jpg'))
         ->toBe('environment-id/storage/tmp/uploads/session/photo.jpg')
         ->and(Storage::disk($config->getTempAssetUploadDisk())->path('user_1/photo.jpg'))
-        ->toBe('environment-id/storage/tmp/user_1/photo.jpg');
+        ->toBe('environment-id/storage/tmp/user_1/photo.jpg')
+        ->and($account($uploads->getConfig()))
+        ->toBe($account(Storage::disk('images')->getConfig()));
 });
 
 it('leaves disks and settings the project has chosen alone', function (): void {

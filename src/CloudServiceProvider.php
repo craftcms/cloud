@@ -31,7 +31,8 @@ class CloudServiceProvider extends ServiceProvider
     }
 
     /**
-     * The function's filesystem is read-only apart from /tmp, and deployments bring their own YAML.
+     * The function's filesystem is read-only apart from /tmp, and deployments bring their own YAML. `CRAFT_EPHEMERAL`
+     * also turns this off, but this keeps it off if a function doesn't have it set.
      */
     private function configureProjectConfig(): void
     {

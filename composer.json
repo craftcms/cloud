@@ -9,7 +9,7 @@
     "bref/bref": "^3",
     "bref/extra-php-extensions": "^3",
     "bref/laravel-bridge": "^3.0",
-    "craftcms/cms": "^6",
+    "craftcms/cms": "^6.0.0-alpha.21",
     "league/flysystem-aws-s3-v3": "^3.0",
     "symfony/process": "^7.4.5 || ^8.0.5"
   },
