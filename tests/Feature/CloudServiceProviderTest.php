@@ -3,6 +3,9 @@
 declare(strict_types=1);
 
 use craft\cloud\tests\Support\DnsRecords;
+use craft\cloud\transforms\CloudAssetTransformDriver;
+use CraftCms\Cms\Asset\AssetTransformers;
+use Illuminate\Contracts\Container\Container;
 
 it('does not configure cloud services outside Craft Cloud', function (): void {
     $this->registerProvider();
@@ -95,4 +98,13 @@ it('prepends Redis to the fallback cache when the cache SRV record is available'
             'driver' => 'failover',
             'stores' => ['craft-cloud-redis', 'database', 'array'],
         ]);
+});
+
+it('registers the Cloud transform driver in every environment', function (): void {
+    $this->app->instance(Container::class, $this->app);
+
+    $this->registerProvider();
+
+    expect($this->app->make(AssetTransformers::class)->driver('craft-cloud'))
+        ->toBeInstanceOf(CloudAssetTransformDriver::class);
 });
