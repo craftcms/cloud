@@ -10,6 +10,7 @@
     "bref/extra-php-extensions": "^3",
     "bref/laravel-bridge": "^3.0",
     "craftcms/cms": "^6",
+    "craftcms/http-message-signatures": "^1.0",
     "symfony/process": "^7.4.5 || ^8.0.5"
   },
   "require-dev": {

@@ -8,6 +8,7 @@ use craft\cloud\CloudServiceProvider;
 use craft\cloud\tests\Support\DnsRecords;
 use Illuminate\Config\Repository;
 use Illuminate\Container\Container;
+use Illuminate\Foundation\Application;
 use Illuminate\Support\Facades\Facade;
 use PHPUnit\Framework\TestCase as BaseTestCase;
 
@@ -41,7 +42,7 @@ abstract class TestCase extends BaseTestCase
 
         DnsRecords::reset();
 
-        $this->app = new Container();
+        $this->app = new Application(dirname(__DIR__));
         $this->config = new Repository([
             'cache' => [
                 'default' => 'array',

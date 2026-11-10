@@ -4,7 +4,7 @@
         "Read more about it at https://getcomposer.org/doc/01-basic-usage.md#installing-dependencies",
         "This file is @generated automatically"
     ],
-    "content-hash": "ac3769b93490f33743c2d11be91ed70f",
+    "content-hash": "243217ec098d79d64532b798ee284d5f",
     "packages": [
         {
             "name": "aws/aws-crt-php",
@@ -210,6 +210,88 @@
                 "source": "https://github.com/Bacon/BaconQrCode/tree/2.0.8"
             },
             "time": "2022-12-07T17:46:57+00:00"
+        },
+        {
+            "name": "bakame/http-structured-fields",
+            "version": "2.0.0",
+            "source": {
+                "type": "git",
+                "url": "https://github.com/bakame-php/http-structured-fields.git",
+                "reference": "d0fc193e5b173a4e90f2fa589d5b97b2b653b323"
+            },
+            "dist": {
+                "type": "zip",
+                "url": "https://api.github.com/repos/bakame-php/http-structured-fields/zipball/d0fc193e5b173a4e90f2fa589d5b97b2b653b323",
+                "reference": "d0fc193e5b173a4e90f2fa589d5b97b2b653b323",
+                "shasum": ""
+            },
+            "require": {
+                "php": "^8.1"
+            },
+            "require-dev": {
+                "bakame/aide-base32": "dev-main",
+                "friendsofphp/php-cs-fixer": "^3.65.0",
+                "httpwg/structured-field-tests": "*@dev",
+                "phpbench/phpbench": "^1.3.1",
+                "phpstan/phpstan": "^2.0.3",
+                "phpstan/phpstan-deprecation-rules": "^2.0.1",
+                "phpstan/phpstan-phpunit": "^2.0.1",
+                "phpstan/phpstan-strict-rules": "^2.0",
+                "phpunit/phpunit": "^10.5.38 || ^11.5.0",
+                "symfony/var-dumper": "^6.4.15 || ^v7.2.0"
+            },
+            "type": "library",
+            "extra": {
+                "branch-alias": {
+                    "dev-develop": "1.x-dev"
+                }
+            },
+            "autoload": {
+                "psr-4": {
+                    "Bakame\\Http\\StructuredFields\\": "src/"
+                }
+            },
+            "notification-url": "https://packagist.org/downloads/",
+            "license": [
+                "MIT"
+            ],
+            "authors": [
+                {
+                    "name": "Ignace Nyamagana Butera",
+                    "email": "nyamsprod@gmail.com",
+                    "homepage": "https://github.com/nyamsprod/",
+                    "role": "Developer"
+                }
+            ],
+            "description": "A PHP library that parses, validates and serializes HTTP structured fields according to RFC9561 and RFC8941",
+            "keywords": [
+                "headers",
+                "http",
+                "http headers",
+                "http trailers",
+                "parser",
+                "rfc8941",
+                "rfc9651",
+                "serializer",
+                "structured fields",
+                "structured headers",
+                "structured trailers",
+                "structured values",
+                "trailers",
+                "validation"
+            ],
+            "support": {
+                "docs": "https://github.com/bakame-php/http-structured-fields",
+                "issues": "https://github.com/bakame-php/http-structured-fields/issues",
+                "source": "https://github.com/bakame-php/http-structured-fields"
+            },
+            "funding": [
+                {
+                    "url": "https://github.com/sponsors/nyamsprod",
+                    "type": "github"
+                }
+            ],
+            "time": "2024-12-12T08:25:42+00:00"
         },
         {
             "name": "bref/bref",
@@ -1057,6 +1139,59 @@
                 "source": "https://github.com/craftcms/cms"
             },
             "time": "2026-05-06T18:45:13+00:00"
+        },
+        {
+            "name": "craftcms/http-message-signatures",
+            "version": "1.0.0",
+            "source": {
+                "type": "git",
+                "url": "https://github.com/craftcms/http-message-signatures-php.git",
+                "reference": "ccb73a34946feb5003086026f4645fa81c9a5553"
+            },
+            "dist": {
+                "type": "zip",
+                "url": "https://api.github.com/repos/craftcms/http-message-signatures-php/zipball/ccb73a34946feb5003086026f4645fa81c9a5553",
+                "reference": "ccb73a34946feb5003086026f4645fa81c9a5553",
+                "shasum": ""
+            },
+            "require": {
+                "bakame/http-structured-fields": "^2.0",
+                "league/uri-components": "^7.0",
+                "php": "^8.1",
+                "psr/http-factory": "^1.0",
+                "psr/http-message": "^2.0"
+            },
+            "require-dev": {
+                "carthage-software/mago": "^1.13",
+                "guzzlehttp/psr7": "^2.0",
+                "http-interop/http-factory-guzzle": "^1.0",
+                "phpstan/extension-installer": "^1.3",
+                "phpstan/phpstan": "^2.0",
+                "phpunit/phpunit": "^10.5"
+            },
+            "type": "library",
+            "autoload": {
+                "psr-4": {
+                    "HttpMessageSignatures\\": "src/"
+                }
+            },
+            "notification-url": "https://packagist.org/downloads/",
+            "license": [
+                "MIT"
+            ],
+            "description": "PSR-7 compliant PHP 8.1+ implementation of HTTP Message Signatures (RFC 9421)",
+            "keywords": [
+                "Authentication",
+                "http",
+                "rfc9421",
+                "security",
+                "signature"
+            ],
+            "support": {
+                "issues": "https://github.com/craftcms/http-message-signatures-php/issues",
+                "source": "https://github.com/craftcms/http-message-signatures-php/tree/1.0.0"
+            },
+            "time": "2026-06-12T14:48:03+00:00"
         },
         {
             "name": "craftcms/laravel-aliases",
@@ -3898,6 +4033,90 @@
             "funding": [
                 {
                     "url": "https://github.com/sponsors/nyamsprod",
+                    "type": "github"
+                }
+            ],
+            "time": "2026-03-15T20:22:25+00:00"
+        },
+        {
+            "name": "league/uri-components",
+            "version": "7.8.1",
+            "source": {
+                "type": "git",
+                "url": "https://github.com/thephpleague/uri-components.git",
+                "reference": "848ff9db2f0be06229d6034b7c2e33d41b4fd675"
+            },
+            "dist": {
+                "type": "zip",
+                "url": "https://api.github.com/repos/thephpleague/uri-components/zipball/848ff9db2f0be06229d6034b7c2e33d41b4fd675",
+                "reference": "848ff9db2f0be06229d6034b7c2e33d41b4fd675",
+                "shasum": ""
+            },
+            "require": {
+                "league/uri": "^7.8.1",
+                "php": "^8.1"
+            },
+            "suggest": {
+                "ext-bcmath": "to improve IPV4 host parsing",
+                "ext-fileinfo": "to create Data URI from file contennts",
+                "ext-gmp": "to improve IPV4 host parsing",
+                "ext-intl": "to handle IDN host with the best performance",
+                "ext-mbstring": "to use the sorting algorithm of URLSearchParams",
+                "jeremykendall/php-domain-parser": "to further parse the URI host and resolve its Public Suffix and Top Level Domain",
+                "league/uri-polyfill": "to backport the PHP URI extension for older versions of PHP",
+                "php-64bit": "to improve IPV4 host parsing",
+                "rowbot/url": "to handle URLs using the WHATWG URL Living Standard specification",
+                "symfony/polyfill-intl-idn": "to handle IDN host via the Symfony polyfill if ext-intl is not present"
+            },
+            "type": "library",
+            "extra": {
+                "branch-alias": {
+                    "dev-master": "7.x-dev"
+                }
+            },
+            "autoload": {
+                "psr-4": {
+                    "League\\Uri\\": ""
+                }
+            },
+            "notification-url": "https://packagist.org/downloads/",
+            "license": [
+                "MIT"
+            ],
+            "authors": [
+                {
+                    "name": "Ignace Nyamagana Butera",
+                    "email": "nyamsprod@gmail.com",
+                    "homepage": "https://nyamsprod.com"
+                }
+            ],
+            "description": "URI components manipulation library",
+            "homepage": "http://uri.thephpleague.com",
+            "keywords": [
+                "authority",
+                "components",
+                "fragment",
+                "host",
+                "middleware",
+                "modifier",
+                "path",
+                "port",
+                "query",
+                "rfc3986",
+                "scheme",
+                "uri",
+                "url",
+                "userinfo"
+            ],
+            "support": {
+                "docs": "https://uri.thephpleague.com",
+                "forum": "https://thephpleague.slack.com",
+                "issues": "https://github.com/thephpleague/uri-src/issues",
+                "source": "https://github.com/thephpleague/uri-components/tree/7.8.1"
+            },
+            "funding": [
+                {
+                    "url": "https://github.com/nyamsprod",
                     "type": "github"
                 }
             ],
@@ -13789,5 +14008,5 @@
         "ext-curl": "*"
     },
     "platform-dev": {},
-    "plugin-api-version": "2.9.0"
+    "plugin-api-version": "2.6.0"
 }

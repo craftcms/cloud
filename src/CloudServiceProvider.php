@@ -23,6 +23,7 @@ class CloudServiceProvider extends ServiceProvider
         $this->configureQueue();
         $this->configureCache();
         $this->configureLogging();
+        $this->app->register(StaticCacheServiceProvider::class);
     }
 
     private function configureLogging(): void
