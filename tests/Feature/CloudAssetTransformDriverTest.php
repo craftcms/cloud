@@ -6,6 +6,8 @@ use Aws\S3\S3Client;
 use craft\cloud\signing\UrlSigner;
 use craft\cloud\transforms\CloudAssetTransformDriver;
 use CraftCms\Cms\Asset\AssetTransformers;
+use CraftCms\Cms\Asset\Contracts\AssetTransformDriver;
+use CraftCms\Cms\Asset\Data\AssetTransformDriverDefinition;
 use CraftCms\Cms\Asset\Data\AssetTransformer;
 use CraftCms\Cms\Asset\Data\AssetTransformRequest;
 use CraftCms\Cms\Asset\Data\AssetTransformResult;
@@ -78,19 +80,25 @@ beforeEach(function (): void {
     $this->app->instance('filesystem', $filesystem);
     $this->app->instance(GeneralConfig::class, GeneralConfig::create());
 
-    $this->assetTransformers = new class extends AssetTransformers {
-        /** @var list<array{mixed, ?string}> */
-        public array $calls = [];
+    $this->craftDriver = new class implements AssetTransformDriver {
+        /** @var list<AssetTransformRequest> */
+        public array $requests = [];
 
-        public function __construct() {}
-
-        public function transform(Asset $asset, mixed $definition, ?string $transformer = null): AssetTransformResult
+        public function definition(): AssetTransformDriverDefinition
         {
-            $this->calls[] = [$definition, $transformer];
+            return new AssetTransformDriverDefinition();
+        }
+
+        public function transform(AssetTransformRequest $request): AssetTransformResult
+        {
+            $this->requests[] = $request;
 
             return new AssetTransformResult(url: 'https://example.test/craft-transform.jpg', mimeType: 'image/jpeg');
         }
     };
+    $this->assetTransformers = new AssetTransformers($this->app);
+    $craftDriver = $this->craftDriver;
+    $this->assetTransformers->extend('craft', fn() => $craftDriver);
     $this->urlSigner = new UrlSigner('test-signing-key');
     $this->driver = new CloudAssetTransformDriver($this->urlSigner, $this->assetTransformers);
     $this->transform = fn(
@@ -184,7 +192,9 @@ it('falls back to the Craft transformer for assets outside Cloud storage', funct
     ]);
 
     expect($result->url)->toBe('https://example.test/craft-transform.jpg');
-    expect($this->assetTransformers->calls)->toBe([[['mode' => 'fit', 'width' => 100], 'craft']]);
+    expect($this->craftDriver->requests)->toHaveCount(1);
+    expect($this->craftDriver->requests[0]->transformer)->toEqual(new AssetTransformer('craft'));
+    expect($this->craftDriver->requests[0]->parameters)->toBe(['mode' => 'fit', 'width' => 100]);
 })->with([
     'Cloud disk off Cloud' => ['cloud-local', 'regular'],
     'non-Cloud S3 disk' => ['customer-s3', 'regular'],

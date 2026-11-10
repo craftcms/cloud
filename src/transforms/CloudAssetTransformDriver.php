@@ -9,6 +9,7 @@ use CraftCms\Cms\Asset\AssetsHelper;
 use CraftCms\Cms\Asset\AssetTransformers;
 use CraftCms\Cms\Asset\Contracts\AssetTransformDriver;
 use CraftCms\Cms\Asset\Data\AssetTransformDriverDefinition;
+use CraftCms\Cms\Asset\Data\AssetTransformer;
 use CraftCms\Cms\Asset\Data\AssetTransformRequest;
 use CraftCms\Cms\Asset\Data\AssetTransformResult;
 use CraftCms\Cms\Asset\Elements\Asset;
@@ -65,12 +66,16 @@ class CloudAssetTransformDriver implements AssetTransformDriver
     {
         $asset = $request->asset;
 
+        // Craft can’t hand a transform to another driver, so call the `craft` driver directly, without the disk’s
+        // settings or Cloudflare-only parameters.
         if (!$this->isOnCloudStorage($asset)) {
-            return $this->assetTransformers->transform(
-                $asset,
-                Arr::only($request->parameters, ImageTransform::CORE_PARAMETERS),
-                transformer: 'craft',
-            );
+            return $this->assetTransformers
+                ->driver('craft')
+                ->transform(new AssetTransformRequest(
+                    asset: $asset,
+                    transformer: new AssetTransformer('craft'),
+                    parameters: Arr::only($request->parameters, ImageTransform::CORE_PARAMETERS),
+                ));
         }
 
         $extension = strtolower($asset->getExtension());
