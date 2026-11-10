@@ -8,6 +8,7 @@ use craft\cloud\CloudServiceProvider;
 use craft\cloud\tests\Support\DnsRecords;
 use Illuminate\Config\Repository;
 use Illuminate\Container\Container;
+use Illuminate\Foundation\Application;
 use Illuminate\Support\Facades\Facade;
 use PHPUnit\Framework\TestCase as BaseTestCase;
 
@@ -16,6 +17,8 @@ abstract class TestCase extends BaseTestCase
     private const SERVER_KEYS = [
         'CRAFT_CLOUD',
         'CRAFT_CLOUD_CACHE_SRV',
+        'CRAFT_CLOUD_ENVIRONMENT_ID',
+        'CRAFT_CLOUD_GATEWAY_BASE_URL',
         'CRAFT_CLOUD_SIGNING_KEY',
         'CRAFT_CLOUD_SQS_URL',
     ];
@@ -42,7 +45,7 @@ abstract class TestCase extends BaseTestCase
 
         DnsRecords::reset();
 
-        $this->app = new Container();
+        $this->app = new Application(dirname(__DIR__));
         $this->config = new Repository([
             'cache' => [
                 'default' => 'array',

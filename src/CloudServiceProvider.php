@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace craft\cloud;
 
+use craft\cloud\staticcache\StaticCacheServiceProvider;
 use craft\cloud\transforms\AssetTransforms;
 use Illuminate\Support\Facades\Config;
 use Illuminate\Support\ServiceProvider;
@@ -21,6 +22,7 @@ class CloudServiceProvider extends ServiceProvider
             return;
         }
 
+        $this->app->register(StaticCacheServiceProvider::class);
         $this->configureQueue();
         $this->configureCache();
         $this->configureLogging();
