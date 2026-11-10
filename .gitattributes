@@ -3,6 +3,7 @@
 
 /.gitattributes export-ignore
 /.gitignore export-ignore
+/.release-it.json export-ignore
 /composer.lock export-ignore
 /mago.toml export-ignore
 /package-lock.json export-ignore

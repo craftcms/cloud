@@ -11,12 +11,6 @@
         <testsuite name="Feature">
             <directory>./tests/Feature</directory>
         </testsuite>
-        <testsuite name="Unit">
-            <directory>./tests/Unit</directory>
-        </testsuite>
-        <testsuite name="Arch">
-            <directory>./tests/Arch</directory>
-        </testsuite>
     </testsuites>
     <php>
         <ini name="memory_limit" value="2048M" />

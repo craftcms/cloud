@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace craft\cloud;
+namespace CraftCms\Cloud;
 
 use Illuminate\Support\Facades\Config;
 use Illuminate\Support\ServiceProvider;
@@ -14,31 +14,52 @@ class CloudServiceProvider extends ServiceProvider
     private const REDIS_CONNECTION = 'craft-cloud';
     private const SQS_CONNECTION = 'craft-cloud-sqs';
 
+    /**
+     * Seconds to wait on Valkey before the failover cache moves on to the database.
+     */
+    private const REDIS_TIMEOUT_SECONDS = 1;
+
     public function register(): void
     {
-        if (!$this->isCraftCloud()) {
+        if (!Cloud::isCraftCloud()) {
             return;
         }
 
         $this->configureQueue();
         $this->configureCache();
         $this->configureLogging();
+        $this->configureSession();
     }
 
+    /**
+     * Lambda only collects stderr. bref/laravel-bridge switches the default channel only when it's `stack`, so a
+     * project's `daily` or `single` channel would otherwise write to `/tmp` and be lost.
+     */
     private function configureLogging(): void
     {
         Config::set('logging.default', 'stderr');
-        Config::set('logging.channels.emergency.path', 'php://stderr');
+    }
+
+    /**
+     * Each Lambda container has its own `/tmp`, so `file` sessions don't work, and bref/laravel-bridge replaces them
+     * with `cookie` sessions, which are capped at 4 KB. Craft creates the `sessions` table, so use it.
+     */
+    private function configureSession(): void
+    {
+        if (in_array(Config::get('session.driver'), ['file', 'cookie'], strict: true)) {
+            Config::set('session.driver', 'database');
+        }
     }
 
     private function configureQueue(): void
     {
-        $queueUrl = $_SERVER['CRAFT_CLOUD_SQS_URL'] ?? null;
+        $queueUrl = Cloud::env('CRAFT_CLOUD_SQS_URL');
 
-        if (!$queueUrl) {
+        if ($queueUrl === null) {
             return;
         }
 
+        // The SQS client gets its region and credentials from the function's AWS environment.
         Config::set('queue.default', self::SQS_CONNECTION);
         Config::set('queue.connections.' . self::SQS_CONNECTION, [
             'driver' => 'sqs',
@@ -54,7 +75,7 @@ class CloudServiceProvider extends ServiceProvider
         $stores = ['database', 'array'];
         $redisUrl = $this->resolveRedisUrl();
 
-        if ($redisUrl) {
+        if ($redisUrl !== null) {
             $this->configureRedisCache($redisUrl);
 
             array_unshift($stores, self::CACHE_REDIS_STORE);
@@ -72,6 +93,8 @@ class CloudServiceProvider extends ServiceProvider
         Config::set('database.redis.' . self::REDIS_CONNECTION, [
             'url' => $redisUrl,
             'database' => 0,
+            'timeout' => self::REDIS_TIMEOUT_SECONDS,
+            'read_timeout' => self::REDIS_TIMEOUT_SECONDS,
         ]);
 
         Config::set('cache.stores.' . self::CACHE_REDIS_STORE, [
@@ -83,24 +106,20 @@ class CloudServiceProvider extends ServiceProvider
 
     private function resolveRedisUrl(): ?string
     {
-        $srv = $_SERVER['CRAFT_CLOUD_CACHE_SRV'] ?? null;
+        $srv = Cloud::env('CRAFT_CLOUD_CACHE_SRV');
 
-        if ($srv) {
-            $records = dns_get_record($srv, DNS_SRV);
-
-            $target = is_array($records) ? $records[0]['target'] ?? null : null;
-            $port = is_array($records) ? $records[0]['port'] ?? null : null;
-
-            if ($target !== null && $port !== null) {
-                return 'redis://' . $target . ':' . $port;
-            }
+        if ($srv === null) {
+            return null;
         }
 
-        return null;
-    }
+        $records = dns_get_record($srv, DNS_SRV);
+        $target = is_array($records) ? $records[0]['target'] ?? null : null;
+        $port = is_array($records) ? $records[0]['port'] ?? null : null;
 
-    private function isCraftCloud(): bool
-    {
-        return ($_SERVER['CRAFT_CLOUD'] ?? null) !== null || ($_SERVER['AWS_LAMBDA_RUNTIME_API'] ?? null) !== null;
+        if ($target === null || $port === null) {
+            return null;
+        }
+
+        return 'redis://' . $target . ':' . $port;
     }
 }

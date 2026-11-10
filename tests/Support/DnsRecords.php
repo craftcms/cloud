@@ -2,9 +2,12 @@
 
 declare(strict_types=1);
 
-namespace craft\cloud\tests\Support;
+namespace CraftCms\Cloud\Tests\Support;
 
-class DnsRecords
+/**
+ * Fake DNS answers for {@see \CraftCms\Cloud\dns_get_record()}.
+ */
+final class DnsRecords
 {
     private static array|false $records = false;
 

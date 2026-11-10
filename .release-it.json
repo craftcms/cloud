@@ -1,0 +1,14 @@
+{
+  "npm": false,
+  "git": {
+    "commit": false,
+    "tag": false,
+    "push": false,
+    "requireBranch": ["5.x"]
+  },
+  "github": {
+    "release": true,
+    "autoGenerate": true,
+    "draft": true
+  }
+}
