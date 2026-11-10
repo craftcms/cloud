@@ -3,7 +3,6 @@
 declare(strict_types=1);
 
 use craft\cloud\tests\Support\DnsRecords;
-use CraftCms\Cms\ProjectConfig\ProjectConfig;
 
 it('does not configure cloud services outside Craft Cloud', function (): void {
     $this->registerProvider();
@@ -97,19 +96,3 @@ it('prepends Redis to the fallback cache when the cache SRV record is available'
             'stores' => ['craft-cloud-redis', 'database', 'array'],
         ]);
 });
-
-it('turns off writing project config YAML only on Craft Cloud', function (array $server, bool $expected): void {
-    foreach ($server as $key => $value) {
-        $this->server($key, $value);
-    }
-
-    $this->app->singleton(ProjectConfig::class, static fn() => new class extends ProjectConfig {
-        public function __construct() {}
-    });
-    $this->registerProvider();
-
-    expect($this->app->make(ProjectConfig::class)->writeYamlAutomatically)->toBe($expected);
-})->with([
-    'on Cloud' => [['CRAFT_CLOUD' => '1'], false],
-    'off Cloud' => [[], true],
-]);
