@@ -27,14 +27,6 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      # Remove this override once CMS #20545 is available in the locked CMS release.
-      - name: Checkout CMS cache-control contract
-        uses: actions/checkout@v4
-        with:
-          repository: craftcms/cms
-          ref: b439591fe6c88390aa675e7a1aea5210429d918c
-          path: .cms-contract
-
       - name: Setup PHP
         uses: shivammathur/setup-php@v2
         with:
@@ -54,5 +46,3 @@ jobs:
 
       - name: Run tests
         run: composer test
-        env:
-          CMS_SOURCE_PATH: ${{ github.workspace }}/.cms-contract
