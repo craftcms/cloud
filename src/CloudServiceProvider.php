@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace craft\cloud;
 
+use CraftCms\Cms\ProjectConfig\ProjectConfig;
 use Illuminate\Support\Facades\Config;
 use Illuminate\Support\ServiceProvider;
 
@@ -26,6 +27,17 @@ class CloudServiceProvider extends ServiceProvider
         $this->configureQueue();
         $this->configureCache();
         $this->configureLogging();
+        $this->configureProjectConfig();
+    }
+
+    /**
+     * The function's filesystem is read-only apart from /tmp, and deployments bring their own YAML.
+     */
+    private function configureProjectConfig(): void
+    {
+        $this->callAfterResolving(ProjectConfig::class, static fn(ProjectConfig $projectConfig) => $projectConfig->writeYamlAutomatically(
+            false,
+        ));
     }
 
     private function configureLogging(): void
