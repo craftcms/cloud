@@ -17,6 +17,8 @@ class CloudServiceProvider extends ServiceProvider
 
     public function register(): void
     {
+        Disks::extend($this->app);
+
         if (!$this->isCraftCloud()) {
             return;
         }
@@ -25,7 +27,7 @@ class CloudServiceProvider extends ServiceProvider
         $this->configureCache();
         $this->configureLogging();
         $this->configureProjectConfig();
-        Disks::configure($this->app);
+        Disks::stageUploads($this->app);
     }
 
     /**
