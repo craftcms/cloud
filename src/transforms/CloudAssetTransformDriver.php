@@ -4,8 +4,6 @@ declare(strict_types=1);
 
 namespace craft\cloud\transforms;
 
-use craft\cloud\signing\UrlSigner;
-use CraftCms\Cms\Asset\AssetsHelper;
 use CraftCms\Cms\Asset\AssetTransformers;
 use CraftCms\Cms\Asset\Contracts\AssetTransformDriver;
 use CraftCms\Cms\Asset\Data\AssetTransformDriverDefinition;
@@ -15,61 +13,49 @@ use CraftCms\Cms\Asset\Data\AssetTransformResult;
 use CraftCms\Cms\Asset\Elements\Asset;
 use CraftCms\Cms\Cms;
 use CraftCms\Cms\Image\Data\ImageTransform;
+use CraftCms\Cms\Image\ImageHelper;
 use CraftCms\Cms\Shared\Exceptions\NotSupportedException;
 use CraftCms\Cms\Support\File;
 use Illuminate\Filesystem\AwsS3V3Adapter;
 use Illuminate\Support\Arr;
-use League\Uri\Components\Query;
-use League\Uri\Modifier;
 
 /**
- * Transforms images and PDFs in Craft Cloud’s bucket with signed Cloudflare Image Resizing URLs on the asset CDN.
- * Assets anywhere else, such as on `craft-cloud` disks in local development, go to the `craft` driver.
+ * Transforms images and PDFs with signed Cloudflare image URLs on Craft Cloud’s asset CDN.
  *
  * Projects choose it per disk:
  *
  * ```php
- * 'images' => [
- *     'driver' => 'craft-cloud',
- *     'asset_transformer' => 'craft-cloud',
- * ],
+ * 'images' => ['driver' => 'craft-cloud', 'prefix' => 'images', 'asset_transformer' => 'craft-cloud'],
  * ```
+ *
+ * It transforms every asset on the disks that choose it. Assets on disks that aren’t S3, which the CDN can’t serve,
+ * go to the `craft` driver.
  */
 class CloudAssetTransformDriver implements AssetTransformDriver
 {
     public const string DRIVER = 'craft-cloud';
 
-    /** Source extensions the Cloud gateway transforms with Cloudflare Images. */
-    public const array SUPPORTED_IMAGE_EXTENSIONS = [
-        'avif',
-        'gif',
-        'heic',
-        'heif',
-        'jpeg',
-        'jpg',
-        'png',
-        'svg',
-        'webp',
-    ];
+    /** Source extensions the gateway transforms. */
+    private const array EXTENSIONS = ['avif', 'gif', 'heic', 'heif', 'jpeg', 'jpg', 'pdf', 'png', 'svg', 'webp'];
 
     public function __construct(
-        private readonly UrlSigner $urlSigner,
-        private readonly AssetTransformers $assetTransformers,
+        private readonly AssetTransformers $transformers,
+        private readonly AssetCdn $cdn,
     ) {}
 
     public function definition(): AssetTransformDriverDefinition
     {
-        return new AssetTransformDriverDefinition(parameterRules: CloudflareOptions::parameterRules());
+        return new AssetTransformDriverDefinition(parameterRules: CloudflareOptions::rules());
     }
 
     public function transform(AssetTransformRequest $request): AssetTransformResult
     {
         $asset = $request->asset;
+        $parameters = $request->parameters + ['upscale' => Cms::config()->upscaleImages];
 
-        // Craft can’t hand a transform to another driver, so call the `craft` driver directly, without the disk’s
-        // settings or Cloudflare-only parameters.
-        if (!$this->isOnCloudStorage($asset)) {
-            return $this->assetTransformers
+        // Core can’t hand a transform to another driver, so call the `craft` driver directly.
+        if (!$asset->getVolume()->sourceDisk() instanceof AwsS3V3Adapter) {
+            return $this->transformers
                 ->driver('craft')
                 ->transform(new AssetTransformRequest(
                     asset: $asset,
@@ -78,67 +64,60 @@ class CloudAssetTransformDriver implements AssetTransformDriver
                 ));
         }
 
-        $extension = strtolower($asset->getExtension());
-        $this->ensureSupported($extension);
-
+        $extension = $this->supportedExtension($asset);
         $options = CloudflareOptions::fromParameters(
-            $request->parameters,
+            $parameters,
             $asset->getHasFocalPoint() ? $asset->getFocalPoint() : null,
         );
 
+        // The gateway only rasterizes PDFs when a format is requested. `auto` lets it pick AVIF or WebP.
         if ($extension === 'pdf') {
             $options['format'] ??= 'auto';
         }
 
-        $url = Modifier::wrap(AssetsHelper::generateUrl($asset))
-            ->mergeQuery(Query::fromVariable($options))
-            ->removeQueryParameters('v')
-            ->removeEmptyQueryPairs()
-            ->toString();
-
-        // `auto` is negotiated by the gateway; PDFs rasterize to PNG when it can’t negotiate.
-        $format = match ($options['format'] ?? 'auto') {
-            'auto' => $extension === 'pdf' ? 'png' : $extension,
-            'baseline-jpeg' => 'jpeg',
-            default => $options['format'],
-        };
+        $format = $parameters['format'] ?? ($extension === 'pdf' ? 'png' : $extension);
+        [$width, $height] = $this->outputDimensions($asset, $parameters);
 
         return new AssetTransformResult(
-            url: $this->urlSigner->sign($url),
+            url: $this->cdn->transformUrl($asset, $options),
             mimeType: File::getMimeTypeByExtension("transform.{$format}") ?? 'application/octet-stream',
+            width: $width,
+            height: $height,
         );
     }
 
-    /**
-     * Whether the asset is in Cloud’s bucket, which the asset CDN serves.
-     *
-     * This checks the volume’s own disk, so scoped disks count, and so do disks that aren’t defined with the
-     * `craft-cloud` driver. Temporary uploads are in the bucket, but outside the CDN’s prefix.
-     */
-    protected function isOnCloudStorage(Asset $asset): bool
+    private function supportedExtension(Asset $asset): string
     {
-        $volume = $asset->getVolume();
-        $bucket = $_SERVER['CRAFT_CLOUD_PROJECT_ID'] ?? null;
-
-        if ($bucket === null || $volume->isTemporary() || $volume->getResolvedFsTarget() === null) {
-            return false;
-        }
-
-        $disk = $volume->sourceDisk();
-
-        return $disk instanceof AwsS3V3Adapter && ($disk->getConfig()['bucket'] ?? null) === $bucket;
-    }
-
-    private function ensureSupported(string $extension): void
-    {
-        if (!in_array($extension, [...self::SUPPORTED_IMAGE_EXTENSIONS, 'pdf'], strict: true)) {
-            throw new NotSupportedException("Craft Cloud can’t transform .{$extension} files.");
-        }
-
+        $extension = strtolower($asset->getExtension());
         $disabled = ['gif' => !Cms::config()->transformGifs, 'svg' => !Cms::config()->transformSvgs];
 
-        if ($disabled[$extension] ?? false) {
-            throw new NotSupportedException("Craft is configured not to transform .{$extension} files.");
+        if (!in_array($extension, self::EXTENSIONS, strict: true) || ($disabled[$extension] ?? false)) {
+            throw new NotSupportedException("Craft Cloud doesn’t transform .{$extension} files.");
         }
+
+        return $extension;
+    }
+
+    /**
+     * @param array<string, mixed> $parameters
+     * @return array{?int, ?int}
+     */
+    private function outputDimensions(Asset $asset, array $parameters): array
+    {
+        $sourceWidth = $asset->getWidth();
+        $sourceHeight = $asset->getHeight();
+
+        if (!$sourceWidth || !$sourceHeight) {
+            return [null, null];
+        }
+
+        return ImageHelper::targetDimensions(
+            $sourceWidth,
+            $sourceHeight,
+            filter_var($parameters['width'] ?? null, FILTER_VALIDATE_INT, FILTER_NULL_ON_FAILURE),
+            filter_var($parameters['height'] ?? null, FILTER_VALIDATE_INT, FILTER_NULL_ON_FAILURE),
+            $parameters['mode'] ?? 'crop',
+            filter_var($parameters['upscale'], FILTER_VALIDATE_BOOL),
+        );
     }
 }

@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 namespace craft\cloud\transforms;
 
-use craft\cloud\signing\UrlSigner;
 use CraftCms\Cms\Asset\AssetTransformers;
 use Illuminate\Contracts\Container\Container;
 
@@ -14,18 +13,18 @@ use Illuminate\Contracts\Container\Container;
 class AssetTransforms
 {
     /**
-     * The driver is registered in every environment, so disks that set `'asset_transformer' => 'craft-cloud'` stay
-     * valid in local development, where the driver hands files to the `craft` driver.
+     * Registered in every environment, like the `craft-cloud` disk driver, so the same disk config works anywhere.
      */
     public static function register(Container $app): void
     {
-        $app->singleton(
-            UrlSigner::class,
-            static fn(): UrlSigner => new UrlSigner($_SERVER['CRAFT_CLOUD_SIGNING_KEY'] ?? ''),
-        );
-
         $extend = static function (AssetTransformers $transformers): void {
-            $transformers->extend(CloudAssetTransformDriver::DRIVER, static fn(Container $app): CloudAssetTransformDriver => $app->make(CloudAssetTransformDriver::class));
+            $transformers->extend(
+                CloudAssetTransformDriver::DRIVER,
+                static fn(Container $app): CloudAssetTransformDriver => new CloudAssetTransformDriver(
+                    $app->make(AssetTransformers::class),
+                    new AssetCdn($_SERVER['CRAFT_CLOUD_SIGNING_KEY'] ?? ''),
+                ),
+            );
         };
 
         // Like ServiceProvider::callAfterResolving(), in case something resolved it early

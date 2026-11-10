@@ -4,7 +4,7 @@
         "Read more about it at https://getcomposer.org/doc/01-basic-usage.md#installing-dependencies",
         "This file is @generated automatically"
     ],
-    "content-hash": "36ae531ae78f6255dd60d3ebd2acf5a0",
+    "content-hash": "dd6097fbf930497e6a24b5b07dfd289a",
     "packages": [
         {
             "name": "aws/aws-crt-php",
@@ -976,12 +976,12 @@
             "source": {
                 "type": "git",
                 "url": "https://github.com/craftcms/cms.git",
-                "reference": "8a134177204d7e429f9629378155c3a4d6a92e31"
+                "reference": "05ce9b81be3704fb27da3a5a6670accfa49ec9a9"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/craftcms/cms/zipball/8a134177204d7e429f9629378155c3a4d6a92e31",
-                "reference": "8a134177204d7e429f9629378155c3a4d6a92e31",
+                "url": "https://api.github.com/repos/craftcms/cms/zipball/05ce9b81be3704fb27da3a5a6670accfa49ec9a9",
+                "reference": "05ce9b81be3704fb27da3a5a6670accfa49ec9a9",
                 "shasum": ""
             },
             "require": {
@@ -1167,8 +1167,8 @@
                 "rss": "https://github.com/craftcms/cms/releases.atom",
                 "source": "https://github.com/craftcms/cms"
             },
-            "time": "2026-11-10T15:45:21+00:00",
-            "published-time": "2026-11-10T15:45:36+00:00"
+            "time": "2026-11-10T18:14:47+00:00",
+            "published-time": "2026-11-10T18:15:11+00:00"
         },
         {
             "name": "craftcms/cms-assets",

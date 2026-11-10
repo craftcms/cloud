@@ -3,8 +3,9 @@
 declare(strict_types=1);
 
 use Aws\S3\S3Client;
-use craft\cloud\signing\UrlSigner;
+use craft\cloud\transforms\AssetCdn;
 use craft\cloud\transforms\CloudAssetTransformDriver;
+use CraftCms\Cms\Asset\AssetsHelper;
 use CraftCms\Cms\Asset\AssetTransformers;
 use CraftCms\Cms\Asset\Contracts\AssetTransformDriver;
 use CraftCms\Cms\Asset\Data\AssetTransformDriverDefinition;
@@ -16,6 +17,11 @@ use CraftCms\Cms\Asset\Elements\Asset;
 use CraftCms\Cms\Cms;
 use CraftCms\Cms\Config\GeneralConfig;
 use CraftCms\Cms\Shared\Exceptions\NotSupportedException;
+use GuzzleHttp\Psr7\HttpFactory;
+use HttpMessageSignatures\Algorithm\HmacSha256;
+use HttpMessageSignatures\Exception\VerificationException;
+use HttpMessageSignatures\Url\UrlSigningConfig;
+use HttpMessageSignatures\Url\UrlVerifier;
 use Illuminate\Filesystem\AwsS3V3Adapter;
 use Illuminate\Filesystem\FilesystemManager;
 use League\Flysystem\Filesystem;
@@ -34,7 +40,7 @@ function s3Disk(array $config): AwsS3V3Adapter
     ]));
 }
 
-function transformAsset(string $filename, string $disk = 'cloud', ?array $focalPoint = null): Asset
+function transformAsset(string $filename, string $disk = 'cloud', ?array $focalPoint = null, ?array $size = null): Asset
 {
     $asset = new class(['siteId' => 1, 'filename' => $filename, 'folderPath' => 'tests/']) extends Asset {
         public Volume $volume;
@@ -51,30 +57,56 @@ function transformAsset(string $filename, string $disk = 'cloud', ?array $focalP
         $asset->setFocalPoint($focalPoint);
     }
 
+    if ($size !== null) {
+        $asset->kind = 'image';
+        [$width, $height] = $size;
+        $asset->setWidth($width);
+        $asset->setHeight($height);
+    }
+
     return $asset;
 }
 
+/**
+ * Verifies a URL like the Cloud gateway does: without `v`, over `@path` and `@query`, with the signature in `s`.
+ */
+function gatewayVerifies(string $url, string $key = 'test-signing-key'): bool
+{
+    [$base, $query] = explode('?', $url, limit: 2) + [1 => ''];
+    $query = implode('&', array_filter(
+        explode('&', $query),
+        static fn(string $pair): bool => !str_starts_with($pair, 'v='),
+    ));
+    $verifier = new UrlVerifier(
+        new HmacSha256($key),
+        new HttpFactory(),
+        new UrlSigningConfig(components: ['@path', '@query'], signatureParam: 's'),
+    );
+
+    try {
+        return $verifier->verify("{$base}?{$query}");
+    } catch (VerificationException) {
+        return false;
+    }
+}
+
 beforeEach(function (): void {
-    $this->server('CRAFT_CLOUD_PROJECT_ID', 'cloud-project');
     $this->config->set('filesystems.disks', [
-        'cloud' => ['driver' => 'craft-cloud', 'onCloud' => true],
-        'cloud-local' => ['driver' => 'craft-cloud', 'onCloud' => false],
+        'cloud' => ['driver' => 'craft-cloud'],
+        'cloud-images' => ['driver' => 'craft-cloud', 'prefix' => 'images'],
         'cloud-blog' => ['driver' => 'scoped', 'disk' => 'cloud', 'prefix' => 'blog'],
         'customer-s3' => ['driver' => 's3', 'bucket' => 'customer-bucket', 'url' => 'https://customer.example.test'],
+        'local' => ['driver' => 'local', 'root' => sys_get_temp_dir(), 'url' => '/uploads'],
     ]);
 
-    // Like the `craft-cloud` disk driver: S3 in Cloud’s bucket on Cloud, local elsewhere
+    // Like the `craft-cloud` disk driver: an S3 disk on the project's bucket, with CDN URLs
     $filesystem = new FilesystemManager($this->app);
-    $filesystem->extend('craft-cloud', fn($app, array $config) => (
-        $config['onCloud']
-            ? s3Disk([
-                ...$config,
-                'bucket' => 'cloud-project',
-                'root' => 'test-environment/assets',
-                'url' => 'https://cdn.craft.cloud',
-            ])
-            : $filesystem->createLocalDriver(['root' => sys_get_temp_dir()])
-    ));
+    $filesystem->extend('craft-cloud', fn($app, array $config) => s3Disk([
+        ...$config,
+        'bucket' => 'cloud-project',
+        'root' => 'test-environment/assets',
+        'url' => 'https://cdn.craft.cloud',
+    ]));
     $filesystem->extend('s3', fn($app, array $config) => s3Disk($config));
 
     $this->app->instance('filesystem', $filesystem);
@@ -99,8 +131,7 @@ beforeEach(function (): void {
     $this->assetTransformers = new AssetTransformers($this->app);
     $craftDriver = $this->craftDriver;
     $this->assetTransformers->extend('craft', fn() => $craftDriver);
-    $this->urlSigner = new UrlSigner('test-signing-key');
-    $this->driver = new CloudAssetTransformDriver($this->urlSigner, $this->assetTransformers);
+    $this->driver = new CloudAssetTransformDriver($this->assetTransformers, new AssetCdn('test-signing-key'));
     $this->transform = fn(
         Asset $asset,
         array $parameters,
@@ -111,8 +142,10 @@ beforeEach(function (): void {
     ));
 });
 
-it('returns signed Cloudflare transform URLs for images on Cloud disks', function (): void {
-    $result = ($this->transform)(transformAsset('photo.jpg', focalPoint: ['x' => 0.57, 'y' => 0.7707]), [
+it('returns signed Cloudflare image URLs for images on Cloud disks', function (): void {
+    $asset = transformAsset('photo.jpg', focalPoint: ['x' => 0.57, 'y' => 0.7707], size: [4000, 3000]);
+
+    $result = ($this->transform)($asset, [
         'format' => 'webp',
         'height' => 750,
         'mode' => 'crop',
@@ -121,49 +154,95 @@ it('returns signed Cloudflare transform URLs for images on Cloud disks', functio
     ]);
 
     expect($result->url)->toStartWith(CDN_URL . '/tests/photo.jpg?');
-    expect($result->mimeType)->toBe('image/webp');
-    expect(Query::fromUri($result->url)->parameters())->toMatchArray([
-        'fit' => 'cover',
-        'format' => 'webp',
-        'gravity' => ['x' => '0.57', 'y' => '0.7707'],
-        'height' => '750',
+    expect(Query::fromUri($result->url)->parameters())->toEqual([
         'width' => '1200',
+        'height' => '750',
+        'format' => 'webp',
+        'fit' => 'cover',
+        'gravity' => ['x' => '0.57', 'y' => '0.7707'],
+        's' => Query::fromUri($result->url)->get('s'),
     ]);
-    expect($this->urlSigner->verify($result->url))->toBeTrue();
-    expect(new UrlSigner('other-key')->verify($result->url))->toBeFalse();
+    expect([$result->mimeType, $result->width, $result->height])->toBe(['image/webp', 1200, 750]);
+    expect(gatewayVerifies($result->url))->toBeTrue();
+    expect(gatewayVerifies($result->url, key: 'other-key'))->toBeFalse();
+    expect(gatewayVerifies(str_replace(
+        search: 'width=1200',
+        replace: 'width=2400',
+        subject: $result->url,
+    )))->toBeFalse();
 });
 
-it('transforms assets on scoped Cloud disks', function (): void {
-    $result = ($this->transform)(transformAsset('photo.jpg', disk: 'cloud-blog'), ['width' => 100]);
+it('reports the output size like the craft driver', function (array $parameters, array $expected): void {
+    $result = ($this->transform)(transformAsset('photo.jpg', size: [800, 600]), $parameters);
 
-    expect($result->url)->toStartWith(CDN_URL . '/blog/tests/photo.jpg?');
-    expect($this->urlSigner->verify($result->url))->toBeTrue();
+    expect([$result->width, $result->height])->toBe($expected);
+})->with([
+    'crop' => [['height' => 100, 'mode' => 'crop', 'width' => 200], [200, 100]],
+    'fit within the source' => [['mode' => 'fit', 'width' => 400], [400, 300]],
+    'fit without upscaling' => [['mode' => 'fit', 'upscale' => false, 'width' => 1600], [800, 600]],
+]);
+
+it('follows upscaleImages when a transform doesn’t set upscale', function (): void {
+    Cms::config()->upscaleImages = false;
+
+    $result = ($this->transform)(transformAsset('photo.jpg', size: [800, 600]), ['mode' => 'fit', 'width' => 1600]);
+
+    expect(Query::fromUri($result->url)->get('fit'))->toBe('scale-down');
+    expect([$result->width, $result->height])->toBe([800, 600]);
 });
 
-it('removes the asset revision parameter before signing', function (): void {
+it('transforms assets in subfolders of Cloud disks', function (string $disk, string $path): void {
+    $result = ($this->transform)(transformAsset('photo.jpg', $disk), ['width' => 100]);
+
+    expect($result->url)->toStartWith(CDN_URL . "/{$path}/tests/photo.jpg?");
+    expect(gatewayVerifies($result->url))->toBeTrue();
+})->with([
+    'prefix option' => ['cloud-images', 'images'],
+    'scoped disk' => ['cloud-blog', 'blog'],
+]);
+
+it('trusts the project’s choice of driver on any S3 disk', function (): void {
+    $result = ($this->transform)(transformAsset('photo.jpg', disk: 'customer-s3'), ['width' => 100]);
+
+    expect($result->url)->toStartWith('https://customer.example.test/tests/photo.jpg?');
+    expect(gatewayVerifies($result->url))->toBeTrue();
+});
+
+it('adds the asset revision after signing', function (): void {
     Cms::config()->revAssetUrls = true;
     $asset = transformAsset('test image.jpg');
     $asset->dateModified = new DateTime('@1700000000');
 
     $result = ($this->transform)($asset, ['height' => 100, 'width' => 100]);
-    $parameters = Query::fromUri($result->url)->parameters();
 
     expect($result->url)->toStartWith(CDN_URL . '/tests/test%20image.jpg?');
-    expect($result->url)->not->toContain('?&');
-    expect($parameters)->not->toHaveKey('v');
-    expect($parameters['width'])->toBe('100');
-    expect($this->urlSigner->verify($result->url))->toBeTrue();
+    expect($result->url)->toMatch('/&s=[^&]+&v=1700000000$/');
+    expect(gatewayVerifies($result->url))->toBeTrue();
 });
 
-it('rasterizes PDFs with a signed transform', function (array $parameters, array $expected, string $mimeType): void {
+it('stays valid when core adds a revision to a thumbnail URL', function (): void {
+    $asset = transformAsset('photo.jpg', focalPoint: ['x' => 0.25, 'y' => 0.5], size: [800, 600]);
+    $asset->dateModified = new DateTime('@1700000000');
+
+    $url = AssetsHelper::revUrl(
+        ($this->transform)($asset, ['height' => 64, 'mode' => 'crop', 'width' => 64])->url,
+        $asset,
+        fsOnly: true,
+    );
+
+    expect($url)->toContain('v=1700000000');
+    expect(gatewayVerifies($url))->toBeTrue();
+});
+
+it('rasterizes PDFs', function (array $parameters, array $expected, string $mimeType): void {
     $result = ($this->transform)(transformAsset('document.pdf'), $parameters);
 
     expect($result->url)->toStartWith(CDN_URL . '/tests/document.pdf?');
     expect(Query::fromUri($result->url)->parameters())->toMatchArray($expected);
-    expect($result->mimeType)->toBe($mimeType);
-    expect($this->urlSigner->verify($result->url))->toBeTrue();
+    expect([$result->mimeType, $result->width])->toBe([$mimeType, null]);
+    expect(gatewayVerifies($result->url))->toBeTrue();
 })->with([
-    'thumbnail' => [
+    'negotiated format' => [
         ['height' => 320, 'mode' => 'crop', 'width' => 320],
         ['fit' => 'cover', 'format' => 'auto', 'height' => '320', 'width' => '320'],
         'image/png',
@@ -175,17 +254,8 @@ it('rasterizes PDFs with a signed transform', function (array $parameters, array
     ],
 ]);
 
-it('falls back to the Craft transformer for assets outside Cloud storage', function (
-    string $disk,
-    string $volume,
-): void {
-    $asset = transformAsset('photo.jpg', $disk);
-
-    if ($volume === 'temporary') {
-        $asset->getVolume()->markAsTemporary();
-    }
-
-    $result = ($this->transform)($asset, [
+it('hands assets on other disks to the craft driver', function (): void {
+    $result = ($this->transform)(transformAsset('photo.jpg', disk: 'local'), [
         'blur' => 5,
         'mode' => 'fit',
         'width' => 100,
@@ -195,13 +265,9 @@ it('falls back to the Craft transformer for assets outside Cloud storage', funct
     expect($this->craftDriver->requests)->toHaveCount(1);
     expect($this->craftDriver->requests[0]->transformer)->toEqual(new AssetTransformer('craft'));
     expect($this->craftDriver->requests[0]->parameters)->toBe(['mode' => 'fit', 'width' => 100]);
-})->with([
-    'Cloud disk off Cloud' => ['cloud-local', 'regular'],
-    'non-Cloud S3 disk' => ['customer-s3', 'regular'],
-    'temporary uploads on a Cloud disk' => ['cloud', 'temporary'],
-]);
+});
 
-it('does not transform unsupported files on Cloud disks', function (string $filename, array $config): void {
+it('does not transform unsupported files', function (string $filename, array $config): void {
     foreach ($config as $setting => $value) {
         Cms::config()->$setting = $value;
     }
@@ -213,13 +279,9 @@ it('does not transform unsupported files on Cloud disks', function (string $file
     'SVGs when disabled' => ['logo.svg', ['transformSvgs' => false]],
 ])->throws(NotSupportedException::class);
 
-it('declares the Cloudflare parameters', function (): void {
-    expect($this->driver->definition()->parameterRules)->toHaveKeys([
-        'blur',
-        'fit',
-        'gravity',
-        'page',
-        'quality',
-        'zoom',
-    ]);
+it('declares only the Cloudflare options core has no parameter for', function (): void {
+    $rules = $this->driver->definition()->parameterRules;
+
+    expect($rules)->toHaveKeys(['blur', 'gravity', 'page', 'zoom']);
+    expect($rules)->not->toHaveKeys(['fit', 'format', 'quality', 'width']);
 });
