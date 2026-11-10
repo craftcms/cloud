@@ -4,7 +4,7 @@
         "Read more about it at https://getcomposer.org/doc/01-basic-usage.md#installing-dependencies",
         "This file is @generated automatically"
     ],
-    "content-hash": "36ae531ae78f6255dd60d3ebd2acf5a0",
+    "content-hash": "1a58572554ac3ee44220edf0ff57a553",
     "packages": [
         {
             "name": "aws/aws-crt-php",
@@ -972,21 +972,21 @@
         },
         {
             "name": "craftcms/cms",
-            "version": "6.x-dev",
+            "version": "dev-6.x-disk-owned-asset-transformers",
             "source": {
                 "type": "git",
                 "url": "https://github.com/craftcms/cms.git",
-                "reference": "2d545cff0a13a3943a116d2547878abe6186a5f4"
+                "reference": "5470713e62abc76152d5c69e756beea8bb3082e7"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/craftcms/cms/zipball/2d545cff0a13a3943a116d2547878abe6186a5f4",
-                "reference": "2d545cff0a13a3943a116d2547878abe6186a5f4",
+                "url": "https://api.github.com/repos/craftcms/cms/zipball/5470713e62abc76152d5c69e756beea8bb3082e7",
+                "reference": "5470713e62abc76152d5c69e756beea8bb3082e7",
                 "shasum": ""
             },
             "require": {
                 "bacon/bacon-qr-code": "^3.0",
-                "commerceguys/addressing": "^2.1.1",
+                "commerceguys/addressing": "^2.3.0",
                 "composer/semver": "^3.3.2",
                 "craftcms/cms-assets": "self.version",
                 "craftcms/laravel-aliases": "^2.0",
@@ -1089,6 +1089,7 @@
                         "Fields": "CraftCms\\Cms\\Support\\Facades\\Fields",
                         "Images": "CraftCms\\Cms\\Support\\Facades\\Images",
                         "Search": "CraftCms\\Cms\\Support\\Facades\\Search",
+                        "Anchors": "CraftCms\\Cms\\Support\\Facades\\Anchors",
                         "BulkOps": "CraftCms\\Cms\\Support\\Facades\\BulkOps",
                         "Entries": "CraftCms\\Cms\\Support\\Facades\\Entries",
                         "Folders": "CraftCms\\Cms\\Support\\Facades\\Folders",
@@ -1166,8 +1167,8 @@
                 "rss": "https://github.com/craftcms/cms/releases.atom",
                 "source": "https://github.com/craftcms/cms"
             },
-            "time": "2026-11-06T21:05:49+00:00",
-            "published-time": "2026-11-06T21:05:58+00:00"
+            "time": "2026-11-10T04:38:34+00:00",
+            "published-time": "2026-11-10T04:49:25+00:00"
         },
         {
             "name": "craftcms/cms-assets",
@@ -1175,12 +1176,12 @@
             "source": {
                 "type": "git",
                 "url": "https://github.com/craftcms/cms-assets.git",
-                "reference": "c73498069ed77cd1b8fe3c0e1596f6deeb5f813c"
+                "reference": "9d6fcb128f031f71cbddaf0238d186c94d75fe24"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/craftcms/cms-assets/zipball/c73498069ed77cd1b8fe3c0e1596f6deeb5f813c",
-                "reference": "c73498069ed77cd1b8fe3c0e1596f6deeb5f813c",
+                "url": "https://api.github.com/repos/craftcms/cms-assets/zipball/9d6fcb128f031f71cbddaf0238d186c94d75fe24",
+                "reference": "9d6fcb128f031f71cbddaf0238d186c94d75fe24",
                 "shasum": ""
             },
             "default-branch": true,
@@ -1193,8 +1194,8 @@
             "support": {
                 "source": "https://github.com/craftcms/cms-assets/tree/6.x"
             },
-            "time": "2026-11-06T20:59:19+00:00",
-            "published-time": "2026-11-06T20:59:25+00:00"
+            "time": "2026-11-10T04:31:19+00:00",
+            "published-time": "2026-11-10T04:31:27+00:00"
         },
         {
             "name": "craftcms/http-message-signatures",
@@ -15704,9 +15705,19 @@
             "time": "2025-12-08T11:19:18+00:00"
         }
     ],
-    "aliases": [],
+    "aliases": [
+        {
+            "package": "craftcms/cms-assets",
+            "version": "6.9999999.9999999.9999999-dev",
+            "alias": "dev-6.x-disk-owned-asset-transformers",
+            "alias_normalized": "dev-6.x-disk-owned-asset-transformers"
+        }
+    ],
     "minimum-stability": "dev",
-    "stability-flags": {},
+    "stability-flags": {
+        "craftcms/cms": 20,
+        "craftcms/cms-assets": 20
+    },
     "prefer-stable": true,
     "prefer-lowest": false,
     "platform": {
