@@ -896,7 +896,7 @@
         },
         {
             "name": "craftcms/cms",
-            "version": "6.x-dev",
+            "version": "6.0.0-beta.1",
             "source": {
                 "type": "git",
                 "url": "https://github.com/craftcms/cms.git",
@@ -1096,19 +1096,18 @@
         },
         {
             "name": "craftcms/cms-assets",
-            "version": "6.x-dev",
+            "version": "6.0.0-beta.1",
             "source": {
                 "type": "git",
                 "url": "https://github.com/craftcms/cms-assets.git",
-                "reference": "2d0fdf2712c51d6dc0bc77900af0debe6a343ee6"
+                "reference": "87acafef481f17c12a10170211bbccda42588dbd"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/craftcms/cms-assets/zipball/2d0fdf2712c51d6dc0bc77900af0debe6a343ee6",
-                "reference": "2d0fdf2712c51d6dc0bc77900af0debe6a343ee6",
+                "url": "https://api.github.com/repos/craftcms/cms-assets/zipball/87acafef481f17c12a10170211bbccda42588dbd",
+                "reference": "87acafef481f17c12a10170211bbccda42588dbd",
                 "shasum": ""
             },
-            "default-branch": true,
             "type": "library",
             "notification-url": "https://packagist.org/downloads/",
             "license": [
@@ -1116,10 +1115,10 @@
             ],
             "description": "Built assets for Craft CMS.",
             "support": {
-                "source": "https://github.com/craftcms/cms-assets/tree/6.x"
+                "source": "https://github.com/craftcms/cms-assets/tree/6.0.0-beta.1"
             },
-            "time": "2026-11-10T15:34:49+00:00",
-            "published-time": "2026-11-10T15:35:00+00:00"
+            "time": "2026-11-10T18:11:32+00:00",
+            "published-time": "2026-11-10T18:17:49+00:00"
         },
         {
             "name": "craftcms/laravel-aliases",
@@ -3270,16 +3269,16 @@
         },
         {
             "name": "laravel/ai",
-            "version": "v1.3.0",
+            "version": "v1.4.0",
             "source": {
                 "type": "git",
                 "url": "https://github.com/laravel/ai.git",
-                "reference": "6837b4c557f67e04e8a13d882fe7724032278c27"
+                "reference": "307b218665592ab5532f682175e9dfa52e5647ee"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/laravel/ai/zipball/6837b4c557f67e04e8a13d882fe7724032278c27",
-                "reference": "6837b4c557f67e04e8a13d882fe7724032278c27",
+                "url": "https://api.github.com/repos/laravel/ai/zipball/307b218665592ab5532f682175e9dfa52e5647ee",
+                "reference": "307b218665592ab5532f682175e9dfa52e5647ee",
                 "shasum": ""
             },
             "require": {
@@ -3348,8 +3347,8 @@
                 "issues": "https://github.com/laravel/ai/issues",
                 "source": "https://github.com/laravel/ai"
             },
-            "time": "2026-10-19T16:50:18+00:00",
-            "published-time": "2026-10-19T16:56:23+00:00"
+            "time": "2026-11-09T13:10:36+00:00",
+            "published-time": "2026-11-10T19:25:19+00:00"
         },
         {
             "name": "laravel/framework",

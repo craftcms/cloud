@@ -1,0 +1,8 @@
+services:
+  workbench:
+    command: >-
+      composer build --no-interaction &&
+      APP_URL="$PUBLIC_URL" exec php vendor/bin/testbench serve --host=127.0.0.1 --port="$PORT" --no-reload --no-interaction
+    portal:
+      title: Craft Cloud workbench
+      description: Craft 6 with craftcms/cloud. Sign in as admin / password.

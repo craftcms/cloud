@@ -10,3 +10,8 @@
 /package.json export-ignore
 /phpunit.xml.dist export-ignore
 /tests/ export-ignore
+/.agents/ export-ignore
+/.amp/ export-ignore
+/AGENTS.md export-ignore
+/testbench.yaml export-ignore
+/workbench/ export-ignore
