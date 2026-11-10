@@ -80,44 +80,59 @@ final class CommandSqsHandler extends SqsHandler
         }
     }
 
+    /**
+     * Posts the result, falling back to posting the failure. It never throws, because the command has already run
+     * and a failed SQS record would be delivered again.
+     */
     private function sendResult(string $url, array $result): void
     {
-        try {
-            $response = $this->post($url, $result);
-        } catch (GuzzleException $e) {
-            fwrite(STDERR, json_encode($result) . "\n");
-            $this->post($url, [
-                'exit_code' => 255,
-                'output' => 'Request failed: ' . $e->getMessage(),
-            ]);
+        $error = $this->post($url, $result);
 
+        if ($error === null) {
             return;
         }
 
-        $status = $response->getStatusCode();
+        fwrite(STDERR, self::encode($result) . "\n");
+        $error = $this->post($url, ['exit_code' => 255, 'output' => $error]);
 
-        if ($status >= 200 && $status < 300) {
-            return;
+        if ($error !== null) {
+            fwrite(STDERR, $error . "\n");
         }
-
-        fwrite(STDERR, json_encode($result) . "\n");
-        $this->post($url, [
-            'exit_code' => 255,
-            'output' => "Failed to send command output: [{$status}] [{$response->getBody()}]",
-        ]);
     }
 
-    private function post(string $url, array $body): \Psr\Http\Message\ResponseInterface
+    /**
+     * @return string|null A description of the failure, or null if the callback accepted the body.
+     */
+    private function post(string $url, array $body): ?string
     {
         $project = Cloud::env('CRAFT_CLOUD_PROJECT_ID');
         $environment = Cloud::env('CRAFT_CLOUD_ENVIRONMENT_ID');
 
-        return $this->client->post($url, [
-            RequestOptions::JSON => $body,
-            RequestOptions::HTTP_ERRORS => false,
-            RequestOptions::HEADERS => [
-                'User-Agent' => "Craft/Cloud/{$project}/{$environment}",
-            ],
-        ]);
+        try {
+            $response = $this->client->post($url, [
+                RequestOptions::BODY => self::encode($body),
+                RequestOptions::HTTP_ERRORS => false,
+                RequestOptions::HEADERS => [
+                    'Content-Type' => 'application/json',
+                    'User-Agent' => "Craft/Cloud/{$project}/{$environment}",
+                ],
+            ]);
+        } catch (GuzzleException $e) {
+            return 'Request failed: ' . $e->getMessage();
+        }
+
+        $status = $response->getStatusCode();
+
+        return $status >= 200 && $status < 300
+            ? null
+            : "Failed to send command output: [{$status}] [{$response->getBody()}]";
+    }
+
+    /**
+     * Command output can contain invalid UTF-8, which would otherwise make encoding fail and lose the output.
+     */
+    private static function encode(array $body): string
+    {
+        return json_encode($body, JSON_INVALID_UTF8_SUBSTITUTE | JSON_THROW_ON_ERROR);
     }
 }

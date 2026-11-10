@@ -6,9 +6,11 @@ use Bref\Context\Context;
 use Bref\Event\Sqs\SqsEvent;
 use CraftCms\Cloud\Lambda\CommandSqsHandler;
 use GuzzleHttp\Client;
+use GuzzleHttp\Exception\ConnectException;
 use GuzzleHttp\Handler\MockHandler;
 use GuzzleHttp\HandlerStack;
 use GuzzleHttp\Middleware;
+use GuzzleHttp\Psr7\Request;
 use GuzzleHttp\Psr7\Response;
 
 /**
@@ -74,6 +76,25 @@ it('runs the command and posts its exit code and output to the callback', functi
         ->toBe(3)
         ->and($requests[0]['body']['output'])
         ->toBe('up|--interactive=0|quoted arg');
+});
+
+it('sends output that is not valid UTF-8', function (): void {
+    $requests = run_command_handler('help', [new Response(200)], script: '<?php echo "a\xFFb";');
+
+    expect($requests)->toHaveCount(1)->and($requests[0]['body']['output'])->toBe("a\u{FFFD}b");
+});
+
+it('does not throw when the callback cannot be reached', function (): void {
+    $requests = run_command_handler(
+        'help',
+        [
+            new ConnectException('down', new Request('POST', 'https://api.test/callback')),
+            new ConnectException('still down', new Request('POST', 'https://api.test/callback')),
+        ],
+        script: '<?php echo "ok";',
+    );
+
+    expect($requests)->toHaveCount(2);
 });
 
 it('reports a failed callback to the callback URL', function (): void {
