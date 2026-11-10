@@ -28,7 +28,7 @@ class CloudServiceProvider extends ServiceProvider
 
     public function boot(): void
     {
-        AssetTransforms::register($this->app, $this->isCraftCloud());
+        AssetTransforms::register($this->app);
     }
 
     private function configureLogging(): void

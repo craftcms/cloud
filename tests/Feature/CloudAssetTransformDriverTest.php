@@ -22,11 +22,11 @@ use League\Uri\Components\Query;
 
 const CDN_URL = 'https://cdn.craft.cloud/test-environment/assets';
 
-function s3Disk(): AwsS3V3Adapter
+function s3Disk(array $config): AwsS3V3Adapter
 {
     $adapter = new LocalFilesystemAdapter(sys_get_temp_dir());
 
-    return new AwsS3V3Adapter(new Filesystem($adapter), $adapter, ['url' => CDN_URL], new S3Client([
+    return new AwsS3V3Adapter(new Filesystem($adapter), $adapter, $config, new S3Client([
         'region' => 'us-east-1',
         'credentials' => false,
     ]));
@@ -53,17 +53,27 @@ function transformAsset(string $filename, string $disk = 'cloud', ?array $focalP
 }
 
 beforeEach(function (): void {
+    $this->server('CRAFT_CLOUD_PROJECT_ID', 'cloud-project');
     $this->config->set('filesystems.disks', [
         'cloud' => ['driver' => 'craft-cloud', 'onCloud' => true],
         'cloud-local' => ['driver' => 'craft-cloud', 'onCloud' => false],
-        'customer-s3' => ['driver' => 's3'],
+        'cloud-blog' => ['driver' => 'scoped', 'disk' => 'cloud', 'prefix' => 'blog'],
+        'customer-s3' => ['driver' => 's3', 'bucket' => 'customer-bucket', 'url' => 'https://customer.example.test'],
     ]);
 
+    // Like the `craft-cloud` disk driver: S3 in Cloud’s bucket on Cloud, local elsewhere
     $filesystem = new FilesystemManager($this->app);
     $filesystem->extend('craft-cloud', fn($app, array $config) => (
-        $config['onCloud'] ? s3Disk() : $filesystem->createLocalDriver(['root' => sys_get_temp_dir()])
+        $config['onCloud']
+            ? s3Disk([
+                ...$config,
+                'bucket' => 'cloud-project',
+                'root' => 'test-environment/assets',
+                'url' => 'https://cdn.craft.cloud',
+            ])
+            : $filesystem->createLocalDriver(['root' => sys_get_temp_dir()])
     ));
-    $filesystem->extend('s3', fn() => s3Disk());
+    $filesystem->extend('s3', fn($app, array $config) => s3Disk($config));
 
     $this->app->instance('filesystem', $filesystem);
     $this->app->instance(GeneralConfig::class, GeneralConfig::create());
@@ -88,7 +98,7 @@ beforeEach(function (): void {
         array $parameters,
     ): AssetTransformResult => $this->driver->transform(new AssetTransformRequest(
         asset: $asset,
-        transformer: new AssetTransformer(['handle' => 'craftCloud', 'driver' => 'craft-cloud']),
+        transformer: new AssetTransformer('craft-cloud'),
         parameters: $parameters,
     ));
 });
@@ -113,6 +123,13 @@ it('returns signed Cloudflare transform URLs for images on Cloud disks', functio
     ]);
     expect($this->urlSigner->verify($result->url))->toBeTrue();
     expect(new UrlSigner('other-key')->verify($result->url))->toBeFalse();
+});
+
+it('transforms assets on scoped Cloud disks', function (): void {
+    $result = ($this->transform)(transformAsset('photo.jpg', disk: 'cloud-blog'), ['width' => 100]);
+
+    expect($result->url)->toStartWith(CDN_URL . '/blog/tests/photo.jpg?');
+    expect($this->urlSigner->verify($result->url))->toBeTrue();
 });
 
 it('removes the asset revision parameter before signing', function (): void {
@@ -187,8 +204,12 @@ it('does not transform unsupported files on Cloud disks', function (string $file
 ])->throws(NotSupportedException::class);
 
 it('declares the Cloudflare parameters', function (): void {
-    $definition = $this->driver->definition();
-
-    expect($definition->name)->toBe('Craft Cloud');
-    expect($definition->parameterRules)->toHaveKeys(['blur', 'fit', 'gravity', 'page', 'quality', 'zoom']);
+    expect($this->driver->definition()->parameterRules)->toHaveKeys([
+        'blur',
+        'fit',
+        'gravity',
+        'page',
+        'quality',
+        'zoom',
+    ]);
 });

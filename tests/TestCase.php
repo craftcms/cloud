@@ -16,6 +16,7 @@ abstract class TestCase extends BaseTestCase
     private const SERVER_KEYS = [
         'CRAFT_CLOUD',
         'CRAFT_CLOUD_CACHE_SRV',
+        'CRAFT_CLOUD_PROJECT_ID',
         'CRAFT_CLOUD_SIGNING_KEY',
         'CRAFT_CLOUD_SQS_URL',
     ];

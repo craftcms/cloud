@@ -5,70 +5,34 @@ declare(strict_types=1);
 namespace craft\cloud\transforms;
 
 use craft\cloud\signing\UrlSigner;
-use CraftCms\Cms\Asset\AssetTransformDrivers;
-use CraftCms\Cms\Asset\AssetTransformerRegistry;
-use CraftCms\Cms\Asset\Data\AssetTransformer;
-use CraftCms\Cms\Config\GeneralConfig;
+use CraftCms\Cms\Asset\AssetTransformers;
 use Illuminate\Contracts\Container\Container;
 
 /**
- * Registers the `craft-cloud` asset transform driver and its `craftCloud` transformer profile.
+ * Registers the `craft-cloud` asset transform driver.
  */
 class AssetTransforms
 {
     /**
-     * The driver and profile are registered in every environment, so volumes and project config that reference the
-     * profile stay valid in local development, where the driver falls back to Craft’s transformer.
-     *
-     * On Cloud, the profile also becomes the default transformer, unless the project chose another one.
+     * The driver is registered in every environment, so disks that set `'asset_transformer' => 'craft-cloud'` stay
+     * valid in local development, where the driver hands files to the `craft` driver.
      */
-    public static function register(Container $app, bool $onCloud): void
+    public static function register(Container $app): void
     {
         $app->singleton(
             UrlSigner::class,
             static fn(): UrlSigner => new UrlSigner($_SERVER['CRAFT_CLOUD_SIGNING_KEY'] ?? ''),
         );
 
-        self::afterResolving(
-            $app,
-            AssetTransformDrivers::class,
-            static function (AssetTransformDrivers $drivers): void {
-                $drivers->extend(CloudAssetTransformDriver::DRIVER, static fn(Container $app): CloudAssetTransformDriver => $app->make(CloudAssetTransformDriver::class));
-            },
-        );
+        $extend = static function (AssetTransformers $transformers): void {
+            $transformers->extend(CloudAssetTransformDriver::DRIVER, static fn(Container $app): CloudAssetTransformDriver => $app->make(CloudAssetTransformDriver::class));
+        };
 
-        self::afterResolving(
-            $app,
-            AssetTransformerRegistry::class,
-            static function (AssetTransformerRegistry $registry): void {
-                $registry->register(new AssetTransformer([
-                    'name' => 'Craft Cloud',
-                    'handle' => CloudAssetTransformDriver::TRANSFORMER,
-                    'driver' => CloudAssetTransformDriver::DRIVER,
-                ]));
-            },
-        );
+        // Like ServiceProvider::callAfterResolving(), in case something resolved it early
+        $app->afterResolving(AssetTransformers::class, $extend);
 
-        if (!$onCloud) {
-            return;
-        }
-
-        self::afterResolving($app, GeneralConfig::class, static function (GeneralConfig $config): void {
-            if ($config->defaultAssetTransformer === 'craft') {
-                $config->defaultAssetTransformer(CloudAssetTransformDriver::TRANSFORMER);
-            }
-        });
-    }
-
-    /**
-     * Like {@see \Illuminate\Support\ServiceProvider::callAfterResolving()}, in case something resolved it early.
-     */
-    private static function afterResolving(Container $app, string $abstract, callable $callback): void
-    {
-        $app->afterResolving($abstract, $callback);
-
-        if ($app->resolved($abstract)) {
-            $callback($app->make($abstract));
+        if ($app->resolved(AssetTransformers::class)) {
+            $extend($app->make(AssetTransformers::class));
         }
     }
 }

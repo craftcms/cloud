@@ -18,20 +18,25 @@ use CraftCms\Cms\Shared\Exceptions\NotSupportedException;
 use CraftCms\Cms\Support\File;
 use Illuminate\Filesystem\AwsS3V3Adapter;
 use Illuminate\Support\Arr;
-use Illuminate\Support\Facades\Storage;
 use League\Uri\Components\Query;
 use League\Uri\Modifier;
 
 /**
- * Transforms images and PDFs on Craft Cloud disks with signed Cloudflare Image Resizing URLs on the asset CDN.
- * Assets on other disks use Craft’s built-in transformer.
+ * Transforms images and PDFs in Craft Cloud’s bucket with signed Cloudflare Image Resizing URLs on the asset CDN.
+ * Assets anywhere else, such as on `craft-cloud` disks in local development, go to the `craft` driver.
+ *
+ * Projects choose it per disk:
+ *
+ * ```php
+ * 'images' => [
+ *     'driver' => 'craft-cloud',
+ *     'asset_transformer' => 'craft-cloud',
+ * ],
+ * ```
  */
 class CloudAssetTransformDriver implements AssetTransformDriver
 {
     public const string DRIVER = 'craft-cloud';
-
-    /** Handle of the transformer profile Cloud registers for this driver. */
-    public const string TRANSFORMER = 'craftCloud';
 
     /** Source extensions the Cloud gateway transforms with Cloudflare Images. */
     public const array SUPPORTED_IMAGE_EXTENSIONS = [
@@ -53,10 +58,7 @@ class CloudAssetTransformDriver implements AssetTransformDriver
 
     public function definition(): AssetTransformDriverDefinition
     {
-        return new AssetTransformDriverDefinition(
-            name: 'Craft Cloud',
-            parameterRules: CloudflareOptions::parameterRules(),
-        );
+        return new AssetTransformDriverDefinition(parameterRules: CloudflareOptions::parameterRules());
     }
 
     public function transform(AssetTransformRequest $request): AssetTransformResult
@@ -103,22 +105,23 @@ class CloudAssetTransformDriver implements AssetTransformDriver
     }
 
     /**
-     * Whether the asset is in Cloud’s bucket, under the prefix the asset CDN serves.
+     * Whether the asset is in Cloud’s bucket, which the asset CDN serves.
      *
-     * `craft-cloud` disks resolve to S3 on Craft Cloud and to local disks elsewhere. Temporary uploads are in the
-     * bucket, but outside the CDN’s prefix.
+     * This checks the volume’s own disk, so scoped disks count, and so do disks that aren’t defined with the
+     * `craft-cloud` driver. Temporary uploads are in the bucket, but outside the CDN’s prefix.
      */
     protected function isOnCloudStorage(Asset $asset): bool
     {
         $volume = $asset->getVolume();
-        $disk = $volume->getResolvedFsTarget();
+        $bucket = $_SERVER['CRAFT_CLOUD_PROJECT_ID'] ?? null;
 
-        return (
-            $disk !== null
-            && !$volume->isTemporary()
-            && config("filesystems.disks.{$disk}.driver") === 'craft-cloud'
-            && Storage::disk($disk) instanceof AwsS3V3Adapter
-        );
+        if ($bucket === null || $volume->isTemporary() || $volume->getResolvedFsTarget() === null) {
+            return false;
+        }
+
+        $disk = $volume->sourceDisk();
+
+        return $disk instanceof AwsS3V3Adapter && ($disk->getConfig()['bucket'] ?? null) === $bucket;
     }
 
     private function ensureSupported(string $extension): void
