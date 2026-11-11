@@ -2,8 +2,6 @@
 
 declare(strict_types=1);
 
-use CraftCms\Cloud\Tests\Support\DnsRecords;
-
 it('leaves the app alone outside Craft Cloud', function (): void {
     $this->boot(['SESSION_DRIVER' => 'file', 'LOG_CHANNEL' => 'stack']);
 
@@ -72,8 +70,8 @@ it('leaves the queue alone on Craft Cloud without an SQS URL', function (): void
     expect(config('queue.connections.craft-cloud-sqs'))->toBeNull();
 });
 
-it('falls back from the database to memory when there is no cache SRV record', function (): void {
-    $this->boot(['CRAFT_CLOUD' => '1', 'CRAFT_CLOUD_CACHE_SRV' => '_cache._tcp.example.test']);
+it('falls back from the database to memory when the environment has no Valkey', function (): void {
+    $this->boot(['CRAFT_CLOUD' => '1']);
 
     expect(config('cache.stores.craft-cloud-failover'))
         ->toBe([
@@ -84,10 +82,8 @@ it('falls back from the database to memory when there is no cache SRV record', f
         ->toBeNull();
 });
 
-it('puts Valkey first, with short timeouts, when the cache SRV record resolves', function (): void {
-    DnsRecords::fake([['target' => 'valkey.internal', 'port' => 6380]]);
-
-    $this->boot(['CRAFT_CLOUD' => '1', 'CRAFT_CLOUD_CACHE_SRV' => '_cache._tcp.example.test']);
+it('puts Valkey first, with short timeouts, when the environment has a Valkey URL', function (): void {
+    $this->boot(['CRAFT_CLOUD' => '1', 'CRAFT_CLOUD_REDIS_URL' => 'redis://valkey.internal:6380']);
 
     expect(config('database.redis.craft-cloud'))
         ->toBe([

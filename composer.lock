@@ -4,7 +4,7 @@
         "Read more about it at https://getcomposer.org/doc/01-basic-usage.md#installing-dependencies",
         "This file is @generated automatically"
     ],
-    "content-hash": "371cadc2f29074674aeafc34289a79c8",
+    "content-hash": "f6e3afc79d08edd3bbc490567e8d584d",
     "packages": [
         {
             "name": "aws/aws-crt-php",
@@ -292,67 +292,6 @@
             ],
             "time": "2026-11-05T16:08:15+00:00",
             "published-time": "2026-11-05T16:14:17+00:00"
-        },
-        {
-            "name": "bref/extra-php-extensions",
-            "version": "3.0.13",
-            "source": {
-                "type": "git",
-                "url": "https://github.com/brefphp/extra-php-extensions.git",
-                "reference": "4ef259132dfa1dbe26bcb890fe539a24903b3119"
-            },
-            "dist": {
-                "type": "zip",
-                "url": "https://api.github.com/repos/brefphp/extra-php-extensions/zipball/4ef259132dfa1dbe26bcb890fe539a24903b3119",
-                "reference": "4ef259132dfa1dbe26bcb890fe539a24903b3119",
-                "shasum": ""
-            },
-            "conflict": {
-                "bref/bref": "<3.0.0"
-            },
-            "require-dev": {
-                "async-aws/core": "^1.7",
-                "async-aws/lambda": "^1.1",
-                "bref/logger": "^2.0",
-                "mnapoli/silly": "^1.7",
-                "mnapoli/silly-php-di": "^1.2",
-                "php-di/php-di": "^6.3",
-                "symfony/finder": "^5.4",
-                "symfony/http-client": "^5.4",
-                "symfony/process": "^5.4"
-            },
-            "type": "library",
-            "notification-url": "https://packagist.org/downloads/",
-            "license": [
-                "MIT"
-            ],
-            "authors": [
-                {
-                    "name": "Tobias Nyholm",
-                    "email": "tobias.nyholm@gmail.com"
-                }
-            ],
-            "description": "Extra PHP extensions for your lambda application.",
-            "support": {
-                "issues": "https://github.com/brefphp/extra-php-extensions/issues",
-                "source": "https://github.com/brefphp/extra-php-extensions/tree/3.0.13"
-            },
-            "funding": [
-                {
-                    "url": "https://bref.sh/#enterprise",
-                    "type": "custom"
-                },
-                {
-                    "url": "https://github.com/Nyholm",
-                    "type": "github"
-                },
-                {
-                    "url": "https://github.com/mnapoli",
-                    "type": "github"
-                }
-            ],
-            "time": "2026-09-18T09:37:31+00:00",
-            "published-time": "2026-09-18T09:37:40+00:00"
         },
         {
             "name": "bref/laravel-bridge",

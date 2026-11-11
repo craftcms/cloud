@@ -25,9 +25,9 @@ use Throwable;
 final class CommandSqsHandler extends SqsHandler
 {
     /**
-     * Lambda's 900-second limit, less a buffer so the command times out first and its result is still sent.
+     * Time kept back from the invocation's remaining time, so the command times out first and its result is still sent.
      */
-    private const COMMAND_TIMEOUT_SECONDS = 900 - 5;
+    private const RESULT_BUFFER_SECONDS = 5;
 
     public function __construct(
         private readonly Client $client = new Client(),
@@ -60,7 +60,7 @@ final class CommandSqsHandler extends SqsHandler
                     'CRAFT_PATH' => (Cloud::env('LAMBDA_TASK_ROOT') ?? '/var/task') . '/craft',
                     'LAMBDA_INVOCATION_CONTEXT' => json_encode($context, JSON_THROW_ON_ERROR),
                 ],
-                timeout: self::COMMAND_TIMEOUT_SECONDS,
+                timeout: max(1, ($context->getRemainingTimeInMillis() / 1000) - self::RESULT_BUFFER_SECONDS),
             );
 
             $process->run(static function (string $type, string $buffer): void {

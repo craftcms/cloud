@@ -19,7 +19,7 @@ use GuzzleHttp\Psr7\Response;
  * @param list<Response> $responses
  * @return list<array{url: string, body: array, userAgent: string}>
  */
-function run_command_handler(string $command, array $responses, string $script): array
+function run_command_handler(string $command, array $responses, string $script, int $secondsLeft = 60): array
 {
     $root = sys_get_temp_dir() . '/cloud-task-' . bin2hex(random_bytes(4));
     mkdir($root);
@@ -45,7 +45,7 @@ function run_command_handler(string $command, array $responses, string $script):
     ob_start();
     new CommandSqsHandler(new Client(['handler' => $stack]))->handleSqs(
         $event,
-        new Context('request', 0, 'arn', 'trace'),
+        new Context('request', intval(microtime(true) * 1000) + ($secondsLeft * 1000), 'arn', 'trace'),
     );
     ob_end_clean();
 
@@ -95,6 +95,15 @@ it('does not throw when the callback cannot be reached', function (): void {
     );
 
     expect($requests)->toHaveCount(2);
+});
+
+it('stops the command before the invocation runs out of time', function (): void {
+    $requests = run_command_handler('help', [new Response(200)], script: '<?php sleep(30);', secondsLeft: 7);
+
+    expect($requests[0]['body']['exit_code'])
+        ->toBe(1)
+        ->and($requests[0]['body']['output'])
+        ->toContain('exceeded the timeout');
 });
 
 it('reports a failed callback to the callback URL', function (): void {

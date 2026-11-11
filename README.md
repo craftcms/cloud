@@ -13,7 +13,7 @@ Laravel discovers `CraftCms\Cloud\CloudServiceProvider` automatically. Outside C
 Craft Cloud is detected from `CRAFT_CLOUD` or `AWS_LAMBDA_RUNTIME_API`. When either is set, the provider:
 
 - **Queue:** uses the environment's SQS queue (`CRAFT_CLOUD_SQS_URL`) as the default connection, dispatching after commit.
-- **Cache:** uses a failover store: Valkey (found with the `CRAFT_CLOUD_CACHE_SRV` SRV record, with 1-second timeouts), then the database, then memory.
+- **Cache:** uses Laravel's `failover` store: Valkey (`CRAFT_CLOUD_REDIS_URL`, with 1-second timeouts), then the database, then memory. Valkey needs the `redis` PHP extension, which Craft Cloud's PHP configuration enables.
 - **Logging:** sends the default channel to stderr, which is all Lambda collects.
 - **Sessions:** replaces `file` or `cookie` sessions with `database` sessions. Other drivers are left alone.
 

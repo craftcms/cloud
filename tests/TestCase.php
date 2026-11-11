@@ -5,7 +5,6 @@ declare(strict_types=1);
 namespace CraftCms\Cloud\Tests;
 
 use CraftCms\Cloud\CloudServiceProvider;
-use CraftCms\Cloud\Tests\Support\DnsRecords;
 use CraftCms\Cms\Providers\CraftServiceProvider;
 use Orchestra\Testbench\TestCase as BaseTestCase;
 
@@ -23,7 +22,7 @@ abstract class TestCase extends BaseTestCase
     private const ENV_KEYS = [
         'AWS_LAMBDA_RUNTIME_API',
         'CRAFT_CLOUD',
-        'CRAFT_CLOUD_CACHE_SRV',
+        'CRAFT_CLOUD_REDIS_URL',
         'CRAFT_CLOUD_ENVIRONMENT_ID',
         'CRAFT_CLOUD_PROJECT_ID',
         'CRAFT_CLOUD_SQS_URL',
@@ -42,8 +41,6 @@ abstract class TestCase extends BaseTestCase
             $this->unsetEnv($key);
         }
 
-        DnsRecords::reset();
-
         parent::setUp();
     }
 
@@ -54,8 +51,6 @@ abstract class TestCase extends BaseTestCase
         foreach ($this->originalEnv as $key => $value) {
             $value === false ? $this->unsetEnv($key) : $this->setEnv($key, $value);
         }
-
-        DnsRecords::reset();
     }
 
     /**

@@ -73,7 +73,7 @@ class CloudServiceProvider extends ServiceProvider
     private function configureCache(): void
     {
         $stores = ['database', 'array'];
-        $redisUrl = $this->resolveRedisUrl();
+        $redisUrl = Cloud::env('CRAFT_CLOUD_REDIS_URL');
 
         if ($redisUrl !== null) {
             $this->configureRedisCache($redisUrl);
@@ -102,24 +102,5 @@ class CloudServiceProvider extends ServiceProvider
             'connection' => self::REDIS_CONNECTION,
             'lock_connection' => self::REDIS_CONNECTION,
         ]);
-    }
-
-    private function resolveRedisUrl(): ?string
-    {
-        $srv = Cloud::env('CRAFT_CLOUD_CACHE_SRV');
-
-        if ($srv === null) {
-            return null;
-        }
-
-        $records = dns_get_record($srv, DNS_SRV);
-        $target = is_array($records) ? $records[0]['target'] ?? null : null;
-        $port = is_array($records) ? $records[0]['port'] ?? null : null;
-
-        if ($target === null || $port === null) {
-            return null;
-        }
-
-        return 'redis://' . $target . ':' . $port;
     }
 }
