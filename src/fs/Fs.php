@@ -31,13 +31,14 @@ use League\Uri\Components\HierarchicalPath;
 use League\Uri\Contracts\SegmentedPathInterface;
 use League\Uri\Contracts\UriInterface;
 use League\Uri\Modifier;
+use Psr\Http\Message\RequestInterface;
 use Throwable;
 use yii\base\InvalidConfigException;
 
 /**
  * @property-read ?string $settingsHtml
  */
-abstract class Fs extends FlysystemFs
+abstract class Fs extends FlysystemFs implements DirectUploadFsInterface
 {
     // Most image headers are much smaller, but large EXIF/XMP/ICC blocks can
     // push JPEG dimensions farther in. Stay bounded to avoid full downloads.
@@ -328,6 +329,38 @@ abstract class Fs extends FlysystemFs
 
     public function presignedUrl(string $command, string $path, DateTimeInterface $expiresAt, array $config = []): string
     {
+        return (string)$this->presignRequest($command, $path, $expiresAt, $config)->getUri();
+    }
+
+    /**
+     * @return array{url: string, method: string, headers: array<string, string>}|null
+     */
+    public function getDirectUploadUrl(string $path, DateTimeInterface $expiresAt): ?array
+    {
+        if ($this->useLocalFs) {
+            return null;
+        }
+
+        $request = $this->presignRequest('PutObject', $path, $expiresAt);
+        parse_str($request->getUri()->getQuery(), $query);
+        $headers = [];
+
+        // The signature covers headers such as the object metadata, so the client must send them
+        foreach (explode(';', $query['X-Amz-SignedHeaders'] ?? '') as $name) {
+            if ($name !== '' && $name !== 'host') {
+                $headers[$name] = $request->getHeaderLine($name);
+            }
+        }
+
+        return [
+            'url' => (string)$request->getUri(),
+            'method' => $request->getMethod(),
+            'headers' => $headers,
+        ];
+    }
+
+    private function presignRequest(string $command, string $path, DateTimeInterface $expiresAt, array $config = []): RequestInterface
+    {
         if ($this->useLocalFs) {
             throw new InvalidConfigException();
         }
@@ -340,12 +373,10 @@ abstract class Fs extends FlysystemFs
                 'Key' => $this->createBucketPath($path)->toString(),
             ] + $commandConfig);
 
-            $request = $this->getClient()->createPresignedRequest(
+            return $this->getClient()->createPresignedRequest(
                 $command,
                 $expiresAt,
             );
-
-            return (string)$request->getUri();
         } catch (Throwable $exception) {
             throw new FsException($exception->getMessage(), 0, $exception);
         }
