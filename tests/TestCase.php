@@ -2,116 +2,103 @@
 
 declare(strict_types=1);
 
-namespace craft\cloud\tests;
+namespace CraftCms\Cloud\Tests;
 
-use craft\cloud\CloudServiceProvider;
-use craft\cloud\tests\Support\DnsRecords;
-use Illuminate\Config\Repository;
-use Illuminate\Container\Container;
-use Illuminate\Support\Facades\Facade;
-use PHPUnit\Framework\TestCase as BaseTestCase;
+use CraftCms\Cloud\CloudServiceProvider;
+use CraftCms\Cms\Providers\CraftServiceProvider;
+use Orchestra\Testbench\TestCase as BaseTestCase;
 
+/**
+ * Boots a real Laravel app with Craft's and Cloud's service providers.
+ *
+ * Cloud's provider reads the function's environment when it registers, so tests set environment variables with
+ * {@see self::boot()}, which then recreates the app.
+ */
 abstract class TestCase extends BaseTestCase
 {
-    private const SERVER_KEYS = [
+    /**
+     * Environment variables cleared before each test and restored after it.
+     */
+    private const ENV_KEYS = [
+        'AWS_LAMBDA_RUNTIME_API',
         'CRAFT_CLOUD',
-        'CRAFT_CLOUD_CACHE_SRV',
+        'CRAFT_CLOUD_REDIS_URL',
+        'CRAFT_CLOUD_ENVIRONMENT_ID',
+        'CRAFT_CLOUD_PROJECT_ID',
         'CRAFT_CLOUD_SQS_URL',
+        'LAMBDA_TASK_ROOT',
+        'LOG_CHANNEL',
+        'SESSION_DRIVER',
     ];
 
-    protected Container $app;
-
-    protected Repository $config;
-
-    private array $serverValues = [];
+    /** @var array<string, string|false> */
+    private array $originalEnv = [];
 
     protected function setUp(): void
     {
-        parent::setUp();
-
-        $this->serverValues = [];
-
-        foreach (self::SERVER_KEYS as $key) {
-            if (array_key_exists($key, $_SERVER)) {
-                $this->serverValues[$key] = $_SERVER[$key];
-            }
-
-            unset($_SERVER[$key]);
+        foreach (self::ENV_KEYS as $key) {
+            $this->originalEnv[$key] = getenv($key);
+            $this->unsetEnv($key);
         }
 
-        DnsRecords::reset();
-
-        $this->app = new Container();
-        $this->config = new Repository([
-            'cache' => [
-                'default' => 'array',
-                'stores' => [
-                    'array' => [
-                        'driver' => 'array',
-                    ],
-                    'database' => [
-                        'driver' => 'database',
-                    ],
-                ],
-            ],
-            'database' => [
-                'redis' => [],
-            ],
-            'logging' => [
-                'default' => 'stack',
-                'channels' => [
-                    'stack' => [
-                        'driver' => 'stack',
-                        'channels' => ['single'],
-                    ],
-                    'stderr' => [
-                        'driver' => 'monolog',
-                    ],
-                    'emergency' => [
-                        'path' => '/var/task/storage/logs/laravel.log',
-                    ],
-                ],
-            ],
-            'queue' => [
-                'default' => 'sync',
-                'connections' => [
-                    'sync' => [
-                        'driver' => 'sync',
-                    ],
-                ],
-            ],
-        ]);
-
-        $this->app->instance('config', $this->config);
-
-        Facade::clearResolvedInstances();
-        Facade::setFacadeApplication($this->app);
+        parent::setUp();
     }
 
     protected function tearDown(): void
     {
-        foreach (self::SERVER_KEYS as $key) {
-            unset($_SERVER[$key]);
-        }
-
-        foreach ($this->serverValues as $key => $value) {
-            $_SERVER[$key] = $value;
-        }
-
-        DnsRecords::reset();
-        Facade::clearResolvedInstances();
-        Facade::setFacadeApplication(null);
-
         parent::tearDown();
+
+        foreach ($this->originalEnv as $key => $value) {
+            $value === false ? $this->unsetEnv($key) : $this->setEnv($key, $value);
+        }
     }
 
-    protected function registerProvider(): void
+    /**
+     * Sets environment variables and recreates the app, so providers register with them.
+     *
+     * @param array<string, string> $env
+     */
+    protected function boot(array $env = []): void
     {
-        new CloudServiceProvider($this->app)->register();
+        foreach ($env as $key => $value) {
+            $this->setEnv($key, $value);
+        }
+
+        $this->refreshApplication();
     }
 
-    protected function server(string $key, string $value): void
+    protected function defineEnvironment($app): void
+    {
+        // Craft logs that it isn't installed on every boot. Keep that out of test output, including on Craft Cloud,
+        // where the provider switches the default channel to stderr.
+        $app['config']->set('logging.channels.stderr', [
+            'driver' => 'monolog',
+            'handler' => \Monolog\Handler\NullHandler::class,
+        ]);
+        $app['config']->set('logging.channels.stack', [
+            'driver' => 'monolog',
+            'handler' => \Monolog\Handler\NullHandler::class,
+        ]);
+    }
+
+    protected function getPackageProviders($app): array
+    {
+        return [
+            CraftServiceProvider::class,
+            CloudServiceProvider::class,
+        ];
+    }
+
+    private function setEnv(string $key, string $value): void
     {
         $_SERVER[$key] = $value;
+        $_ENV[$key] = $value;
+        putenv("{$key}={$value}");
+    }
+
+    private function unsetEnv(string $key): void
+    {
+        unset($_SERVER[$key], $_ENV[$key]);
+        putenv($key);
     }
 }

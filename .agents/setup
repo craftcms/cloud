@@ -1,0 +1,47 @@
+#!/usr/bin/env bash
+# Prepares an Amp orb: PHP 8.5, Composer, and PHP dependencies. The workbench
+# (Craft on SQLite) builds itself when its service starts; see .amp/services.yaml.
+set -euo pipefail
+
+cd "$(dirname "${BASH_SOURCE[0]}")/.."
+export COMPOSER_NO_INTERACTION=1 COMPOSER_ALLOW_SUPERUSER=1
+
+scratch=$(mktemp -d)
+trap 'rm -rf -- "$scratch"' EXIT
+
+# Debian's PHP is too old for Craft 6, so use the Sury packages.
+if [[ ! -f /usr/share/keyrings/debsuryorg-archive-keyring.gpg ]]; then
+    curl -fsSL https://packages.sury.org/debsuryorg-archive-keyring.deb -o "$scratch/sury.deb"
+    sudo dpkg -i "$scratch/sury.deb"
+fi
+if [[ ! -f /etc/apt/sources.list.d/php.list ]]; then
+    . /etc/os-release
+    echo "deb [signed-by=/usr/share/keyrings/debsuryorg-archive-keyring.gpg] https://packages.sury.org/php/ $VERSION_CODENAME main" |
+        sudo tee /etc/apt/sources.list.d/php.list >/dev/null
+fi
+
+# The extensions CI installs, plus what Craft needs to serve the workbench.
+packages=(php8.5-cli php8.5-bcmath php8.5-curl php8.5-gd php8.5-intl php8.5-mbstring
+    php8.5-sqlite3 php8.5-xml php8.5-zip unzip)
+missing=()
+for package in "${packages[@]}"; do
+    if [[ $(dpkg-query -W -f='${Status}' "$package" 2>/dev/null || true) != 'install ok installed' ]]; then
+        missing+=("$package")
+    fi
+done
+if ((${#missing[@]})); then
+    sudo apt-get update -qq
+    sudo env DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends "${missing[@]}"
+fi
+sudo update-alternatives --set php /usr/bin/php8.5
+
+if ! command -v composer >/dev/null; then
+    curl -fsSL https://getcomposer.org/installer -o "$scratch/composer-setup.php"
+    expected=$(curl -fsSL https://composer.github.io/installer.sig)
+    actual=$(php -r 'echo hash_file("sha384", $argv[1]);' "$scratch/composer-setup.php")
+    [[ $actual == "$expected" ]] || { echo 'Composer installer checksum mismatch' >&2; exit 1; }
+    php "$scratch/composer-setup.php" --2 --install-dir="$scratch" --filename=composer
+    sudo install -m 755 "$scratch/composer" /usr/local/bin/composer
+fi
+
+composer install --prefer-dist --no-progress

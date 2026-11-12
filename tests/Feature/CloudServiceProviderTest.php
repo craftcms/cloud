@@ -2,45 +2,59 @@
 
 declare(strict_types=1);
 
-use craft\cloud\tests\Support\DnsRecords;
+it('leaves the app alone outside Craft Cloud', function (): void {
+    $this->boot(['SESSION_DRIVER' => 'file', 'LOG_CHANNEL' => 'stack']);
 
-it('does not configure cloud services outside Craft Cloud', function (): void {
-    $this->registerProvider();
-
-    expect($this->config->get('queue.default'))
-        ->toBe('sync')
-        ->and($this->config->get('cache.default'))
-        ->toBe('array')
-        ->and($this->config->get('logging.default'))
-        ->toBe('stack')
-        ->and($this->config->get('logging.channels.emergency.path'))
-        ->toBe('/var/task/storage/logs/laravel.log')
-        ->and($this->config->get('queue.connections.craft-cloud-sqs'))
+    expect(config('cache.default'))
+        ->not
+        ->toBe('craft-cloud-failover')
+        ->and(config('cache.stores.craft-cloud-failover'))
         ->toBeNull()
-        ->and($this->config->get('cache.stores.craft-cloud-failover'))
-        ->toBeNull();
+        ->and(config('queue.connections.craft-cloud-sqs'))
+        ->toBeNull()
+        ->and(config('logging.default'))
+        ->toBe('stack')
+        ->and(config('session.driver'))
+        ->toBe('file');
 });
 
-it('configures Laravel logging to use stderr on Craft Cloud', function (): void {
-    $this->server('CRAFT_CLOUD', '1');
+it('detects Craft Cloud from CRAFT_CLOUD or the Lambda runtime', function (array $env): void {
+    $this->boot($env);
 
-    $this->registerProvider();
+    expect(config('cache.default'))->toBe('craft-cloud-failover');
+})->with([
+    'CRAFT_CLOUD' => [['CRAFT_CLOUD' => '1']],
+    'AWS_LAMBDA_RUNTIME_API' => [['AWS_LAMBDA_RUNTIME_API' => '127.0.0.1:9001']],
+]);
 
-    expect($this->config->get('logging.default'))
-        ->toBe('stderr')
-        ->and($this->config->get('logging.channels.emergency.path'))
-        ->toBe('php://stderr');
+it('sends logs to stderr on Craft Cloud, whatever the project chose', function (): void {
+    $this->boot(['CRAFT_CLOUD' => '1', 'LOG_CHANNEL' => 'daily']);
+
+    expect(config('logging.default'))->toBe('stderr');
 });
+
+it('uses database sessions instead of file or cookie sessions on Craft Cloud', function (
+    string $driver,
+    string $expected,
+): void {
+    $this->boot(['CRAFT_CLOUD' => '1', 'SESSION_DRIVER' => $driver]);
+
+    expect(config('session.driver'))->toBe($expected);
+})->with([
+    'file' => ['file', 'database'],
+    'cookie' => ['cookie', 'database'],
+    'redis is kept' => ['redis', 'redis'],
+]);
 
 it('configures the Craft Cloud SQS queue connection', function (): void {
-    $this->server('CRAFT_CLOUD', '1');
-    $this->server('CRAFT_CLOUD_SQS_URL', 'https://sqs.us-east-1.amazonaws.com/123456789012/craft-cloud');
+    $this->boot([
+        'CRAFT_CLOUD' => '1',
+        'CRAFT_CLOUD_SQS_URL' => 'https://sqs.us-east-1.amazonaws.com/123456789012/craft-cloud',
+    ]);
 
-    $this->registerProvider();
-
-    expect($this->config->get('queue.default'))
+    expect(config('queue.default'))
         ->toBe('craft-cloud-sqs')
-        ->and($this->config->get('queue.connections.craft-cloud-sqs'))
+        ->and(config('queue.connections.craft-cloud-sqs'))
         ->toBe([
             'driver' => 'sqs',
             'prefix' => '',
@@ -50,49 +64,40 @@ it('configures the Craft Cloud SQS queue connection', function (): void {
         ]);
 });
 
-it('configures the fallback cache without Redis when no cache SRV record is available', function (): void {
-    $this->server('CRAFT_CLOUD', '1');
+it('leaves the queue alone on Craft Cloud without an SQS URL', function (): void {
+    $this->boot(['CRAFT_CLOUD' => '1']);
 
-    $this->registerProvider();
+    expect(config('queue.connections.craft-cloud-sqs'))->toBeNull();
+});
 
-    expect($this->config->get('cache.default'))
-        ->toBe('craft-cloud-failover')
-        ->and($this->config->get('cache.stores.craft-cloud-failover'))
+it('falls back from the database to memory when the environment has no Valkey', function (): void {
+    $this->boot(['CRAFT_CLOUD' => '1']);
+
+    expect(config('cache.stores.craft-cloud-failover'))
         ->toBe([
             'driver' => 'failover',
             'stores' => ['database', 'array'],
         ])
-        ->and($this->config->get('cache.stores.craft-cloud-redis'))
+        ->and(config('cache.stores.craft-cloud-redis'))
         ->toBeNull();
 });
 
-it('prepends Redis to the fallback cache when the cache SRV record is available', function (): void {
-    $this->server('CRAFT_CLOUD', '1');
-    $this->server('CRAFT_CLOUD_CACHE_SRV', '_cache._tcp.example.test');
+it('puts Valkey first, with short timeouts, when the environment has a Valkey URL', function (): void {
+    $this->boot(['CRAFT_CLOUD' => '1', 'CRAFT_CLOUD_REDIS_URL' => 'redis://valkey.internal:6380']);
 
-    DnsRecords::fake([
-        [
-            'target' => 'redis.internal',
-            'port' => 6379,
-        ],
-    ]);
-
-    $this->registerProvider();
-
-    expect($this->config->get('database.redis.craft-cloud'))
+    expect(config('database.redis.craft-cloud'))
         ->toBe([
-            'url' => 'redis://redis.internal:6379',
+            'url' => 'redis://valkey.internal:6380',
             'database' => 0,
+            'timeout' => 1,
+            'read_timeout' => 1,
         ])
-        ->and($this->config->get('cache.stores.craft-cloud-redis'))
+        ->and(config('cache.stores.craft-cloud-redis'))
         ->toBe([
             'driver' => 'redis',
             'connection' => 'craft-cloud',
             'lock_connection' => 'craft-cloud',
         ])
-        ->and($this->config->get('cache.stores.craft-cloud-failover'))
-        ->toBe([
-            'driver' => 'failover',
-            'stores' => ['craft-cloud-redis', 'database', 'array'],
-        ]);
+        ->and(config('cache.stores.craft-cloud-failover.stores'))
+        ->toBe(['craft-cloud-redis', 'database', 'array']);
 });

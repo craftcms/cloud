@@ -2,6 +2,6 @@
 
 declare(strict_types=1);
 
-use craft\cloud\tests\TestCase;
+use CraftCms\Cloud\Tests\TestCase;
 
-uses(TestCase::class)->in('Feature', 'Unit');
+uses(TestCase::class)->in('Feature');

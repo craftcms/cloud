@@ -5,16 +5,16 @@
   "license": "proprietary",
   "type": "library",
   "require": {
-    "ext-curl": "*",
     "bref/bref": "^3",
-    "bref/extra-php-extensions": "^3",
-    "bref/laravel-bridge": "^3.0",
-    "craftcms/cms": "^6",
-    "symfony/process": "^7.4.5 || ^8.0.5"
+    "bref/laravel-bridge": "^3.1.7",
+    "craftcms/cms": "^6.0.0-beta.1",
+    "symfony/process": "^7.4.5 || ^8.0.5",
+    "guzzlehttp/guzzle": "^7.8"
   },
   "require-dev": {
     "carthage-software/mago": "^1.1.0",
-    "pestphp/pest": "^4.0"
+    "pestphp/pest": "^4.0",
+    "orchestra/testbench": "^11.0"
   },
   "scripts": {
     "lint": "mago lint --minimum-fail-level=warning && mago format --check",
@@ -22,20 +22,32 @@
     "test": [
       "Composer\\Config::disableProcessTimeout",
       "./vendor/bin/pest --compact"
+    ],
+    "post-autoload-dump": [
+      "@clear",
+      "@prepare"
+    ],
+    "clear": "@php vendor/bin/testbench package:purge-skeleton --ansi",
+    "prepare": "@php vendor/bin/testbench package:discover --ansi",
+    "build": [
+      "@php vendor/bin/testbench package:create-sqlite-db --ansi",
+      "@php vendor/bin/testbench workbench:build --ansi"
+    ],
+    "serve": [
+      "Composer\\Config::disableProcessTimeout",
+      "@build",
+      "@php vendor/bin/testbench serve --ansi"
     ]
   },
   "autoload": {
     "psr-4": {
-      "craft\\cloud\\": "src/"
+      "CraftCms\\Cloud\\": "src/"
     }
   },
   "autoload-dev": {
     "psr-4": {
-      "craft\\cloud\\tests\\": "tests/"
-    },
-    "files": [
-      "tests/Support/functions.php"
-    ]
+      "CraftCms\\Cloud\\Tests\\": "tests/"
+    }
   },
   "prefer-stable": true,
   "config": {
@@ -48,7 +60,7 @@
   "extra": {
     "laravel": {
       "providers": [
-        "craft\\cloud\\CloudServiceProvider"
+        "CraftCms\\Cloud\\CloudServiceProvider"
       ]
     }
   }

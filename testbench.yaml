@@ -1,0 +1,26 @@
+laravel: '@testbench'
+
+# Craft's providers come from package discovery. This package is the root package, so list its own provider.
+providers:
+  - CraftCms\Cloud\CloudServiceProvider
+
+
+workbench:
+  start: /admin
+  install: false
+  user: 1
+  sync:
+    - from: vendor/craftcms/cms-assets/resources
+      to: public/vendor/craft
+  build:
+    - craft:install:
+        --username: admin
+        --password: password
+        --email: admin@example.test
+        --siteName: Craft Cloud workbench
+        --siteUrl: '$APP_URL'
+        --language: en-US
+  discovers:
+    web: false
+    commands: false
+    config: true
