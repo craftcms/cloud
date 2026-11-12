@@ -4,7 +4,7 @@
         "Read more about it at https://getcomposer.org/doc/01-basic-usage.md#installing-dependencies",
         "This file is @generated automatically"
     ],
-    "content-hash": "f6e3afc79d08edd3bbc490567e8d584d",
+    "content-hash": "266e3bf0bf6cd0e71b2e4ea211461e59",
     "packages": [
         {
             "name": "aws/aws-crt-php",
@@ -63,16 +63,16 @@
         },
         {
             "name": "aws/aws-sdk-php",
-            "version": "3.403.2",
+            "version": "3.403.4",
             "source": {
                 "type": "git",
                 "url": "https://github.com/aws/aws-sdk-php.git",
-                "reference": "20e883c6952986c3de686515a99b63caeb8dfafe"
+                "reference": "2d01207539928fe943a3f8d8981952b3655e2fc1"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/aws/aws-sdk-php/zipball/20e883c6952986c3de686515a99b63caeb8dfafe",
-                "reference": "20e883c6952986c3de686515a99b63caeb8dfafe",
+                "url": "https://api.github.com/repos/aws/aws-sdk-php/zipball/2d01207539928fe943a3f8d8981952b3655e2fc1",
+                "reference": "2d01207539928fe943a3f8d8981952b3655e2fc1",
                 "shasum": ""
             },
             "require": {
@@ -154,10 +154,10 @@
             "support": {
                 "forum": "https://github.com/aws/aws-sdk-php/discussions",
                 "issues": "https://github.com/aws/aws-sdk-php/issues",
-                "source": "https://github.com/aws/aws-sdk-php/tree/3.403.2"
+                "source": "https://github.com/aws/aws-sdk-php/tree/3.403.4"
             },
-            "time": "2026-11-09T19:36:28+00:00",
-            "published-time": "2026-11-09T19:45:32+00:00"
+            "time": "2026-11-11T19:03:26+00:00",
+            "published-time": "2026-11-11T19:12:26+00:00"
         },
         {
             "name": "bacon/bacon-qr-code",
@@ -217,16 +217,16 @@
         },
         {
             "name": "bref/bref",
-            "version": "3.0.15",
+            "version": "3.0.16",
             "source": {
                 "type": "git",
                 "url": "https://github.com/brefphp/bref.git",
-                "reference": "18776f2f9bcf6be47736a33b9dfa301085ee827e"
+                "reference": "f5c68987dfb29f46cf79540ac494a8f8e74783d4"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/brefphp/bref/zipball/18776f2f9bcf6be47736a33b9dfa301085ee827e",
-                "reference": "18776f2f9bcf6be47736a33b9dfa301085ee827e",
+                "url": "https://api.github.com/repos/brefphp/bref/zipball/f5c68987dfb29f46cf79540ac494a8f8e74783d4",
+                "reference": "f5c68987dfb29f46cf79540ac494a8f8e74783d4",
                 "shasum": ""
             },
             "require": {
@@ -278,7 +278,7 @@
             ],
             "support": {
                 "issues": "https://github.com/brefphp/bref/issues",
-                "source": "https://github.com/brefphp/bref/tree/3.0.15"
+                "source": "https://github.com/brefphp/bref/tree/3.0.16"
             },
             "funding": [
                 {
@@ -290,26 +290,26 @@
                     "type": "github"
                 }
             ],
-            "time": "2026-11-05T16:08:15+00:00",
-            "published-time": "2026-11-05T16:14:17+00:00"
+            "time": "2026-11-11T15:58:48+00:00",
+            "published-time": "2026-11-11T16:00:26+00:00"
         },
         {
             "name": "bref/laravel-bridge",
-            "version": "3.1.6",
+            "version": "3.1.7",
             "source": {
                 "type": "git",
                 "url": "https://github.com/brefphp/laravel-bridge.git",
-                "reference": "4cec0e7d8d804d8cdd5af80259a275edd53abb23"
+                "reference": "c9841cfa7196cfb76dcb11adc401c90367f6084e"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/brefphp/laravel-bridge/zipball/4cec0e7d8d804d8cdd5af80259a275edd53abb23",
-                "reference": "4cec0e7d8d804d8cdd5af80259a275edd53abb23",
+                "url": "https://api.github.com/repos/brefphp/laravel-bridge/zipball/c9841cfa7196cfb76dcb11adc401c90367f6084e",
+                "reference": "c9841cfa7196cfb76dcb11adc401c90367f6084e",
                 "shasum": ""
             },
             "require": {
                 "aws/aws-sdk-php": "^3.222",
-                "bref/bref": "^3.0.13",
+                "bref/bref": "^3.0.16",
                 "bref/laravel-health-check": "^1",
                 "bref/monolog-bridge": "^1.0 || ^2.0",
                 "illuminate/container": "^10.0 || ^11.0 || ^12.0 || ^13.0",
@@ -361,10 +361,10 @@
             ],
             "support": {
                 "issues": "https://github.com/brefphp/laravel-bridge/issues",
-                "source": "https://github.com/brefphp/laravel-bridge/tree/3.1.6"
+                "source": "https://github.com/brefphp/laravel-bridge/tree/3.1.7"
             },
-            "time": "2026-11-05T16:08:07+00:00",
-            "published-time": "2026-11-05T16:09:10+00:00"
+            "time": "2026-11-12T13:20:53+00:00",
+            "published-time": "2026-11-12T13:23:19+00:00"
         },
         {
             "name": "bref/laravel-health-check",
@@ -1768,20 +1768,20 @@
         },
         {
             "name": "doctrine/deprecations",
-            "version": "1.1.6",
+            "version": "1.2.0",
             "source": {
                 "type": "git",
                 "url": "https://github.com/doctrine/deprecations.git",
-                "reference": "d4fe3e6fd9bb9e72557a19674f44d8ac7db4c6ca"
+                "reference": "d2e16653a734c8784c1851ad68b02f997b53ca82"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/doctrine/deprecations/zipball/d4fe3e6fd9bb9e72557a19674f44d8ac7db4c6ca",
-                "reference": "d4fe3e6fd9bb9e72557a19674f44d8ac7db4c6ca",
+                "url": "https://api.github.com/repos/doctrine/deprecations/zipball/d2e16653a734c8784c1851ad68b02f997b53ca82",
+                "reference": "d2e16653a734c8784c1851ad68b02f997b53ca82",
                 "shasum": ""
             },
             "require": {
-                "php": "^7.1 || ^8.0"
+                "php": "^7.4 || ^8.0"
             },
             "conflict": {
                 "phpunit/phpunit": "<=7.5 || >=14"
@@ -1810,10 +1810,10 @@
             "homepage": "https://www.doctrine-project.org/",
             "support": {
                 "issues": "https://github.com/doctrine/deprecations/issues",
-                "source": "https://github.com/doctrine/deprecations/tree/1.1.6"
+                "source": "https://github.com/doctrine/deprecations/tree/1.2.0"
             },
-            "time": "2026-02-07T07:09:04+00:00",
-            "published-time": "2026-02-07T07:10:09+00:00"
+            "time": "2026-11-11T10:04:49+00:00",
+            "published-time": "2026-11-11T10:12:24+00:00"
         },
         {
             "name": "doctrine/inflector",

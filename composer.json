@@ -6,7 +6,7 @@
   "type": "library",
   "require": {
     "bref/bref": "^3",
-    "bref/laravel-bridge": "^3.1",
+    "bref/laravel-bridge": "^3.1.7",
     "craftcms/cms": "^6.0.0-beta.1",
     "symfony/process": "^7.4.5 || ^8.0.5",
     "guzzlehttp/guzzle": "^7.8"
