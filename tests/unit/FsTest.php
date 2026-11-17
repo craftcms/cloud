@@ -72,6 +72,22 @@ class FsTest extends Unit
         $this->assertSame('host;x-amz-meta-visibility', $query['X-Amz-SignedHeaders']);
     }
 
+    public function testTemporaryUploadUrlNamesTheObjectFlysystemReads(): void
+    {
+        // Flysystem reads unencoded keys, so the URL must not encode the path a second time (%2520)
+        $upload = Craft::createObject(TmpFs::class)->temporaryUploadUrl('_upload-sessions/a b.final draft', new DateTimeImmutable('+15 minutes'));
+
+        $this->assertSame('/environment-id/storage/tmp/_upload-sessions/a%20b.final%20draft', parse_url($upload['url'], PHP_URL_PATH));
+        $this->assertSame('application/octet-stream', $upload['headers']['content-type']);
+    }
+
+    public function testTemporaryUploadUrlIsUnavailableWhenItCantBeSigned(): void
+    {
+        Module::getInstance()->getConfig()->projectId = null;
+
+        $this->assertNull(Craft::createObject(TmpFs::class)->temporaryUploadUrl('_upload-sessions/abc.jpg', new DateTimeImmutable('+15 minutes')));
+    }
+
     public function testTemporaryUploadUrlIsUnavailableForLocalFilesystems(): void
     {
         $fs = Craft::createObject(TmpFs::class);
