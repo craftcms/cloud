@@ -5,6 +5,7 @@ namespace craft\cloud\fs;
 use Aws\Credentials\Credentials;
 use Aws\Handler\Guzzle\GuzzleHandler;
 use Aws\S3\S3Client;
+use Aws\Signature\S3SignatureV4;
 use Craft;
 use craft\behaviors\EnvAttributeParserBehavior;
 use craft\cloud\Module;
@@ -17,6 +18,7 @@ use craft\fs\Local;
 use craft\helpers\App;
 use craft\helpers\Assets;
 use craft\helpers\DateTimeHelper;
+use craft\helpers\FileHelper;
 use craft\helpers\Image;
 use DateTime;
 use DateTimeInterface;
@@ -38,7 +40,7 @@ use yii\base\InvalidConfigException;
 /**
  * @property-read ?string $settingsHtml
  */
-abstract class Fs extends FlysystemFs implements DirectUploadFsInterface
+abstract class Fs extends FlysystemFs implements TemporaryUploadUrlInterface
 {
     // Most image headers are much smaller, but large EXIF/XMP/ICC blocks can
     // push JPEG dimensions farther in. Stay bounded to avoid full downloads.
@@ -49,6 +51,7 @@ abstract class Fs extends FlysystemFs implements DirectUploadFsInterface
     protected ?string $expires = null;
     protected ?Local $localFs = null;
     protected S3Client $client;
+    private ?S3Client $uploadClient = null;
     public ?string $subpath = null;
     public ?string $localFsPath = null;
     public ?string $localFsUrl = null;
@@ -333,19 +336,22 @@ abstract class Fs extends FlysystemFs implements DirectUploadFsInterface
     }
 
     /**
-     * @return array{url: string, method: string, headers: array<string, string>}|null
+     * @inheritdoc
      */
-    public function getDirectUploadUrl(string $path, DateTimeInterface $expiresAt): ?array
+    public function temporaryUploadUrl(string $path, DateTimeInterface $expiresAt, array $options = []): ?array
     {
         if ($this->useLocalFs) {
             return null;
         }
 
-        $request = $this->presignRequest('PutObject', $path, $expiresAt);
+        // The type is signed, so default to the one storage would serve for the path rather than the SDK's octet-stream
+        $config = array_intersect_key($options, ['ContentType' => true, 'ContentLength' => true]);
+        $config['ContentType'] ??= FileHelper::getMimeTypeByExtension($path) ?? 'application/octet-stream';
+        $request = $this->presignRequest('PutObject', $path, $expiresAt, $config, $this->getUploadClient());
         parse_str($request->getUri()->getQuery(), $query);
         $headers = [];
 
-        // The signature covers headers such as the object metadata, so the client must send them
+        // The signature covers these headers, so the client must send them
         foreach (explode(';', $query['X-Amz-SignedHeaders'] ?? '') as $name) {
             if ($name !== '' && $name !== 'host') {
                 $headers[$name] = $request->getHeaderLine($name);
@@ -354,12 +360,27 @@ abstract class Fs extends FlysystemFs implements DirectUploadFsInterface
 
         return [
             'url' => (string)$request->getUri(),
-            'method' => $request->getMethod(),
             'headers' => $headers,
         ];
     }
 
-    private function presignRequest(string $command, string $path, DateTimeInterface $expiresAt, array $config = []): RequestInterface
+    /**
+     * Returns a client whose presigned requests also sign `Content-Type` and `Content-Length`, which the SDK leaves
+     * unsigned, so storage rejects uploads of another type or size.
+     */
+    private function getUploadClient(): S3Client
+    {
+        return $this->uploadClient ??= $this->createClient([
+            'signature_provider' => fn(string $version, string $service, string $region) => new class($service, $region) extends S3SignatureV4 {
+                protected function getHeaderBlacklist(): array
+                {
+                    return array_diff_key(parent::getHeaderBlacklist(), ['content-type' => true, 'content-length' => true]);
+                }
+            },
+        ]);
+    }
+
+    private function presignRequest(string $command, string $path, DateTimeInterface $expiresAt, array $config = [], ?S3Client $client = null): RequestInterface
     {
         if ($this->useLocalFs) {
             throw new InvalidConfigException();
@@ -368,12 +389,13 @@ abstract class Fs extends FlysystemFs implements DirectUploadFsInterface
         try {
             $commandConfig = $this->addFileMetadataToConfig($config);
 
-            $command = $this->getClient()->getCommand($command, [
+            $client ??= $this->getClient();
+            $command = $client->getCommand($command, [
                 'Bucket' => $this->getBucketName(),
                 'Key' => $this->createBucketPath($path)->toString(),
             ] + $commandConfig);
 
-            return $this->getClient()->createPresignedRequest(
+            return $client->createPresignedRequest(
                 $command,
                 $expiresAt,
             );
