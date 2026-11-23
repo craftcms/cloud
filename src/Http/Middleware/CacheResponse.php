@@ -21,8 +21,8 @@ use Symfony\Component\HttpFoundation\Response;
  * The page's `Cache-Control` header isn't changed, and a `CDN-Cache-Control` header it set itself is kept.
  *
  * Only successful responses get one. Responses that Craft's {@see CachePolicy} won't let a cache store, such as
- * `no-store` or `private` responses and responses that set cookies, and `no-cache` responses get no
- * `CDN-Cache-Control` header, even one they set themselves.
+ * `no-store`, `no-cache` or `private` responses and responses that set cookies, get no `CDN-Cache-Control` header,
+ * even one they set themselves.
  */
 class CacheResponse
 {
@@ -44,7 +44,7 @@ class CacheResponse
 
         $cdnResponse = $this->cdnResponse($request, $response);
 
-        if ($cdnResponse === null || !$this->isCacheable($request, $cdnResponse)) {
+        if ($cdnResponse === null || !$this->policy->isResponseCacheable($request, $cdnResponse)) {
             $response->headers->remove('CDN-Cache-Control');
         } elseif ($response->isSuccessful() && !$response->headers->has('CDN-Cache-Control')) {
             $response->headers->set('CDN-Cache-Control', $this->cdnCacheControl($cdnResponse));
@@ -108,18 +108,6 @@ class CacheResponse
         }
 
         return $cdnResponse;
-    }
-
-    /**
-     * Symfony's `Response::isCacheable()`, which the default policy uses, lets `no-cache` responses with a lifetime
-     * be stored. They mustn't be served without revalidating, which Cloud's CDN doesn't do, so it doesn't cache them.
-     */
-    private function isCacheable(Request $request, Response $response): bool
-    {
-        return (
-            $this->policy->isResponseCacheable($request, $response)
-            && !$response->headers->hasCacheControlDirective('no-cache')
-        );
     }
 
     private function cdnCacheControl(Response $response): string

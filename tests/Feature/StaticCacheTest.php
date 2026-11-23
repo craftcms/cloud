@@ -321,7 +321,7 @@ it('batches invalidations and URL purges into one signed gateway request', funct
 });
 
 it('soft purges tags when the client is configured to', function (): void {
-    $this->config->set('craft.http-cache.clients.cloud', ['driver' => 'cloud', 'soft_purge' => true]);
+    $this->config->set('craft.http-cache.clients.cloud', ['soft_purge' => true]);
     Http::fake();
 
     Event::dispatch(new ElementCachesInvalidated(['element::42']));

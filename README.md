@@ -14,11 +14,11 @@ Craft's global `TagResponse` middleware tags successful GET and HEAD site respon
 
 The lifetime is capped at the earliest element expiry. The page's own `Cache-Control` header isn't changed.
 
-Responses that Craft's `CachePolicy` won't let a cache store (`no-store`, `private`, responses that set cookies), and `no-cache` responses, get no `CDN-Cache-Control`. Craft sends no-cache headers for visitors with a session, saved sessions, and token requests.
+Responses that Craft's `CachePolicy` won't let a cache store (`no-store`, `no-cache`, `private`, responses that set cookies) get no `CDN-Cache-Control`. Craft sends no-cache headers for visitors with a session, saved sessions, and token requests.
 
 `Cache-Tag` holds each tag hashed to `{shortEnvironmentId}{crc32}`, limited to Cloudflare's 1,000 tags and 16 KiB, with `{environmentId}:overflow` added when tags are dropped. Purges hash tags the same way.
 
-Element cache invalidations, other than for drafts and revisions, are purged by tag, and saved or deleted elements are purged by URL, through `HttpCache::invalidator('cloud')`. Purges are sent through the signed gateway API once the request, command or queue job finishes. To mark tagged pages stale instead of removing them, set `'clients' => ['cloud' => ['driver' => 'cloud', 'soft_purge' => true]]` in `config/craft/http-cache.php`.
+Element cache invalidations, other than for drafts and revisions, are purged by tag, and saved or deleted elements are purged by URL, through `HttpCache::invalidator('cloud')`. Purges are sent through the signed gateway API once the request, command or queue job finishes. To mark tagged pages stale instead of removing them, set `'clients' => ['cloud' => ['soft_purge' => true]]` in `config/craft/http-cache.php`.
 
 The Caches utility has a “Craft Cloud static cache” option, and these commands purge directly:
 
