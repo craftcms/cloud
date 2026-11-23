@@ -5,7 +5,6 @@ declare(strict_types=1);
 use craft\cloud\CloudServiceProvider;
 use craft\cloud\Console\StaticCacheCommand;
 use craft\cloud\Http\Middleware\CacheResponse;
-use craft\cloud\Http\Middleware\SetDefaultCacheLifetime;
 use CraftCms\Cms\Config\GeneralConfig;
 use CraftCms\Cms\Element\ElementCaches;
 use CraftCms\Cms\Element\Events\ElementCachesInvalidated;
@@ -122,12 +121,8 @@ function purges(): array
     return $payloads;
 }
 
-it('sets the default lifetime inside TagResponse and writes CDN-Cache-Control outside it', function (): void {
-    expect($this->kernel->getGlobalMiddleware())->toBe([
-        CacheResponse::class,
-        TagResponse::class,
-        SetDefaultCacheLifetime::class,
-    ]);
+it('runs outside TagResponse, so it sees the final response', function (): void {
+    expect($this->kernel->getGlobalMiddleware())->toBe([CacheResponse::class, TagResponse::class]);
 });
 
 it('gives pages without a cache policy Cloud’s default, capped at element expiry', function (?int $expiry): void {
@@ -326,7 +321,7 @@ it('batches invalidations and URL purges into one signed gateway request', funct
 });
 
 it('soft purges tags when the client is configured to', function (): void {
-    $this->config->set('craft.http-cache.clients.cloud.soft_purge', true);
+    $this->config->set('craft.http-cache.clients.cloud', ['driver' => 'cloud', 'soft_purge' => true]);
     Http::fake();
 
     Event::dispatch(new ElementCachesInvalidated(['element::42']));

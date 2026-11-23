@@ -6,7 +6,6 @@ namespace craft\cloud;
 
 use craft\cloud\Console\StaticCacheCommand;
 use craft\cloud\Http\Middleware\CacheResponse;
-use craft\cloud\Http\Middleware\SetDefaultCacheLifetime;
 use CraftCms\Cms\Element\Events\ElementCachesInvalidated;
 use CraftCms\Cms\Element\Events\ElementDeleted;
 use CraftCms\Cms\Element\Events\ElementSaved;
@@ -27,7 +26,6 @@ class StaticCacheServiceProvider extends ServiceProvider
     public function register(): void
     {
         $this->app->singleton(TagEncoder::class, CacheTagEncoder::class);
-        $this->app->scoped(SetDefaultCacheLifetime::class);
         Config::set('cloud', array_replace(
             [
                 'environment_id' => $_SERVER['CRAFT_CLOUD_ENVIRONMENT_ID'] ?? null,
@@ -41,10 +39,6 @@ class StaticCacheServiceProvider extends ServiceProvider
     {
         // Cloud's gateway is the page cache, and its CDN reads `Cache-Tag`.
         Config::set('craft.http-cache.default', StaticCache::CLIENT);
-        Config::set('craft.http-cache.clients.' . StaticCache::CLIENT, [
-            'driver' => 'cloud',
-            ...Config::get('craft.http-cache.clients.' . StaticCache::CLIENT, []),
-        ]);
         Config::set('craft.http-cache.tags.formatter', CacheTagHeaderFormatter::class);
         Config::set('craft.http-cache.tags.formatter_options', []);
         $this->app->make(HttpCacheManager::class)->extend(
@@ -75,12 +69,9 @@ class StaticCacheServiceProvider extends ServiceProvider
 
         $this->commands(StaticCacheCommand::all());
 
-        // Craft's global `TagResponse` middleware tags the response and caps its lifetimes after the rest of the
-        // request returns. Cloud's default lifetime is set inside it, so it's capped too, and `CDN-Cache-Control` is
-        // written outside it, from the final headers.
+        // First, so it sees the final response, with its lifetimes capped and its cookies added.
         /** @var Kernel $kernel */
         $kernel = $this->app->make(KernelContract::class);
-        $kernel->pushMiddleware(SetDefaultCacheLifetime::class);
         $kernel->prependMiddleware(CacheResponse::class);
     }
 }
