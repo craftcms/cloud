@@ -9,24 +9,22 @@ use CraftCms\Cms\Element\ElementHelper;
 use CraftCms\Cms\Element\Events\ElementCachesInvalidated;
 use CraftCms\Cms\Element\Events\ElementDeleted;
 use CraftCms\Cms\Element\Events\ElementSaved;
+use CraftCms\Cms\HttpCache\HttpCacheManager;
 use Illuminate\Support\Facades\Log;
 use Throwable;
 
 /**
- * Collects static cache purges for content changes, and sends them through the gateway once the request, command or
- * queue job is done.
+ * Queues static cache purges for content changes on the `cloud` HTTP cache client, and sends them once the request,
+ * command or queue job is done.
+ *
+ * Craft doesn't purge HTTP caches for element changes or flush their invalidators yet, so Cloud does both.
  */
 class StaticCache
 {
-    /** @var list<string> */
-    private array $tagsToPurge = [];
-
-    /** @var list<string> */
-    private array $fetchUrls = [];
+    public const string CLIENT = 'cloud';
 
     public function __construct(
-        private readonly CacheTags $tags,
-        private readonly Gateway $gateway,
+        private readonly HttpCacheManager $httpCache,
     ) {}
 
     public function handleElementCachesInvalidated(ElementCachesInvalidated $event): void
@@ -35,60 +33,41 @@ class StaticCache
             return;
         }
 
-        array_push($this->tagsToPurge, ...array_map($this->tags->dependency(...), $event->tags));
+        $this->httpCache->invalidator(self::CLIENT)->invalidateTags($event->tags);
     }
 
     public function handleElementSaved(ElementSaved $event): void
     {
-        if (!$this->addUriPurge($event->element)) {
-            return;
-        }
-
-        $url = $event->element->getUrl();
+        $url = $this->url($event->element);
 
         if ($url !== null) {
-            $this->fetchUrls[] = $url;
+            $this->httpCache->invalidator(self::CLIENT)->refreshPath($url);
         }
     }
 
     public function handleElementDeleted(ElementDeleted $event): void
     {
-        $this->addUriPurge($event->element);
+        $url = $this->url($event->element);
+
+        if ($url !== null) {
+            $this->httpCache->invalidator(self::CLIENT)->invalidatePath($url);
+        }
     }
 
     /**
-     * Sends the collected purges. Failures are logged rather than thrown, as the content change itself succeeded.
+     * Sends the queued purges. Failures are logged rather than thrown, as the content change itself succeeded.
      */
     public function flush(): void
     {
-        [$tags, $fetchUrls] = [$this->tagsToPurge, $this->fetchUrls];
-        $this->tagsToPurge = [];
-        $this->fetchUrls = [];
-
         try {
-            $this->gateway->purge($tags, $fetchUrls);
+            $this->httpCache->invalidator(self::CLIENT)->flush();
         } catch (Throwable $exception) {
-            Log::error('Failed to purge the Craft Cloud static cache.', [
-                'exception' => $exception,
-                'tags' => $tags,
-                'fetchUrls' => $fetchUrls,
-            ]);
+            Log::error('Failed to purge the Craft Cloud static cache.', ['exception' => $exception]);
         }
     }
 
-    private function addUriPurge(ElementInterface $element): bool
+    private function url(ElementInterface $element): ?string
     {
-        // `uri` is a property of Craft's base element class, not part of the interface.
-        $uri = property_exists($element, 'uri') ? $element->uri : null;
-        $environmentId = config('cloud.environment_id');
-
-        if (!$uri || !$environmentId || ElementHelper::isDraftOrRevision($element)) {
-            return false;
-        }
-
-        $path = $element->getIsHomepage() ? '/' : '/' . trim($uri, characters: '/');
-        $this->tagsToPurge[] = "{$environmentId}:uri:{$path}";
-
-        return true;
+        return ElementHelper::isDraftOrRevision($element) ? null : $element->getUrl();
     }
 }

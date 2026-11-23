@@ -5,93 +5,83 @@ declare(strict_types=1);
 namespace craft\cloud\Http\Middleware;
 
 use Closure;
-use craft\cloud\CacheTags;
-use craft\cloud\CdnCacheControl;
-use CraftCms\Cms\Element\ElementCaches;
-use CraftCms\Cms\Http\Middleware\HandleTokenRequest;
-use CraftCms\Cms\Http\Middleware\ResolveSite;
-use CraftCms\Cms\Route\MatchedElement;
+use CraftCms\Cms\HttpCache\CachePolicy;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Context;
+use Symfony\Component\HttpFoundation\HeaderBag;
 use Symfony\Component\HttpFoundation\Response;
 
 /**
- * Tells Craft Cloud's CDN how long it may cache a site page, with `CDN-Cache-Control`, and which element cache tags
- * purge it, with `Cache-Tag`.
+ * Tells Craft Cloud's CDN how long it may cache a response, with `CDN-Cache-Control`.
  *
- * This runs outside Craft's `SetHeaders` middleware and Laravel's session and cookie middleware, so it sees the
- * response's final `Cache-Control` header and cookies. The browser's `Cache-Control` header is left alone. Cloud
- * always sends `CDN-Cache-Control`, as an ESI `Surrogate-Control` header makes Cloudflare ignore `Cache-Control`.
+ * Global middleware that runs first, outside Craft's `TagResponse`, so it sees the final response: its lifetimes
+ * capped at the earliest element expiry, and the cookies it ends up with. The lifetime comes from `s-maxage`, or else
+ * `max-age` or `Expires`, including Cloud's default from {@see SetDefaultCacheLifetime}. `stale-while-revalidate` and
+ * `stale-if-error` are copied too. A `CDN-Cache-Control` header the response set itself is kept.
+ *
+ * Only successful responses get one. Responses that Craft's {@see CachePolicy} won't let a cache store, such as
+ * `no-store` or `private` responses and responses that set cookies, and `no-cache` responses get no
+ * `CDN-Cache-Control` header, even one they set themselves.
  */
 class CacheResponse
 {
+    private const array DIRECTIVES = ['stale-while-revalidate', 'stale-if-error'];
+
     public function __construct(
-        private readonly ElementCaches $elementCaches,
-        private readonly CacheTags $tags,
+        private readonly CachePolicy $policy,
+        private readonly SetDefaultCacheLifetime $defaults,
     ) {}
 
     public function handle(Request $request, Closure $next): mixed
     {
-        if (!$request->isMethodCacheable() || $request->isCpRequest()) {
-            return $next($request);
-        }
-
-        $this->elementCaches->startCollectingCacheInfo();
-
-        try {
-            $response = $next($request);
-            $element = MatchedElement::get();
-
-            if ($element) {
-                $this->elementCaches->collectCacheInfoForElement($element);
-            }
-        } finally {
-            [$dependency, $expiry] = $this->elementCaches->stopCollectingCacheInfo();
-        }
+        $response = $next($request);
 
         if (!$response instanceof Response) {
             return $response;
         }
 
-        if ($this->isPersonal($request, $response)) {
-            $response->headers->set('CDN-Cache-Control', 'no-store');
-
-            return $response;
+        if (!$this->isCacheable($request, $response)) {
+            $response->headers->remove('CDN-Cache-Control');
+        } elseif (
+            $response->isSuccessful()
+            && !$response->headers->has('CDN-Cache-Control')
+            && $response->getMaxAge() !== null
+        ) {
+            $response->headers->set('CDN-Cache-Control', $this->cdnCacheControl($response));
         }
 
-        if (!$response->isOk() || $response->getContent() === false) {
-            return $response;
-        }
-
-        $response->headers->set('CDN-Cache-Control', CdnCacheControl::for($response, $expiry));
-        $header = $this->tags->header([
-            ...array_map($this->tags->dependency(...), $dependency->tags ?? []),
-            ...explode(',', (string) $response->headers->get('Cache-Tag')),
-        ]);
-        $response->headers->remove('Cache-Tag');
-
-        if ($header !== '') {
-            $response->headers->set('Cache-Tag', $header);
+        if ($this->defaults->originalCacheControl !== null) {
+            $response->headers->set('Cache-Control', $this->defaults->originalCacheControl);
         }
 
         return $response;
     }
 
     /**
-     * Whether the response may differ per visitor, or comes from a link that isn't public.
-     *
-     * Site routes start their session lazily, so the session and `XSRF-TOKEN` cookies are only sent when the page
-     * used the session. Core only marks preview token responses as uncacheable. Other token routes, and site tokens,
-     * which can serve disabled sites, are excluded here.
+     * Symfony's `Response::isCacheable()`, which the default policy uses, lets `no-cache` responses with a lifetime
+     * be stored. They mustn't be served without revalidating, which Cloud's CDN doesn't do, so it doesn't cache them.
      */
-    private function isPersonal(Request $request, Response $response): bool
+    private function isCacheable(Request $request, Response $response): bool
     {
         return (
-            $request->cookies->has((string) config('session.cookie'))
-            || $request->headers->has('Authorization')
-            || $response->headers->getCookies() !== []
-            || Context::getHidden(HandleTokenRequest::HAD_TOKEN_KEY) === true
-            || Context::getHidden(ResolveSite::HAD_SITE_TOKEN_KEY) === true
+            $this->policy->isResponseCacheable($request, $response)
+            && !$response->headers->hasCacheControlDirective('no-cache')
         );
+    }
+
+    private function cdnCacheControl(Response $response): string
+    {
+        $directives = new HeaderBag();
+        $directives->addCacheControlDirective('public');
+        $directives->addCacheControlDirective('max-age', (string) max(0, (int) $response->getMaxAge()));
+
+        foreach (self::DIRECTIVES as $directive) {
+            $value = $response->headers->getCacheControlDirective($directive);
+
+            if ($value !== null) {
+                $directives->addCacheControlDirective($directive, (string) $value);
+            }
+        }
+
+        return (string) $directives->get('Cache-Control');
     }
 }

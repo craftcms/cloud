@@ -5,6 +5,8 @@ declare(strict_types=1);
 namespace craft\cloud\Console;
 
 use craft\cloud\Gateway;
+use craft\cloud\StaticCache;
+use CraftCms\Cms\HttpCache\HttpCacheManager;
 use Illuminate\Console\Command;
 
 /**
@@ -44,15 +46,22 @@ class StaticCacheCommand extends Command
         return $commands;
     }
 
-    public function handle(Gateway $gateway): int
+    public function handle(HttpCacheManager $httpCache): int
     {
+        $invalidator = $httpCache->invalidator(StaticCache::CLIENT);
+        /** @var Gateway $gateway */
+        $gateway = $httpCache->client(StaticCache::CLIENT);
+        $environmentId = Gateway::environmentId();
+
         match ($this->action) {
-            'purge-all' => $gateway->purgeAll(),
-            'purge-cdn' => $gateway->purgeCdn(),
-            'purge-origin' => $gateway->purgeOrigin(),
-            'purge-prefixes' => $gateway->purgeUrlPrefixes(...(array) $this->argument('prefixes')),
-            'purge-tags' => $gateway->purgeTags(...(array) $this->argument('tags')),
+            'purge-all' => $invalidator->clearCache(),
+            'purge-cdn' => $gateway->purgeGatewayTags("{$environmentId}:cdn", "{$environmentId}:rasterize"),
+            'purge-origin' => $gateway->purgeGatewayTags("{$environmentId}:uri"),
+            'purge-prefixes' => $invalidator->invalidatePrefixes((array) $this->argument('prefixes')),
+            'purge-tags' => $invalidator->invalidateTags((array) $this->argument('tags')),
         };
+
+        $invalidator->flush();
 
         $this->components->info('Purged the static cache.');
 

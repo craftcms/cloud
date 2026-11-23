@@ -5,18 +5,19 @@ declare(strict_types=1);
 use craft\cloud\CloudServiceProvider;
 use craft\cloud\Console\StaticCacheCommand;
 use craft\cloud\Http\Middleware\CacheResponse;
+use craft\cloud\Http\Middleware\SetDefaultCacheLifetime;
 use CraftCms\Cms\Config\GeneralConfig;
 use CraftCms\Cms\Element\ElementCaches;
 use CraftCms\Cms\Element\Events\ElementCachesInvalidated;
 use CraftCms\Cms\Element\Events\ElementDeleted;
 use CraftCms\Cms\Element\Events\ElementSaved;
 use CraftCms\Cms\Entry\Elements\Entry;
-use CraftCms\Cms\Http\Middleware\HandleTokenRequest;
-use CraftCms\Cms\Http\Middleware\ResolveSite;
 use CraftCms\Cms\Http\Middleware\SetHeaders;
+use CraftCms\Cms\Http\Middleware\TagResponse;
 use CraftCms\Cms\Http\Mixins\RequestMixin;
 use CraftCms\Cms\Http\ResponseHeaders;
-use CraftCms\Cms\Route\MatchedElement;
+use CraftCms\Cms\HttpCache\HttpCacheServiceProvider;
+use CraftCms\Cms\HttpCache\ResponseTagger;
 use CraftCms\Cms\Utility\Utilities\ClearCaches;
 use HttpMessageSignatures\Algorithm\HmacSha256;
 use HttpMessageSignatures\Verifier;
@@ -33,7 +34,6 @@ use Illuminate\Queue\Events\JobProcessed;
 use Illuminate\Routing\Pipeline;
 use Illuminate\Routing\Router;
 use Illuminate\Support\Carbon;
-use Illuminate\Support\Facades\Context;
 use Illuminate\Support\Facades\Event;
 use Illuminate\Support\Facades\Facade;
 use Illuminate\Support\Facades\Http;
@@ -53,20 +53,29 @@ beforeEach(function (): void {
     Facade::clearResolvedInstances();
     Request::mixin(new RequestMixin());
     $this->config->set('session.cookie', 'craft_session');
+    $this->config->set(
+        'craft.http-cache',
+        require dirname(__DIR__, levels: 2) . '/vendor/craftcms/cms/config/http-cache.php',
+    );
     $this->config->set('cloud', ['environment_id' => '12345678-abcd', 'signing_key' => 'test-key']);
     $this->router = $this->app->make(Router::class);
-    $this->app->instance(KernelContract::class, new Kernel($this->app, $this->router));
-    // The groups core defines before Cloud's provider boots, with the middleware that sets or removes headers.
+    $this->kernel = new Kernel($this->app, $this->router);
+    $this->app->instance(KernelContract::class, $this->kernel);
+    // What core sets up before Cloud's provider boots: the global `TagResponse` middleware, and the route groups with
+    // the middleware that sets headers and cookies.
+    $this->kernel->setGlobalMiddleware([TagResponse::class]);
     $this->router->middlewareGroup('web', [EncryptCookies::class, AddQueuedCookiesToResponse::class]);
     $this->router->middlewareGroup('craft', [SetHeaders::class]);
     $this->router->middlewareGroup('craft.web', []);
+    $this->app->register(HttpCacheServiceProvider::class);
     $this->server('CRAFT_CLOUD', '1');
     $this->app->register(CloudServiceProvider::class);
     $this->app->boot();
     Carbon::setTestNow('2026-11-10 12:00:00 UTC');
 
-    // Runs a site route through the same middleware stack and priority sorting as Laravel's router.
+    // Runs a site request through the global middleware, then the route's, as Laravel's kernel and router do.
     $this->respond = function (Closure $handler, ?Request $request = null): Response {
+        $this->app->forgetScopedInstances();
         $request ??= Request::create('/news');
         $this->app->instance('request', $request);
         $route = $this->router->get('/news', $handler)->middleware(['web', 'craft', 'craft.web']);
@@ -74,9 +83,13 @@ beforeEach(function (): void {
 
         return new Pipeline($this->app)
             ->send($request)
-            ->through($this->router->gatherRouteMiddleware($route))
+            ->through([...$this->kernel->getGlobalMiddleware(), ...$this->router->gatherRouteMiddleware($route)])
             ->then(fn() => $handler());
     };
+
+    $this->expire = fn(int $seconds) => $this->app
+        ->make(ElementCaches::class)
+        ->setCacheExpiryDate(now()->addSeconds($seconds));
 });
 
 afterEach(function (): void {
@@ -96,21 +109,31 @@ function entry(string $uri, bool $homepage = false, bool $draft = false): Entry
     return $entry;
 }
 
-it('runs outside core and cookie middleware on site routes', function (): void {
-    $route = $this->router->get('/news', fn() => 'news')->middleware(['web', 'craft', 'craft.web']);
+function purges(): array
+{
+    $payloads = [];
 
-    expect($this->router->gatherRouteMiddleware($route))->toBe([
+    Http::assertSent(function (ClientRequest $request) use (&$payloads): bool {
+        $payloads[] = [$request->url(), $request->data()];
+
+        return true;
+    });
+
+    return $payloads;
+}
+
+it('sets the default lifetime inside TagResponse and writes CDN-Cache-Control outside it', function (): void {
+    expect($this->kernel->getGlobalMiddleware())->toBe([
         CacheResponse::class,
-        EncryptCookies::class,
-        AddQueuedCookiesToResponse::class,
-        SetHeaders::class,
+        TagResponse::class,
+        SetDefaultCacheLifetime::class,
     ]);
 });
 
-it('applies Cloud defaults to responses without a cache policy, capped at element expiry', function (?int $expiry): void {
+it('gives pages without a cache policy Cloud’s default, capped at element expiry', function (?int $expiry): void {
     $response = ($this->respond)(function () use ($expiry): Response {
         if ($expiry !== null) {
-            $this->app->make(ElementCaches::class)->setCacheExpiryDate(now()->addSeconds($expiry));
+            ($this->expire)($expiry);
         }
 
         return new Response('page');
@@ -131,109 +154,86 @@ it('uses configured defaults', function (): void {
     expect($response->headers->get('CDN-Cache-Control'))->toBe('max-age=456, public, stale-while-revalidate=19');
 });
 
-it('follows the lifetime set with core response headers', function (): void {
-    $response = ($this->respond)(function (): Response {
-        $this->app->make(ResponseHeaders::class)->setCache(600);
-        $this->app->make(ElementCaches::class)->setCacheExpiryDate(now()->addSeconds(900));
-
-        return new Response('page');
-    });
-
-    expect($response->headers->get('CDN-Cache-Control'))
-        ->toBe('max-age=600, public')
-        ->and($response->headers->getCacheControlDirective('max-age'))
-        ->toBe('600');
-});
-
-it('follows the response’s own lifetime, preferring s-maxage and capping it at element expiry', function (
-    array $headers,
+it('copies the page’s own lifetime, preferring s-maxage, after Craft caps it at element expiry', function (
+    Closure $policy,
     ?int $expiry,
     string $expected,
 ): void {
-    $response = ($this->respond)(function () use ($headers, $expiry): Response {
+    $response = ($this->respond)(function () use ($policy, $expiry): Response {
         if ($expiry !== null) {
-            $this->app->make(ElementCaches::class)->setCacheExpiryDate(now()->addSeconds($expiry));
+            ($this->expire)($expiry);
         }
 
-        return new Response('page', headers: $headers);
-    });
-
-    expect($response->headers->get('CDN-Cache-Control'))
-        ->toBe($expected)
-        ->and($response->headers->get('Cache-Control'))
-        ->toBe(new Response(headers: $headers)->headers->get('Cache-Control'));
-})->with([
-    'max-age' => [['Cache-Control' => 'public, max-age=60'], null, 'max-age=60, public'],
-    's-maxage' => [
-        ['Cache-Control' => 'public, max-age=60, s-maxage=600, stale-if-error=30'],
-        null,
-        'max-age=600, public, stale-if-error=30',
-    ],
-    'capped' => [['Cache-Control' => 'public, max-age=60, s-maxage=600'], 90, 'max-age=90, public'],
-    'shorter than expiry' => [['Cache-Control' => 'public, max-age=60'], 90, 'max-age=60, public'],
-    'expires' => [
-        ['Expires' => 'Tue, 10 Nov 2026 12:05:00 GMT', 'Date' => 'Tue, 10 Nov 2026 12:00:00 GMT'],
-        null,
-        'max-age=300, public',
-    ],
-    'existing CDN header' => [
-        ['CDN-Cache-Control' => 'public, max-age=500, s-maxage=800'],
-        90,
-        'max-age=90, public, s-maxage=90',
-    ],
-]);
-
-it('keeps restricted responses out of the CDN', function (Closure $policy): void {
-    $response = ($this->respond)(function () use ($policy): Response {
         $response = new Response('page');
         $policy($this->app, $response);
 
         return $response;
     });
 
-    expect($response->headers->get('CDN-Cache-Control'))->toBe('no-store');
+    expect($response->headers->get('CDN-Cache-Control'))->toBe($expected);
 })->with([
-    'noCache()' => fn($app) => $app->make(ResponseHeaders::class)->noCache(),
-    'setCache(0)' => fn($app) => $app->make(ResponseHeaders::class)->setCache(0),
-    'private' => fn($app, Response $response) => $response->setPrivate()->setMaxAge(60),
-    'no-cache' => fn($app, Response $response) => $response->headers->set('Cache-Control', 'public, no-cache'),
+    'setCache()' => [fn($app) => $app->make(ResponseHeaders::class)->setCache(600), 900, 'max-age=600, public'],
+    'setCache() capped' => [fn($app) => $app->make(ResponseHeaders::class)->setCache(600), 90, 'max-age=90, public'],
+    's-maxage' => [
+        fn($app, Response $r) => $r->headers->set(
+            'Cache-Control',
+            'public, max-age=60, s-maxage=600, stale-if-error=30',
+        ),
+        null,
+        'max-age=600, public, stale-if-error=30',
+    ],
+    's-maxage capped' => [
+        fn($app, Response $r) => $r->setPublic()->setMaxAge(60)->setSharedMaxAge(600),
+        90,
+        'max-age=90, public',
+    ],
+    'expires' => [
+        // Symfony works out the response's age from the real clock, not Carbon's.
+        function ($app, Response $r): void {
+            $now = new DateTimeImmutable();
+            $r->setPublic()->setDate($now)->setExpires($now->modify('+5 minutes'));
+        },
+        null,
+        'max-age=300, public',
+    ],
 ]);
 
-it('keeps personal and tokenized responses out of the CDN', function (string $scenario): void {
-    $request = Request::create('/news', cookies: $scenario === 'session cookie' ? ['craft_session' => 'x'] : []);
+it('keeps a CDN-Cache-Control header the page set', function (): void {
+    $response = ($this->respond)(fn() => new Response('page', headers: ['CDN-Cache-Control' => 'max-age=5']));
 
-    match ($scenario) {
-        'route token' => Context::addHidden(HandleTokenRequest::HAD_TOKEN_KEY, true),
-        'site token' => Context::addHidden(ResolveSite::HAD_SITE_TOKEN_KEY, true),
-        'authorization' => $request->headers->set('Authorization', 'Bearer x'),
-        default => null,
-    };
+    expect($response->headers->get('CDN-Cache-Control'))->toBe('max-age=5');
+});
 
-    $response = ($this->respond)(function () use ($scenario): Response {
+it('sends no CDN-Cache-Control for responses a cache mustn’t store', function (Closure $policy): void {
+    $response = ($this->respond)(function () use ($policy): Response {
+        // A CDN header the page set is removed too.
         $response = new Response('page', headers: ['CDN-Cache-Control' => 'public, max-age=600']);
-        $this->app->make(ResponseHeaders::class)->setCache(600);
-
-        if ($scenario === 'response cookie') {
-            $response->headers->setCookie(new Cookie('preference', 'dark'));
-        }
-
-        if ($scenario === 'queued cookie') {
-            $this->app->make('cookie')->queue('preference', 'dark');
-        }
+        $policy($this->app, $response);
 
         return $response;
-    }, $request);
+    });
 
-    expect($response->headers->get('CDN-Cache-Control'))
-        ->toBe('no-store')
-        ->and($response->headers->has('Cache-Tag'))
-        ->toBeFalse();
-})->with(['session cookie', 'response cookie', 'queued cookie', 'route token', 'site token', 'authorization']);
+    expect($response->headers->has('CDN-Cache-Control'))->toBeFalse();
+})->with([
+    'noCache()' => fn($app) => $app->make(ResponseHeaders::class)->noCache(),
+    'no-store' => fn($app, Response $r) => $r->headers->set('Cache-Control', 'public, no-store, max-age=60'),
+    'no-cache' => fn($app, Response $r) => $r->headers->set('Cache-Control', 'public, no-cache, max-age=60'),
+    'private' => fn($app, Response $r) => $r->setPrivate()->setMaxAge(60),
+    'Set-Cookie' => fn($app, Response $r) => $r->headers->setCookie(new Cookie('preference', 'dark')),
+    'queued cookie' => fn($app) => $app->make('cookie')->queue('preference', 'dark'),
+    'Set-Cookie with a lifetime' => function ($app, Response $r): void {
+        $app->make(ResponseHeaders::class)->setCache(600);
+        $r->headers->setCookie(new Cookie('preference', 'dark'));
+    },
+]);
 
-it('caches requests with unrelated cookies', function (): void {
-    $response = ($this->respond)(fn() => new Response('page'), Request::create('/news', cookies: ['analytics' => 'x']));
+it('doesn’t give responses to Authorization requests the default', function (): void {
+    $request = Request::create('/news');
+    $request->headers->set('Authorization', 'Bearer x');
 
-    expect($response->headers->get('CDN-Cache-Control'))->toStartWith('max-age=31536000');
+    $response = ($this->respond)(fn() => new Response('page'), $request);
+
+    expect($response->headers->has('CDN-Cache-Control'))->toBeFalse();
 });
 
 it('leaves unsafe methods and error responses alone', function (string $method, int $status): void {
@@ -249,49 +249,47 @@ it('leaves unsafe methods and error responses alone', function (string $method, 
     expect($response->headers->has('CDN-Cache-Control'))
         ->toBeFalse()
         ->and($response->headers->has('Cache-Tag'))
-        ->toBeFalse()
-        ->and($this->app->make(ElementCaches::class)->isCollectingCacheInfo())
         ->toBeFalse();
 })->with([['POST', 200], ['GET', 404]]);
 
-it('tags responses with collected, matched element and custom tags', function (): void {
-    $entry = entry('news/hello');
-    $response = ($this->respond)(function () use ($entry): Response {
-        MatchedElement::set($entry, 'templates/render');
-        $this->app->make(ElementCaches::class)->collectCacheTags(['news', 'element::42']);
+it('hashes tags the same way in the Cache-Tag header and in purges', function (): void {
+    Http::fake();
 
-        return new Response('page', headers: ['Cache-Tag' => 'custom tag,custom tag']);
+    $response = ($this->respond)(function (): Response {
+        $this->app->make(ElementCaches::class)->collectCacheTags(['element::42']);
+        $this->app->make(ResponseTagger::class)->addTags(['custom tag']);
+
+        return new Response('page');
     });
 
-    // Short environment ID plus the CRC32 of each tag: news, element::42, element, element::<class>.
-    expect(explode(',', $response->headers->get('Cache-Tag')))->toBe([
-        '123456781dd39950',
-        '12345678fe708f7a',
-        '1234567841405e39',
-        sprintf('12345678%x', crc32('element::' . $entry::class)),
-        'custom%20tag',
-    ]);
+    Event::dispatch(new ElementCachesInvalidated(['element::42', 'custom tag']));
+    $this->app->terminate();
+
+    // Short environment ID plus the CRC32 of each tag.
+    $hashed = ['12345678fe708f7a', sprintf('12345678%x', crc32('custom tag'))];
+    expect(explode(',', $response->headers->get('Cache-Tag')))
+        ->toEqualCanonicalizing($hashed)
+        ->and(purges())
+        ->toBe([['https://gateway.craft.cloud/api/12345678-abcd/cache/purge', ['tags' => $hashed]]]);
 });
 
-it('bounds tags by count, bytes and individual length with the overflow tag', function (array $tags): void {
-    $response = ($this->respond)(fn() => new Response('page', headers: ['Cache-Tag' => implode(',', $tags)]));
-    $header = $response->headers->get('Cache-Tag');
+it('bounds the Cache-Tag header by count and bytes with the overflow tag', function (int $count): void {
+    $response = ($this->respond)(function () use ($count): Response {
+        $this->app->make(ResponseTagger::class)->addTags(array_map(strval(...), range(1, $count)));
 
-    expect($header)
-        ->toStartWith('12345678-abcd:overflow,')
-        ->and(strlen($header))
-        ->toBeLessThanOrEqual(16_384)
-        ->and(count(explode(',', $header)))
+        return new Response('page');
+    });
+    $tags = explode(',', $response->headers->get('Cache-Tag'));
+
+    expect($tags[0])
+        ->toBe('12345678-abcd:overflow')
+        ->and(count($tags))
         ->toBeLessThanOrEqual(1000)
-        ->and(max(array_map(strlen(...), explode(',', $header))))
-        ->toBeLessThanOrEqual(1024);
-})->with([
-    'count' => [array_map(strval(...), range(1, end: 1001))],
-    'bytes' => [array_map(fn(int $i): string => $i . str_repeat('x', times: 1000), range(1, end: 20))],
-    'individual' => [['valid', str_repeat('x', times: 1025)]],
-]);
+        ->and(strlen($response->headers->get('Cache-Tag')))
+        ->toBeLessThanOrEqual(16_384);
+})->with([1001, 2000]);
 
-it('batches invalidations and URI purges into one signed gateway request', function (): void {
+it('batches invalidations and URL purges into one signed gateway request', function (): void {
     Http::fake(['*' => Http::response('', 204)]);
 
     Event::dispatch(new ElementCachesInvalidated(['element::42']));
@@ -325,6 +323,20 @@ it('batches invalidations and URI purges into one signed gateway request', funct
 
         return true;
     });
+});
+
+it('soft purges tags when the client is configured to', function (): void {
+    $this->config->set('craft.http-cache.clients.cloud.soft_purge', true);
+    Http::fake();
+
+    Event::dispatch(new ElementCachesInvalidated(['element::42']));
+    Event::dispatch(new ElementDeleted(entry('news/gone')));
+    $this->app->terminate();
+
+    expect(purges())->toEqualCanonicalizing([
+        ['https://gateway.craft.cloud/api/12345678-abcd/cache/invalidate', ['tags' => ['12345678fe708f7a']]],
+        ['https://gateway.craft.cloud/api/12345678-abcd/cache/purge', ['tags' => ['12345678-abcd:uri:/news/gone']]],
+    ]);
 });
 
 it('purges after each queue job', function (): void {
@@ -378,6 +390,13 @@ it('purges from the console', function (string $command, array $arguments, array
     ],
     ['cloud:static-cache:purge-cdn', [], ['tags' => ['12345678-abcd:cdn', '12345678-abcd:rasterize']]],
     ['cloud:static-cache:purge-origin', [], ['tags' => ['12345678-abcd:uri']]],
-    ['cloud:static-cache:purge-tags', ['tags' => ['a b', 'c']], ['tags' => ['a%20b', 'c']]],
+    [
+        'cloud:static-cache:purge-tags',
+        ['tags' => ['a b', 'c']],
+        ['tags' => [
+            sprintf('12345678%x', crc32('a b')),
+            sprintf('12345678%x', crc32('c')),
+        ]],
+    ],
     ['cloud:static-cache:purge-prefixes', ['prefixes' => ['example.com/blog']], ['prefixes' => ['example.com/blog']]],
 ]);

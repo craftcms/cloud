@@ -6,15 +6,18 @@ namespace craft\cloud;
 
 use craft\cloud\Console\StaticCacheCommand;
 use craft\cloud\Http\Middleware\CacheResponse;
+use craft\cloud\Http\Middleware\SetDefaultCacheLifetime;
 use CraftCms\Cms\Element\Events\ElementCachesInvalidated;
 use CraftCms\Cms\Element\Events\ElementDeleted;
 use CraftCms\Cms\Element\Events\ElementSaved;
+use CraftCms\Cms\HttpCache\HttpCacheManager;
+use CraftCms\Cms\HttpCache\TagEncoder;
 use CraftCms\Cms\Utility\Utilities\ClearCaches;
-use Illuminate\Contracts\Http\Kernel;
-use Illuminate\Cookie\Middleware\EncryptCookies;
+use Illuminate\Contracts\Foundation\Application;
+use Illuminate\Contracts\Http\Kernel as KernelContract;
+use Illuminate\Foundation\Http\Kernel;
 use Illuminate\Queue\Events\JobExceptionOccurred;
 use Illuminate\Queue\Events\JobProcessed;
-use Illuminate\Routing\Router;
 use Illuminate\Support\Facades\Config;
 use Illuminate\Support\Facades\Event;
 use Illuminate\Support\ServiceProvider;
@@ -23,7 +26,8 @@ class StaticCacheServiceProvider extends ServiceProvider
 {
     public function register(): void
     {
-        $this->app->scoped(StaticCache::class);
+        $this->app->singleton(TagEncoder::class, CacheTagEncoder::class);
+        $this->app->scoped(SetDefaultCacheLifetime::class);
         Config::set('cloud', array_replace(
             [
                 'environment_id' => $_SERVER['CRAFT_CLOUD_ENVIRONMENT_ID'] ?? null,
@@ -35,28 +39,48 @@ class StaticCacheServiceProvider extends ServiceProvider
 
     public function boot(): void
     {
+        // Cloud's gateway is the page cache, and its CDN reads `Cache-Tag`.
+        Config::set('craft.http-cache.default', StaticCache::CLIENT);
+        Config::set('craft.http-cache.clients.' . StaticCache::CLIENT, [
+            'driver' => 'cloud',
+            ...Config::get('craft.http-cache.clients.' . StaticCache::CLIENT, []),
+        ]);
+        Config::set('craft.http-cache.tags.formatter', CacheTagHeaderFormatter::class);
+        Config::set('craft.http-cache.tags.formatter_options', []);
+        $this->app->make(HttpCacheManager::class)->extend(
+            'cloud',
+            static fn(Application $app, array $config) => new Gateway(
+                $app->make(TagEncoder::class),
+                softPurge: (bool) ($config['soft_purge'] ?? false),
+            ),
+        );
+
         Event::listen(ElementCachesInvalidated::class, [StaticCache::class, 'handleElementCachesInvalidated']);
         Event::listen(ElementSaved::class, [StaticCache::class, 'handleElementSaved']);
         Event::listen(ElementDeleted::class, [StaticCache::class, 'handleElementDeleted']);
 
         $flush = fn() => $this->app->make(StaticCache::class)->flush();
         $this->app->terminating($flush);
-        // Queue workers don't terminate between jobs, and forget scoped instances before the next one.
+        // Queue workers don't terminate between jobs.
         Event::listen([JobProcessed::class, JobExceptionOccurred::class], $flush);
 
         ClearCaches::add('craft-cloud-static-cache', [
             'label' => 'Craft Cloud static cache',
-            'action' => fn() => $this->app->make(Gateway::class)->purgeAll(),
+            'action' => fn() => $this->app
+                ->make(HttpCacheManager::class)
+                ->invalidator(StaticCache::CLIENT)
+                ->clearCache()
+                ->flush(),
         ]);
 
         $this->commands(StaticCacheCommand::all());
 
-        // Craft creates the `craft` group when it boots. Its `SetHeaders` middleware applies `{% expires %}` and
-        // `noCache()`, so Cloud's middleware has to run outside it. Laravel's priority list then moves it outside the
-        // `web` group's cookie and session middleware too, so it sees the cookies the response ends up with.
-        $this->app->booted(function (): void {
-            $this->app->make(Router::class)->prependMiddlewareToGroup('craft', CacheResponse::class);
-            $this->app->make(Kernel::class)->addToMiddlewarePriorityBefore(EncryptCookies::class, CacheResponse::class);
-        });
+        // Craft's global `TagResponse` middleware tags the response and caps its lifetimes after the rest of the
+        // request returns. Cloud's default lifetime is set inside it, so it's capped too, and `CDN-Cache-Control` is
+        // written outside it, from the final headers.
+        /** @var Kernel $kernel */
+        $kernel = $this->app->make(KernelContract::class);
+        $kernel->pushMiddleware(SetDefaultCacheLifetime::class);
+        $kernel->prependMiddleware(CacheResponse::class);
     }
 }

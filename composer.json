@@ -9,13 +9,14 @@
     "bref/bref": "^3",
     "bref/extra-php-extensions": "^3",
     "bref/laravel-bridge": "^3.0",
-    "craftcms/cms": "^6.0.0-alpha.21",
+    "craftcms/cms": "dev-timkelty/http-cache",
     "craftcms/http-message-signatures": "^1.0",
     "symfony/process": "^7.4.5 || ^8.0.5"
   },
   "require-dev": {
     "carthage-software/mago": "^1.1.0",
-    "pestphp/pest": "^4.0"
+    "pestphp/pest": "^4.0",
+    "craftcms/cms-assets": "6.x-dev as dev-timkelty/http-cache"
   },
   "scripts": {
     "lint": "mago lint --minimum-fail-level=warning && mago format --check",
@@ -52,5 +53,10 @@
         "craft\\cloud\\CloudServiceProvider"
       ]
     }
-  }
+  },
+  "repositories": [{
+    "name": "craftcms-cms",
+    "type": "vcs",
+    "url": "https://github.com/craftcms/cms"
+  }]
 }
