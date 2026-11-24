@@ -4,9 +4,6 @@ declare(strict_types=1);
 
 namespace craft\cloud;
 
-use FOS\HttpCache\Exception\ExceptionCollection;
-use FOS\HttpCache\Exception\ProxyResponseException;
-use FOS\HttpCache\Exception\ProxyUnreachableException;
 use FOS\HttpCache\ProxyClient\Invalidation\ClearCapable;
 use FOS\HttpCache\ProxyClient\Invalidation\PrefixCapable;
 use FOS\HttpCache\ProxyClient\Invalidation\PurgeCapable;
@@ -14,12 +11,10 @@ use FOS\HttpCache\ProxyClient\Invalidation\RefreshCapable;
 use FOS\HttpCache\ProxyClient\Invalidation\TagCapable;
 use HttpMessageSignatures\Algorithm\HmacSha256;
 use HttpMessageSignatures\Signer;
-use Illuminate\Http\Client\RequestException;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
 use Psr\Http\Message\RequestInterface;
 use RuntimeException;
-use Throwable;
 
 /**
  * The `cloud` HTTP cache client, which purges Craft Cloud's static cache through the signed gateway API.
@@ -116,10 +111,6 @@ class Gateway implements ClearCapable, PrefixCapable, PurgeCapable, RefreshCapab
         return $this;
     }
 
-    /**
-     * Sends the queued requests. Failures are thrown together once every request has been tried, as FOSHttpCache
-     * clients do, so Craft's HTTP cache layer reports them without failing the request, command or job.
-     */
     public function flush(): int
     {
         $purgeTags = array_values(array_unique($this->purgeTags));
@@ -130,35 +121,27 @@ class Gateway implements ClearCapable, PrefixCapable, PurgeCapable, RefreshCapab
         $this->staleTags = [];
         $this->fetchUrls = [];
         $this->prefixes = [];
+        $requests = 0;
 
-        $requests = array_filter(
-            [
-                [
-                    'purge',
-                    $fetchUrls === [] ? ['tags' => $purgeTags] : ['tags' => $purgeTags, 'fetchUrls' => $fetchUrls],
-                ],
-                ['invalidate', ['tags' => $staleTags]],
-                ['purge', ['prefixes' => $prefixes]],
-            ],
-            static fn(array $request): bool => array_values($request[1])[0] !== [],
-        );
-        $exceptions = new ExceptionCollection();
-
-        foreach ($requests as [$action, $payload]) {
-            try {
-                $this->send($action, $payload);
-            } catch (RequestException $exception) {
-                $exceptions->add(new ProxyResponseException($exception->getMessage(), 0, $exception));
-            } catch (Throwable $exception) {
-                $exceptions->add(new ProxyUnreachableException($exception->getMessage(), 0, $exception));
-            }
+        if ($purgeTags !== []) {
+            $this->send(
+                'purge',
+                $fetchUrls === [] ? ['tags' => $purgeTags] : ['tags' => $purgeTags, 'fetchUrls' => $fetchUrls],
+            );
+            $requests++;
         }
 
-        if (count($exceptions) > 0) {
-            throw $exceptions;
+        if ($staleTags !== []) {
+            $this->send('invalidate', ['tags' => $staleTags]);
+            $requests++;
         }
 
-        return count($requests);
+        if ($prefixes !== []) {
+            $this->send('purge', ['prefixes' => $prefixes]);
+            $requests++;
+        }
+
+        return $requests;
     }
 
     public static function environmentId(): string
