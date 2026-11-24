@@ -1328,13 +1328,13 @@
             "version": "dev-main",
             "source": {
                 "type": "git",
-                "url": "git@github.com:craftcms/http-cache.git",
-                "reference": "c61d74f1adee3985c04f45990e684d4ab51bd9bc"
+                "url": "https://github.com/craftcms/http-cache.git",
+                "reference": "edb5484472fb46b8dee7d9e5d8c8f6c09dd3e73e"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/craftcms/http-cache/zipball/c61d74f1adee3985c04f45990e684d4ab51bd9bc",
-                "reference": "c61d74f1adee3985c04f45990e684d4ab51bd9bc",
+                "url": "https://api.github.com/repos/craftcms/http-cache/zipball/edb5484472fb46b8dee7d9e5d8c8f6c09dd3e73e",
+                "reference": "edb5484472fb46b8dee7d9e5d8c8f6c09dd3e73e",
                 "shasum": ""
             },
             "require": {
@@ -1406,7 +1406,7 @@
                 "source": "https://github.com/craftcms/http-cache/tree/main",
                 "issues": "https://github.com/craftcms/http-cache/issues"
             },
-            "time": "2026-11-24T04:33:58+00:00"
+            "time": "2026-11-24T04:46:53+00:00"
         },
         {
             "name": "craftcms/http-message-signatures",
