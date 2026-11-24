@@ -4,7 +4,7 @@ Run Craft CMS on Craft Cloud.
 
 ## Static cache
 
-On Craft Cloud, site pages are cached by the gateway and CDN. Cloud builds on Craft's HTTP cache layer (`CraftCms\Cms\HttpCache`): it registers a `cloud` HTTP cache client and makes it the default, and binds its own tag encoder and `Cache-Tag` formatter.
+On Craft Cloud, site pages are cached by the gateway and CDN. Cloud builds on Craft's HTTP cache layer (`CraftCms\Cms\HttpCache`): it registers a `cloud` HTTP cache client and makes it the default, and sets its `Cache-Tag` formatter.
 
 Craft's global `TagResponse` middleware tags successful GET and HEAD site responses with the elements they query, plus any tags added with `ResponseTagger`, and caps their lifetimes at the earliest element expiry. Cloud's `CacheResponse` middleware runs first, so it sees the final response, and sets `CDN-Cache-Control`:
 

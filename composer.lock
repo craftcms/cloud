@@ -1041,13 +1041,13 @@
             "version": "dev-timkelty/http-cache",
             "source": {
                 "type": "git",
-                "url": "https://github.com/craftcms/cms.git",
-                "reference": "c16d739963bbd30127e75d785c2fc862a384f55e"
+                "url": "git@github.com:craftcms/cms.git",
+                "reference": "5cecafefd3cbb44463dc72ddfb4013faa23760e0"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/craftcms/cms/zipball/c16d739963bbd30127e75d785c2fc862a384f55e",
-                "reference": "c16d739963bbd30127e75d785c2fc862a384f55e",
+                "url": "https://api.github.com/repos/craftcms/cms/zipball/5cecafefd3cbb44463dc72ddfb4013faa23760e0",
+                "reference": "5cecafefd3cbb44463dc72ddfb4013faa23760e0",
                 "shasum": ""
             },
             "require": {
@@ -1297,7 +1297,7 @@
                 "docs": "https://craftcms.com/docs/5.x/",
                 "rss": "https://github.com/craftcms/cms/releases.atom"
             },
-            "time": "2026-11-23T21:45:32+00:00"
+            "time": "2026-11-24T04:12:32+00:00"
         },
         {
             "name": "craftcms/cms-assets",

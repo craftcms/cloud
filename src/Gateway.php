@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 namespace craft\cloud;
 
-use CraftCms\Cms\HttpCache\TagEncoder;
 use FOS\HttpCache\ProxyClient\Invalidation\ClearCapable;
 use FOS\HttpCache\ProxyClient\Invalidation\PrefixCapable;
 use FOS\HttpCache\ProxyClient\Invalidation\PurgeCapable;
@@ -20,7 +19,7 @@ use RuntimeException;
 /**
  * The `cloud` HTTP cache client, which purges Craft Cloud's static cache through the signed gateway API.
  *
- * Invalidations are queued until {@see flush()}. Tags go through Craft's tag encoder, so they match the `Cache-Tag`
+ * Invalidations are queued until {@see flush()}. Tags are hashed with {@see CacheTagEncoder}, so they match the `Cache-Tag`
  * header. URLs are purged by the `{environmentId}:uri:{path}` tag the gateway adds to the pages it caches, and the CDN
  * adds `{environmentId}:cdn` and `{environmentId}:rasterize` to assets and transforms.
  *
@@ -42,7 +41,7 @@ class Gateway implements ClearCapable, PrefixCapable, PurgeCapable, RefreshCapab
     private array $prefixes = [];
 
     public function __construct(
-        private readonly TagEncoder $encoder,
+        private readonly CacheTagEncoder $encoder,
         private readonly bool $softPurge = false,
     ) {}
 

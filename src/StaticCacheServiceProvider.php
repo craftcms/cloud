@@ -10,7 +10,6 @@ use CraftCms\Cms\Element\Events\ElementCachesInvalidated;
 use CraftCms\Cms\Element\Events\ElementDeleted;
 use CraftCms\Cms\Element\Events\ElementSaved;
 use CraftCms\Cms\HttpCache\HttpCacheManager;
-use CraftCms\Cms\HttpCache\TagEncoder;
 use CraftCms\Cms\Utility\Utilities\ClearCaches;
 use Illuminate\Contracts\Foundation\Application;
 use Illuminate\Contracts\Http\Kernel as KernelContract;
@@ -25,7 +24,6 @@ class StaticCacheServiceProvider extends ServiceProvider
 {
     public function register(): void
     {
-        $this->app->singleton(TagEncoder::class, CacheTagEncoder::class);
         Config::set('cloud', array_replace(
             [
                 'environment_id' => $_SERVER['CRAFT_CLOUD_ENVIRONMENT_ID'] ?? null,
@@ -44,7 +42,7 @@ class StaticCacheServiceProvider extends ServiceProvider
         $this->app->make(HttpCacheManager::class)->extend(
             'cloud',
             static fn(Application $app, array $config) => new Gateway(
-                $app->make(TagEncoder::class),
+                $app->make(CacheTagEncoder::class),
                 softPurge: (bool) ($config['soft_purge'] ?? false),
             ),
         );
