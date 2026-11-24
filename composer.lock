@@ -1042,12 +1042,12 @@
             "source": {
                 "type": "git",
                 "url": "https://github.com/craftcms/cms.git",
-                "reference": "e147b179509c5364017c92e13ab131792428349a"
+                "reference": "30bdbb8813cd49cb8de727aea85aa1df36d4a182"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/craftcms/cms/zipball/e147b179509c5364017c92e13ab131792428349a",
-                "reference": "e147b179509c5364017c92e13ab131792428349a",
+                "url": "https://api.github.com/repos/craftcms/cms/zipball/30bdbb8813cd49cb8de727aea85aa1df36d4a182",
+                "reference": "30bdbb8813cd49cb8de727aea85aa1df36d4a182",
                 "shasum": ""
             },
             "require": {
@@ -1181,8 +1181,8 @@
                         "Path": "CraftCms\\Cms\\Support\\Facades\\Path",
                         "Plugins": "CraftCms\\Cms\\Support\\Facades\\Plugins",
                         "ProjectConfig": "CraftCms\\Cms\\Support\\Facades\\ProjectConfig",
+                        "ResponseCacheInfo": "CraftCms\\Cms\\Support\\Facades\\ResponseCacheInfo",
                         "ResponseHeaders": "CraftCms\\Cms\\Support\\Facades\\ResponseHeaders",
-                        "ResponseTagger": "CraftCms\\Cms\\Support\\Facades\\ResponseTagger",
                         "Revisions": "CraftCms\\Cms\\Support\\Facades\\Revisions",
                         "Search": "CraftCms\\Cms\\Support\\Facades\\Search",
                         "Sections": "CraftCms\\Cms\\Support\\Facades\\Sections",
@@ -1294,7 +1294,7 @@
                 "docs": "https://craftcms.com/docs/5.x/",
                 "rss": "https://github.com/craftcms/cms/releases.atom"
             },
-            "time": "2026-11-24T04:39:58+00:00"
+            "time": "2026-11-24T05:39:50+00:00"
         },
         {
             "name": "craftcms/cms-assets",
@@ -1329,12 +1329,12 @@
             "source": {
                 "type": "git",
                 "url": "https://github.com/craftcms/http-cache.git",
-                "reference": "edb5484472fb46b8dee7d9e5d8c8f6c09dd3e73e"
+                "reference": "ccc94d869888c4f4a61d4cab8a984c42e95497f8"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/craftcms/http-cache/zipball/edb5484472fb46b8dee7d9e5d8c8f6c09dd3e73e",
-                "reference": "edb5484472fb46b8dee7d9e5d8c8f6c09dd3e73e",
+                "url": "https://api.github.com/repos/craftcms/http-cache/zipball/ccc94d869888c4f4a61d4cab8a984c42e95497f8",
+                "reference": "ccc94d869888c4f4a61d4cab8a984c42e95497f8",
                 "shasum": ""
             },
             "require": {
@@ -1406,7 +1406,7 @@
                 "source": "https://github.com/craftcms/http-cache/tree/main",
                 "issues": "https://github.com/craftcms/http-cache/issues"
             },
-            "time": "2026-11-24T04:46:53+00:00"
+            "time": "2026-11-24T05:48:00+00:00"
         },
         {
             "name": "craftcms/http-message-signatures",

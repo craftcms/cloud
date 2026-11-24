@@ -6,7 +6,6 @@ namespace craft\cloud;
 
 use craft\cloud\Console\StaticCacheCommand;
 use craft\cloud\Http\Middleware\CacheResponse;
-use CraftCms\Cms\Element\Events\ElementCachesInvalidated;
 use CraftCms\Cms\Element\Events\ElementDeleted;
 use CraftCms\Cms\Element\Events\ElementSaved;
 use CraftCms\Cms\Utility\Utilities\ClearCaches;
@@ -14,8 +13,6 @@ use CraftCms\HttpCache\HttpCacheManager;
 use Illuminate\Contracts\Foundation\Application;
 use Illuminate\Contracts\Http\Kernel as KernelContract;
 use Illuminate\Foundation\Http\Kernel;
-use Illuminate\Queue\Events\JobExceptionOccurred;
-use Illuminate\Queue\Events\JobProcessed;
 use Illuminate\Support\Facades\Config;
 use Illuminate\Support\Facades\Event;
 use Illuminate\Support\ServiceProvider;
@@ -47,14 +44,8 @@ class StaticCacheServiceProvider extends ServiceProvider
             ),
         );
 
-        Event::listen(ElementCachesInvalidated::class, [StaticCache::class, 'handleElementCachesInvalidated']);
         Event::listen(ElementSaved::class, [StaticCache::class, 'handleElementSaved']);
         Event::listen(ElementDeleted::class, [StaticCache::class, 'handleElementDeleted']);
-
-        $flush = fn() => $this->app->make(StaticCache::class)->flush();
-        $this->app->terminating($flush);
-        // Queue workers don't terminate between jobs.
-        Event::listen([JobProcessed::class, JobExceptionOccurred::class], $flush);
 
         ClearCaches::add('craft-cloud-static-cache', [
             'label' => 'Craft Cloud static cache',

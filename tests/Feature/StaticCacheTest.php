@@ -14,8 +14,8 @@ use CraftCms\Cms\Entry\Elements\Entry;
 use CraftCms\Cms\Http\Middleware\CollectCacheInfo;
 use CraftCms\Cms\Http\Middleware\SetHeaders;
 use CraftCms\Cms\Http\Mixins\RequestMixin;
+use CraftCms\Cms\Http\ResponseCacheInfo;
 use CraftCms\Cms\Http\ResponseHeaders;
-use CraftCms\Cms\HttpCache\ResponseTagger;
 use CraftCms\Cms\Utility\Utilities\ClearCaches;
 use CraftCms\HttpCache\HttpCacheServiceProvider;
 use HttpMessageSignatures\Algorithm\HmacSha256;
@@ -251,7 +251,7 @@ it('hashes tags the same way in the Cache-Tag header and in purges', function ()
 
     $response = ($this->respond)(function (): Response {
         $this->app->make(ElementCaches::class)->collectCacheTags(['element::42']);
-        $this->app->make(ResponseTagger::class)->addTags(['custom tag']);
+        $this->app->make(ResponseCacheInfo::class)->addTags(['custom tag']);
 
         return new Response('page');
     });
@@ -269,7 +269,7 @@ it('hashes tags the same way in the Cache-Tag header and in purges', function ()
 
 it('bounds the Cache-Tag header by count and bytes with the overflow tag', function (int $count): void {
     $response = ($this->respond)(function () use ($count): Response {
-        $this->app->make(ResponseTagger::class)->addTags(array_map(strval(...), range(1, $count)));
+        $this->app->make(ResponseCacheInfo::class)->addTags(array_map(strval(...), range(1, $count)));
 
         return new Response('page');
     });
@@ -343,16 +343,22 @@ it('purges after each queue job', function (): void {
     Http::assertSentCount(1);
 });
 
-it('logs gateway failures without failing termination', function (): void {
+it('reports gateway failures without failing termination', function (): void {
     $handler = new Monolog\Handler\TestHandler();
-    $this->app->instance('log', new Monolog\Logger('test', [$handler]));
+    $logger = new Monolog\Logger('test', [$handler]);
+    $this->app->instance('log', $logger);
+    $this->app->instance(Psr\Log\LoggerInterface::class, $logger);
+    $this->app->singleton(
+        Illuminate\Contracts\Debug\ExceptionHandler::class,
+        Illuminate\Foundation\Exceptions\Handler::class,
+    );
     Facade::clearResolvedInstance('log');
     Http::fake(['*' => Http::response('', 500)]);
 
     Event::dispatch(new ElementCachesInvalidated(['element']));
     $this->app->terminate();
 
-    expect($handler->hasErrorRecords())->toBeTrue();
+    expect($handler->hasErrorThatContains('status code 500'))->toBeTrue();
     Http::assertSentCount(1);
 });
 

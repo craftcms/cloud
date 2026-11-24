@@ -5,8 +5,8 @@ declare(strict_types=1);
 namespace craft\cloud\Http\Middleware;
 
 use Closure;
-use CraftCms\Cms\HttpCache\ResponseTagger;
-use CraftCms\HttpCache\CachePolicy;
+use CraftCms\Cms\Http\ResponseCacheInfo;
+use CraftCms\HttpCache\CacheProfile;
 use Illuminate\Http\Request;
 use Symfony\Component\HttpFoundation\HeaderBag;
 use Symfony\Component\HttpFoundation\Response;
@@ -20,7 +20,7 @@ use Symfony\Component\HttpFoundation\Response;
  * own get Cloud's default of a year, with an hour of `stale-while-revalidate`, capped at the earliest element expiry.
  * The page's `Cache-Control` header isn't changed, and a `CDN-Cache-Control` header it set itself is kept.
  *
- * Only successful responses get one. Responses that Craft's {@see CachePolicy} won't let a cache store, such as
+ * Only successful responses get one. Responses that Craft's {@see CacheProfile} won't let a cache store, such as
  * `no-store`, `no-cache` or `private` responses and responses that set cookies, get no `CDN-Cache-Control` header,
  * even one they set themselves.
  */
@@ -30,8 +30,8 @@ class CacheResponse
     private const array DIRECTIVES = ['stale-while-revalidate', 'stale-if-error'];
 
     public function __construct(
-        private readonly CachePolicy $policy,
-        private readonly ResponseTagger $tagger,
+        private readonly CacheProfile $profile,
+        private readonly ResponseCacheInfo $cacheInfo,
     ) {}
 
     public function handle(Request $request, Closure $next): mixed
@@ -44,7 +44,7 @@ class CacheResponse
 
         $cdnResponse = $this->cdnResponse($request, $response);
 
-        if ($cdnResponse === null || !$this->policy->isResponseCacheable($request, $cdnResponse)) {
+        if ($cdnResponse === null || !$this->profile->isResponseCacheable($request, $cdnResponse)) {
             $response->headers->remove('CDN-Cache-Control');
         } elseif ($response->isSuccessful() && !$response->headers->has('CDN-Cache-Control')) {
             $response->headers->set('CDN-Cache-Control', $this->cdnCacheControl($cdnResponse));
@@ -113,7 +113,7 @@ class CacheResponse
     private function cdnCacheControl(Response $response): string
     {
         $maxAge = (int) $response->getMaxAge();
-        $expiry = $this->tagger->getExpiryDate();
+        $expiry = $this->cacheInfo->getExpiryDate();
 
         if ($expiry !== null) {
             $maxAge = min($maxAge, $expiry->getTimestamp() - now()->getTimestamp());
