@@ -34,9 +34,6 @@ class StaticCacheServiceProvider extends ServiceProvider
     {
         // Cloud's gateway is the page cache, and its CDN reads `Cache-Tag`.
         Config::set('http-cache.default', StaticCache::CLIENT);
-        // The package only invalidates element tags on clients listed in its config.
-        Config::set('http-cache.clients.' . StaticCache::CLIENT, Config::get('http-cache.clients.'
-        . StaticCache::CLIENT, []));
         Config::set('http-cache.tags.formatter', CacheTagHeaderFormatter::class);
         Config::set('http-cache.tags.formatter_options', []);
         $this->app->make(HttpCacheManager::class)->extend(
