@@ -15,7 +15,7 @@ use Symfony\Component\HttpFoundation\Response;
  * Tells Craft Cloud's CDN how long it may cache a response, with `CDN-Cache-Control`.
  *
  * Global middleware that runs first, so it sees the final response: its own lifetimes, already capped at the earliest
- * element expiry by Craft's `TagResponse`, and the cookies it ends up with. The lifetime comes from `s-maxage`, or else
+ * element expiry by Craft's `CollectCacheInfo`, and the cookies it ends up with. The lifetime comes from `s-maxage`, or else
  * `max-age` or `Expires`, with `stale-while-revalidate` and `stale-if-error`. Pages that set no cache policy of their
  * own get Cloud's default of a year, with an hour of `stale-while-revalidate`, capped at the earliest element expiry.
  * The page's `Cache-Control` header isn't changed, and a `CDN-Cache-Control` header it set itself is kept.

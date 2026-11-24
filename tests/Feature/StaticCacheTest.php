@@ -11,8 +11,8 @@ use CraftCms\Cms\Element\Events\ElementCachesInvalidated;
 use CraftCms\Cms\Element\Events\ElementDeleted;
 use CraftCms\Cms\Element\Events\ElementSaved;
 use CraftCms\Cms\Entry\Elements\Entry;
+use CraftCms\Cms\Http\Middleware\CollectCacheInfo;
 use CraftCms\Cms\Http\Middleware\SetHeaders;
-use CraftCms\Cms\Http\Middleware\TagResponse;
 use CraftCms\Cms\Http\Mixins\RequestMixin;
 use CraftCms\Cms\Http\ResponseHeaders;
 use CraftCms\Cms\HttpCache\ResponseTagger;
@@ -56,9 +56,9 @@ beforeEach(function (): void {
     $this->router = $this->app->make(Router::class);
     $this->kernel = new Kernel($this->app, $this->router);
     $this->app->instance(KernelContract::class, $this->kernel);
-    // What core sets up before Cloud's provider boots: the global `TagResponse` middleware, and the route groups with
+    // What core sets up before Cloud's provider boots: the global `CollectCacheInfo` middleware, and the route groups with
     // the middleware that sets headers and cookies.
-    $this->kernel->setGlobalMiddleware([TagResponse::class]);
+    $this->kernel->setGlobalMiddleware([CollectCacheInfo::class]);
     $this->router->middlewareGroup('web', [EncryptCookies::class, AddQueuedCookiesToResponse::class]);
     $this->router->middlewareGroup('craft', [SetHeaders::class]);
     $this->router->middlewareGroup('craft.web', []);
@@ -117,11 +117,11 @@ function purges(): array
     return $payloads;
 }
 
-it('runs outside TagResponse, so it sees the final response', function (): void {
+it('runs outside CollectCacheInfo, so it sees the final response', function (): void {
     $middleware = $this->kernel->getGlobalMiddleware();
 
     expect(array_search(CacheResponse::class, $middleware, strict: true))
-        ->toBeLessThan(array_search(TagResponse::class, $middleware, strict: true));
+        ->toBeLessThan(array_search(CollectCacheInfo::class, $middleware, strict: true));
 });
 
 it('gives pages without a cache policy Cloud’s default, capped at element expiry', function (?int $expiry): void {
