@@ -9,7 +9,7 @@ use CraftCms\Cms\Element\ElementHelper;
 use CraftCms\Cms\Element\Events\ElementCachesInvalidated;
 use CraftCms\Cms\Element\Events\ElementDeleted;
 use CraftCms\Cms\Element\Events\ElementSaved;
-use CraftCms\Cms\HttpCache\HttpCacheManager;
+use CraftCms\HttpCache\HttpCacheManager;
 use Illuminate\Support\Facades\Log;
 use Throwable;
 

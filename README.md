@@ -4,7 +4,7 @@ Run Craft CMS on Craft Cloud.
 
 ## Static cache
 
-On Craft Cloud, site pages are cached by the gateway and CDN. Cloud builds on Craft's HTTP cache layer (`CraftCms\Cms\HttpCache`): it registers a `cloud` HTTP cache client and makes it the default, and sets its `Cache-Tag` formatter.
+On Craft Cloud, site pages are cached by the gateway and CDN. Cloud builds on the `craftcms/http-cache` package and Craft's `ResponseTagger`: it registers a `cloud` HTTP cache client and makes it the default, and sets its `Cache-Tag` formatter.
 
 Craft's global `TagResponse` middleware tags successful GET and HEAD site responses with the elements they query, plus any tags added with `ResponseTagger`, and caps their lifetimes at the earliest element expiry. Cloud's `CacheResponse` middleware runs first, so it sees the final response, and sets `CDN-Cache-Control`:
 
@@ -18,7 +18,7 @@ Responses that Craft's `CachePolicy` won't let a cache store (`no-store`, `no-ca
 
 `Cache-Tag` holds each tag hashed to `{shortEnvironmentId}{crc32}`, limited to Cloudflare's 1,000 tags and 16 KiB, with `{environmentId}:overflow` added when tags are dropped. Purges hash tags the same way.
 
-Element cache invalidations, other than for drafts and revisions, are purged by tag, and saved or deleted elements are purged by URL, through `HttpCache::invalidator('cloud')`. Purges are sent through the signed gateway API once the request, command or queue job finishes. To mark tagged pages stale instead of removing them, set `'clients' => ['cloud' => ['soft_purge' => true]]` in `config/craft/http-cache.php`.
+Element cache invalidations, other than for drafts and revisions, are purged by tag, and saved or deleted elements are purged by URL, through `HttpCache::invalidator('cloud')`. Purges are sent through the signed gateway API once the request, command or queue job finishes. To mark tagged pages stale instead of removing them, set `'clients' => ['cloud' => ['soft_purge' => true]]` in `config/http-cache.php`.
 
 The Caches utility has a “Craft Cloud static cache” option, and these commands purge directly:
 

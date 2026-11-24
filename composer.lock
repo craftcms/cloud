@@ -4,7 +4,7 @@
         "Read more about it at https://getcomposer.org/doc/01-basic-usage.md#installing-dependencies",
         "This file is @generated automatically"
     ],
-    "content-hash": "74de5b7282575886ff0ecaf3aa400c41",
+    "content-hash": "7242598e328ebd66c6ca5645a981c69a",
     "packages": [
         {
             "name": "aws/aws-crt-php",
@@ -1041,13 +1041,13 @@
             "version": "dev-timkelty/http-cache",
             "source": {
                 "type": "git",
-                "url": "git@github.com:craftcms/cms.git",
-                "reference": "5cecafefd3cbb44463dc72ddfb4013faa23760e0"
+                "url": "https://github.com/craftcms/cms.git",
+                "reference": "157ef55f79e270adc5ae70e5ac879878e9c82d5e"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/craftcms/cms/zipball/5cecafefd3cbb44463dc72ddfb4013faa23760e0",
-                "reference": "5cecafefd3cbb44463dc72ddfb4013faa23760e0",
+                "url": "https://api.github.com/repos/craftcms/cms/zipball/157ef55f79e270adc5ae70e5ac879878e9c82d5e",
+                "reference": "157ef55f79e270adc5ae70e5ac879878e9c82d5e",
                 "shasum": ""
             },
             "require": {
@@ -1073,7 +1073,6 @@
                 "ext-pcre": "*",
                 "ext-pdo": "*",
                 "ext-zip": "*",
-                "friendsofsymfony/http-cache": "^3.2",
                 "guzzlehttp/guzzle": "^7.2.0",
                 "inertiajs/inertia-laravel": "^3.0",
                 "intervention/image": "^4.2",
@@ -1087,7 +1086,6 @@
                 "mcp/sdk": "~0.9.0",
                 "moneyphp/money": "^4.0",
                 "php": "^8.5",
-                "php-http/guzzle7-adapter": "^1.1",
                 "phpoffice/phpspreadsheet": "^5.3",
                 "pragmarx/google2fa": "^9.0",
                 "pragmarx/recovery": "^0.2.1",
@@ -1173,7 +1171,6 @@
                         "Gql": "CraftCms\\Cms\\Support\\Facades\\Gql",
                         "HtmlSanitizers": "CraftCms\\Cms\\Support\\Facades\\HtmlSanitizers",
                         "HtmlStack": "CraftCms\\Cms\\Support\\Facades\\HtmlStack",
-                        "HttpCache": "CraftCms\\Cms\\Support\\Facades\\HttpCache",
                         "I18N": "CraftCms\\Cms\\Support\\Facades\\I18N",
                         "ImageTransforms": "CraftCms\\Cms\\Support\\Facades\\ImageTransforms",
                         "Images": "CraftCms\\Cms\\Support\\Facades\\Images",
@@ -1297,7 +1294,7 @@
                 "docs": "https://craftcms.com/docs/5.x/",
                 "rss": "https://github.com/craftcms/cms/releases.atom"
             },
-            "time": "2026-11-24T04:12:32+00:00"
+            "time": "2026-11-24T04:31:29+00:00"
         },
         {
             "name": "craftcms/cms-assets",
@@ -1305,12 +1302,12 @@
             "source": {
                 "type": "git",
                 "url": "https://github.com/craftcms/cms-assets.git",
-                "reference": "0bbf1c7f46e2eae5596f1d48e27ac6fc2538c13f"
+                "reference": "07a9e7c0178b96639ea9a3c4f41969e220f74424"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/craftcms/cms-assets/zipball/0bbf1c7f46e2eae5596f1d48e27ac6fc2538c13f",
-                "reference": "0bbf1c7f46e2eae5596f1d48e27ac6fc2538c13f",
+                "url": "https://api.github.com/repos/craftcms/cms-assets/zipball/07a9e7c0178b96639ea9a3c4f41969e220f74424",
+                "reference": "07a9e7c0178b96639ea9a3c4f41969e220f74424",
                 "shasum": ""
             },
             "default-branch": true,
@@ -1323,8 +1320,93 @@
             "support": {
                 "source": "https://github.com/craftcms/cms-assets/tree/6.x"
             },
-            "time": "2026-11-23T20:28:54+00:00",
-            "published-time": "2026-11-23T20:29:04+00:00"
+            "time": "2026-11-24T04:16:26+00:00",
+            "published-time": "2026-11-24T04:16:34+00:00"
+        },
+        {
+            "name": "craftcms/http-cache",
+            "version": "dev-main",
+            "source": {
+                "type": "git",
+                "url": "git@github.com:craftcms/http-cache.git",
+                "reference": "c61d74f1adee3985c04f45990e684d4ab51bd9bc"
+            },
+            "dist": {
+                "type": "zip",
+                "url": "https://api.github.com/repos/craftcms/http-cache/zipball/c61d74f1adee3985c04f45990e684d4ab51bd9bc",
+                "reference": "c61d74f1adee3985c04f45990e684d4ab51bd9bc",
+                "shasum": ""
+            },
+            "require": {
+                "craftcms/cms": "dev-timkelty/http-cache",
+                "friendsofsymfony/http-cache": "^3.2",
+                "php": "^8.5",
+                "php-http/guzzle7-adapter": "^1.1"
+            },
+            "require-dev": {
+                "craftcms/cms-assets": "6.x-dev as dev-timkelty/http-cache",
+                "larastan/larastan": "^3.13",
+                "laravel/pint": "^1.22",
+                "orchestra/testbench": "^11.0",
+                "pestphp/pest": "^5.0"
+            },
+            "default-branch": true,
+            "type": "library",
+            "extra": {
+                "laravel": {
+                    "providers": [
+                        "CraftCms\\HttpCache\\HttpCacheServiceProvider"
+                    ]
+                }
+            },
+            "autoload": {
+                "psr-4": {
+                    "CraftCms\\HttpCache\\": "src/"
+                }
+            },
+            "autoload-dev": {
+                "psr-4": {
+                    "CraftCms\\HttpCache\\Tests\\": "tests/"
+                }
+            },
+            "scripts": {
+                "test": [
+                    "vendor/bin/pest"
+                ],
+                "phpstan": [
+                    "vendor/bin/phpstan analyse --memory-limit=1G"
+                ],
+                "fix-cs": [
+                    "vendor/bin/pint"
+                ],
+                "ci": [
+                    "vendor/bin/pint --test",
+                    "@phpstan",
+                    "@test"
+                ]
+            },
+            "license": [
+                "proprietary"
+            ],
+            "authors": [
+                {
+                    "name": "Pixel & Tonic",
+                    "homepage": "https://pixelandtonic.com/"
+                }
+            ],
+            "description": "HTTP cache tags, cache policy, and CDN invalidation for Craft CMS",
+            "homepage": "https://github.com/craftcms/http-cache",
+            "keywords": [
+                "cache",
+                "cdn",
+                "craftcms",
+                "http-cache"
+            ],
+            "support": {
+                "source": "https://github.com/craftcms/http-cache/tree/main",
+                "issues": "https://github.com/craftcms/http-cache/issues"
+            },
+            "time": "2026-11-24T04:33:58+00:00"
         },
         {
             "name": "craftcms/http-message-signatures",
@@ -12892,16 +12974,16 @@
         },
         {
             "name": "web-auth/webauthn-lib",
-            "version": "5.3.15",
+            "version": "5.3.16",
             "source": {
                 "type": "git",
                 "url": "https://github.com/web-auth/webauthn-lib.git",
-                "reference": "768fb8cf7bebaad8a08b3015e206dda95e3320fa"
+                "reference": "7f38dbcf07cd22ec104fa6eb720df22eb4196b47"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/web-auth/webauthn-lib/zipball/768fb8cf7bebaad8a08b3015e206dda95e3320fa",
-                "reference": "768fb8cf7bebaad8a08b3015e206dda95e3320fa",
+                "url": "https://api.github.com/repos/web-auth/webauthn-lib/zipball/7f38dbcf07cd22ec104fa6eb720df22eb4196b47",
+                "reference": "7f38dbcf07cd22ec104fa6eb720df22eb4196b47",
                 "shasum": ""
             },
             "require": {
@@ -12962,7 +13044,7 @@
                 "webauthn"
             ],
             "support": {
-                "source": "https://github.com/web-auth/webauthn-lib/tree/5.3.15"
+                "source": "https://github.com/web-auth/webauthn-lib/tree/5.3.16"
             },
             "funding": [
                 {
@@ -12974,8 +13056,8 @@
                     "type": "patreon"
                 }
             ],
-            "time": "2026-11-18T16:46:55+00:00",
-            "published-time": "2026-11-19T11:40:19+00:00"
+            "time": "2026-11-23T18:46:47+00:00",
+            "published-time": "2026-11-23T20:56:31+00:00"
         },
         {
             "name": "webmozart/assert",
@@ -16380,7 +16462,8 @@
     "minimum-stability": "dev",
     "stability-flags": {
         "craftcms/cms": 20,
-        "craftcms/cms-assets": 20
+        "craftcms/cms-assets": 20,
+        "craftcms/http-cache": 20
     },
     "prefer-stable": true,
     "prefer-lowest": false,

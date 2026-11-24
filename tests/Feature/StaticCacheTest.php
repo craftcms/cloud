@@ -15,9 +15,9 @@ use CraftCms\Cms\Http\Middleware\SetHeaders;
 use CraftCms\Cms\Http\Middleware\TagResponse;
 use CraftCms\Cms\Http\Mixins\RequestMixin;
 use CraftCms\Cms\Http\ResponseHeaders;
-use CraftCms\Cms\HttpCache\HttpCacheServiceProvider;
 use CraftCms\Cms\HttpCache\ResponseTagger;
 use CraftCms\Cms\Utility\Utilities\ClearCaches;
+use CraftCms\HttpCache\HttpCacheServiceProvider;
 use HttpMessageSignatures\Algorithm\HmacSha256;
 use HttpMessageSignatures\Verifier;
 use Illuminate\Cache\CacheManager;
@@ -52,10 +52,6 @@ beforeEach(function (): void {
     Facade::clearResolvedInstances();
     Request::mixin(new RequestMixin());
     $this->config->set('session.cookie', 'craft_session');
-    $this->config->set(
-        'craft.http-cache',
-        require dirname(__DIR__, levels: 2) . '/vendor/craftcms/cms/config/http-cache.php',
-    );
     $this->config->set('cloud', ['environment_id' => '12345678-abcd', 'signing_key' => 'test-key']);
     $this->router = $this->app->make(Router::class);
     $this->kernel = new Kernel($this->app, $this->router);
@@ -122,7 +118,10 @@ function purges(): array
 }
 
 it('runs outside TagResponse, so it sees the final response', function (): void {
-    expect($this->kernel->getGlobalMiddleware())->toBe([CacheResponse::class, TagResponse::class]);
+    $middleware = $this->kernel->getGlobalMiddleware();
+
+    expect(array_search(CacheResponse::class, $middleware, strict: true))
+        ->toBeLessThan(array_search(TagResponse::class, $middleware, strict: true));
 });
 
 it('gives pages without a cache policy Cloud’s default, capped at element expiry', function (?int $expiry): void {
@@ -321,7 +320,7 @@ it('batches invalidations and URL purges into one signed gateway request', funct
 });
 
 it('soft purges tags when the client is configured to', function (): void {
-    $this->config->set('craft.http-cache.clients.cloud', ['soft_purge' => true]);
+    $this->config->set('http-cache.clients.cloud', ['soft_purge' => true]);
     Http::fake();
 
     Event::dispatch(new ElementCachesInvalidated(['element::42']));

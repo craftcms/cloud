@@ -5,8 +5,8 @@ declare(strict_types=1);
 namespace craft\cloud\Http\Middleware;
 
 use Closure;
-use CraftCms\Cms\HttpCache\CachePolicy;
 use CraftCms\Cms\HttpCache\ResponseTagger;
+use CraftCms\HttpCache\CachePolicy;
 use Illuminate\Http\Request;
 use Symfony\Component\HttpFoundation\HeaderBag;
 use Symfony\Component\HttpFoundation\Response;

@@ -6,7 +6,7 @@ namespace craft\cloud\Console;
 
 use craft\cloud\Gateway;
 use craft\cloud\StaticCache;
-use CraftCms\Cms\HttpCache\HttpCacheManager;
+use CraftCms\HttpCache\HttpCacheManager;
 use Illuminate\Console\Command;
 
 /**

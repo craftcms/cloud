@@ -9,8 +9,8 @@ use craft\cloud\Http\Middleware\CacheResponse;
 use CraftCms\Cms\Element\Events\ElementCachesInvalidated;
 use CraftCms\Cms\Element\Events\ElementDeleted;
 use CraftCms\Cms\Element\Events\ElementSaved;
-use CraftCms\Cms\HttpCache\HttpCacheManager;
 use CraftCms\Cms\Utility\Utilities\ClearCaches;
+use CraftCms\HttpCache\HttpCacheManager;
 use Illuminate\Contracts\Foundation\Application;
 use Illuminate\Contracts\Http\Kernel as KernelContract;
 use Illuminate\Foundation\Http\Kernel;
@@ -36,9 +36,9 @@ class StaticCacheServiceProvider extends ServiceProvider
     public function boot(): void
     {
         // Cloud's gateway is the page cache, and its CDN reads `Cache-Tag`.
-        Config::set('craft.http-cache.default', StaticCache::CLIENT);
-        Config::set('craft.http-cache.tags.formatter', CacheTagHeaderFormatter::class);
-        Config::set('craft.http-cache.tags.formatter_options', []);
+        Config::set('http-cache.default', StaticCache::CLIENT);
+        Config::set('http-cache.tags.formatter', CacheTagHeaderFormatter::class);
+        Config::set('http-cache.tags.formatter_options', []);
         $this->app->make(HttpCacheManager::class)->extend(
             'cloud',
             static fn(Application $app, array $config) => new Gateway(

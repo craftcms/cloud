@@ -11,7 +11,8 @@
     "bref/laravel-bridge": "^3.0",
     "craftcms/cms": "dev-timkelty/http-cache",
     "craftcms/http-message-signatures": "^1.0",
-    "symfony/process": "^7.4.5 || ^8.0.5"
+    "symfony/process": "^7.4.5 || ^8.0.5",
+    "craftcms/http-cache": "dev-main"
   },
   "require-dev": {
     "carthage-software/mago": "^1.1.0",
@@ -55,6 +56,10 @@
     }
   },
   "repositories": [{
+    "name": "craftcms-http-cache",
+    "type": "vcs",
+    "url": "https://github.com/craftcms/http-cache"
+  },{
     "name": "craftcms-cms",
     "type": "vcs",
     "url": "https://github.com/craftcms/cms"
