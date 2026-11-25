@@ -2,6 +2,7 @@
 
 namespace craft\cloud\imagetransforms;
 
+use Craft;
 use craft\cloud\Module;
 use craft\models\ImageTransform;
 use Illuminate\Support\Collection;
@@ -122,6 +123,7 @@ class ImageTransformBehavior extends Behavior
         // Compute derived Cloudflare values from Craft's base transform settings,
         // without mutating the model (so the same instance can be safely reused).
         $options['format'] = $this->computeFormat();
+        $options['quality'] = $this->owner->quality ?: Craft::$app->getConfig()->getGeneral()->defaultImageQuality;
         $options['fit'] = $this->computeFit();
         $options['background'] = $this->computeBackground();
         $options['gravity'] ??= $gravity ?? $this->computeGravity();
@@ -158,7 +160,9 @@ class ImageTransformBehavior extends Behavior
             'fit' => $this->owner->upscale ? 'contain' : 'scale-down',
             'stretch' => 'squeeze',
             'letterbox' => 'pad',
-            default => $this->owner->upscale ? 'cover' : 'crop',
+            // Craft crops smaller images to the target aspect ratio without enlarging them.
+            // Cloudflare's `crop` would return them at their original size and shape instead.
+            default => $this->owner->upscale ? 'cover' : 'aspect-crop',
         };
     }
 
@@ -168,9 +172,15 @@ class ImageTransformBehavior extends Behavior
             return $this->background;
         }
 
-        return $this->owner->mode === 'letterbox'
-            ? $this->owner->fill ?? '#FFFFFF'
-            : null;
+        if ($this->owner->mode !== 'letterbox') {
+            return null;
+        }
+
+        // Craft letterboxes with transparent white when no fill is set; Cloudflare defaults to opaque white.
+        return match ($this->owner->fill) {
+            null, 'transparent' => 'rgba(255,255,255,0)',
+            default => $this->owner->fill,
+        };
     }
 
     /**

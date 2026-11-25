@@ -55,6 +55,7 @@ class ImageTransformTest extends Unit
                 'x' => 0.57,
                 'y' => 0.7707,
             ],
+            'quality' => 82,
             'height' => 750,
             'width' => 1200,
         ], $this->behavior($transform)->toOptions());
@@ -75,6 +76,7 @@ class ImageTransformTest extends Unit
                 'x' => 0.5,
                 'y' => 0,
             ],
+            'quality' => 82,
             'height' => 750,
             'width' => 1200,
         ], $this->behavior($transform)->toOptions());
@@ -110,8 +112,76 @@ class ImageTransformTest extends Unit
         $this->assertSame([
             'blur' => 5,
             'fit' => 'cover',
+            'quality' => 82,
             'width' => 200,
         ], $this->behavior($transform)->toOptions());
+    }
+
+    public function testQualityFallsBackToDefaultImageQuality(): void
+    {
+        $generalConfig = Craft::$app->getConfig()->getGeneral();
+        $defaultImageQuality = $generalConfig->defaultImageQuality;
+
+        try {
+            $generalConfig->defaultImageQuality = 73;
+
+            $default = new ImageTransform(['width' => 100]);
+            $explicit = new ImageTransform(['width' => 100, 'quality' => 60]);
+
+            $this->assertSame(73, $this->behavior($default)->toOptions()['quality']);
+            $this->assertSame(60, $this->behavior($explicit)->toOptions()['quality']);
+        } finally {
+            $generalConfig->defaultImageQuality = $defaultImageQuality;
+        }
+    }
+
+    public function testLetterboxWithoutFillUsesTransparentBackground(): void
+    {
+        $transform = new ImageTransform([
+            'mode' => 'letterbox',
+            'width' => 300,
+            'height' => 200,
+        ]);
+        $filled = new ImageTransform([
+            'mode' => 'letterbox',
+            'width' => 300,
+            'height' => 200,
+            'fill' => '#ff0000',
+        ]);
+
+        $this->assertSame('rgba(255,255,255,0)', $this->behavior($transform)->toOptions()['background']);
+        $this->assertSame('#ff0000', $this->behavior($filled)->toOptions()['background']);
+    }
+
+    public function testCropModeWithoutUpscaleUsesAspectCrop(): void
+    {
+        $transform = new ImageTransform([
+            'mode' => 'crop',
+            'width' => 1920,
+            'height' => 1120,
+            'upscale' => false,
+        ]);
+
+        $this->assertSame('aspect-crop', $this->behavior($transform)->toOptions()['fit']);
+    }
+
+    public function testFocalPointGravityOnlyAppliesInCropMode(): void
+    {
+        $asset = $this->makeTransformUrlAsset('focal.jpg', ['x' => 0.474, 'y' => 0.3064]);
+        $transformer = new UrlTestImageTransformer();
+
+        foreach (['fit', 'letterbox', 'stretch'] as $mode) {
+            $query = $transformer->buildTransformQuery($asset, new ImageTransform([
+                'mode' => $mode,
+                'position' => 'bottom-right',
+                'width' => 300,
+                'height' => 200,
+            ]));
+
+            $this->assertStringContainsString('gravity%5Bx%5D=1', $query, $mode);
+            $this->assertStringContainsString('gravity%5By%5D=1', $query, $mode);
+            $this->assertStringNotContainsString('0.474', $query, $mode);
+        }
     }
 
     public function testGetTransformUrlDoesNotLeakGravityBetweenAssets(): void

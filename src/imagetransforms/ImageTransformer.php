@@ -80,8 +80,9 @@ class ImageTransformer extends Component implements ImageTransformerInterface
 
     protected function applyAssetFocalPointGravity(Asset $asset, ImageTransform $imageTransform): array|string|null
     {
+        // Like Craft, only crop mode uses the focal point; other modes use `position`.
         // @phpstan-ignore-next-line property.notFound
-        if (!$asset->getHasFocalPoint() || isset($imageTransform->gravity)) {
+        if ($imageTransform->mode !== 'crop' || !$asset->getHasFocalPoint() || isset($imageTransform->gravity)) {
             return null;
         }
 
