@@ -135,6 +135,23 @@ class ImageTransformTest extends Unit
         }
     }
 
+    public function testPngOutputOmitsQuality(): void
+    {
+        $transformer = new ImageTransformer();
+        $pngAsset = $this->makeTransformUrlAsset('photo.png', ['x' => 0.5, 'y' => 0.5]);
+        $jpgAsset = $this->makeTransformUrlAsset('photo.jpg', ['x' => 0.5, 'y' => 0.5]);
+
+        $quality = fn(Asset $asset, array $transform) => Query::fromUri(
+            $transformer->getTransformUrl($asset, $transform, true),
+        )->parameters()['quality'] ?? null;
+
+        $this->assertNull($quality($pngAsset, ['width' => 100]));
+        $this->assertNull($quality($pngAsset, ['width' => 100, 'quality' => 60]));
+        $this->assertNull($quality($jpgAsset, ['width' => 100, 'format' => 'png']));
+        $this->assertSame('82', $quality($pngAsset, ['width' => 100, 'format' => 'webp']));
+        $this->assertSame('82', $quality($jpgAsset, ['width' => 100]));
+    }
+
     public function testLetterboxWithoutFillUsesTransparentBackground(): void
     {
         $transform = new ImageTransform([

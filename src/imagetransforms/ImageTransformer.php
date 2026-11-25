@@ -65,6 +65,12 @@ class ImageTransformer extends Component implements ImageTransformerInterface
             $options['format'] ??= 'auto';
         }
 
+        // Craft saves PNGs losslessly and treats quality as a compression level.
+        // Cloudflare would use any quality as permission to output palette-based PNG8.
+        if (strtolower($options['format'] ?? pathinfo($asset->getFilename(), PATHINFO_EXTENSION)) === 'png') {
+            unset($options['quality']);
+        }
+
         $uri = Modifier::wrap($this->createBaseUri($asset))
             ->mergeQuery(Query::fromVariable($options))
             ->removeQueryParameters('v')
