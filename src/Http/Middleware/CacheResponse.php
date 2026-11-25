@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace craft\cloud\Http\Middleware;
 
 use Closure;
-use CraftCms\Cms\Http\ResponseCacheInfo;
+use CraftCms\Cms\Http\CacheInfo;
 use CraftCms\HttpCache\CacheProfile;
 use Illuminate\Http\Request;
 use Symfony\Component\HttpFoundation\HeaderBag;
@@ -31,7 +31,7 @@ class CacheResponse
 
     public function __construct(
         private readonly CacheProfile $profile,
-        private readonly ResponseCacheInfo $cacheInfo,
+        private readonly CacheInfo $cacheInfo,
     ) {}
 
     public function handle(Request $request, Closure $next): mixed

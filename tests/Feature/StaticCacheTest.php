@@ -11,10 +11,10 @@ use CraftCms\Cms\Element\Events\ElementCachesInvalidated;
 use CraftCms\Cms\Element\Events\ElementDeleted;
 use CraftCms\Cms\Element\Events\ElementSaved;
 use CraftCms\Cms\Entry\Elements\Entry;
+use CraftCms\Cms\Http\CacheInfo;
 use CraftCms\Cms\Http\Middleware\CollectCacheInfo;
 use CraftCms\Cms\Http\Middleware\SetHeaders;
 use CraftCms\Cms\Http\Mixins\RequestMixin;
-use CraftCms\Cms\Http\ResponseCacheInfo;
 use CraftCms\Cms\Http\ResponseHeaders;
 use CraftCms\Cms\Utility\Utilities\ClearCaches;
 use CraftCms\HttpCache\HttpCacheServiceProvider;
@@ -25,6 +25,7 @@ use Illuminate\Contracts\Http\Kernel as KernelContract;
 use Illuminate\Cookie\CookieJar;
 use Illuminate\Cookie\Middleware\AddQueuedCookiesToResponse;
 use Illuminate\Cookie\Middleware\EncryptCookies;
+use Illuminate\Database\DatabaseServiceProvider;
 use Illuminate\Encryption\Encrypter;
 use Illuminate\Foundation\Http\Kernel;
 use Illuminate\Http\Client\Request as ClientRequest;
@@ -49,6 +50,11 @@ beforeEach(function (): void {
     $this->app->singleton('cache', fn($app) => new CacheManager($app));
     $this->app->instance('encrypter', new Encrypter(random_bytes(32), 'aes-256-cbc'));
     $this->app->singleton('cookie', fn() => new CookieJar());
+    // Craft flushes cache invalidations after the open database transaction, if any, commits.
+    $this->config->set('database.default', 'sqlite');
+    $this->config->set('database.connections.sqlite', ['driver' => 'sqlite', 'database' => ':memory:', 'prefix' => '']);
+    $this->config->set('cache.stores.database.table', 'cache');
+    $this->app->register(DatabaseServiceProvider::class);
     Facade::clearResolvedInstances();
     Request::mixin(new RequestMixin());
     $this->config->set('session.cookie', 'craft_session');
@@ -251,7 +257,7 @@ it('hashes tags the same way in the Cache-Tag header and in purges', function ()
 
     $response = ($this->respond)(function (): Response {
         $this->app->make(ElementCaches::class)->collectCacheTags(['element::42']);
-        $this->app->make(ResponseCacheInfo::class)->addTags(['custom tag']);
+        $this->app->make(CacheInfo::class)->addTags(['custom tag']);
 
         return new Response('page');
     });
@@ -269,7 +275,7 @@ it('hashes tags the same way in the Cache-Tag header and in purges', function ()
 
 it('bounds the Cache-Tag header by count and bytes with the overflow tag', function (int $count): void {
     $response = ($this->respond)(function () use ($count): Response {
-        $this->app->make(ResponseCacheInfo::class)->addTags(array_map(strval(...), range(1, $count)));
+        $this->app->make(CacheInfo::class)->addTags(array_map(strval(...), range(1, $count)));
 
         return new Response('page');
     });
