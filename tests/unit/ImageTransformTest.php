@@ -152,21 +152,6 @@ class ImageTransformTest extends Unit
         }
     }
 
-    public function testPngOutputOmitsQuality(): void
-    {
-        $pngAsset = $this->makeTransformUrlAsset('photo.png', ['x' => 0.5, 'y' => 0.5]);
-        $jpgAsset = $this->makeTransformUrlAsset('photo.jpg', ['x' => 0.5, 'y' => 0.5]);
-        $quality = fn(Asset $asset, array $config) => $this->behavior(new ImageTransform($config))
-            ->toOptions($asset)['quality'] ?? null;
-
-        $this->assertNull($quality($jpgAsset, ['width' => 100, 'format' => 'png']));
-        $this->assertNull($quality($pngAsset, ['width' => 100, 'format' => 'png', 'quality' => 60]));
-        // Without a format, the gateway negotiates AVIF or WebP, so quality still applies.
-        $this->assertSame(82, $quality($pngAsset, ['width' => 100]));
-        $this->assertSame(60, $quality($pngAsset, ['width' => 100, 'quality' => 60]));
-        $this->assertSame(82, $quality($pngAsset, ['width' => 100, 'format' => 'webp']));
-    }
-
     public function testLetterboxWithoutFillMatchesCraftOutputAlpha(): void
     {
         $pngAsset = $this->makeTransformUrlAsset('photo.png', ['x' => 0.5, 'y' => 0.5]);

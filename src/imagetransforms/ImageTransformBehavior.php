@@ -127,7 +127,7 @@ class ImageTransformBehavior extends Behavior
         // Compute derived Cloudflare values from Craft's base transform settings,
         // without mutating the model (so the same instance can be safely reused).
         $options['format'] = $this->computeFormat($asset);
-        $options['quality'] = $this->computeQuality($options['format']);
+        $options['quality'] = $this->computeQuality();
         $options['fit'] = $this->computeFit($asset, $options['format']);
         $options['background'] = $this->computeBackground($asset);
         $options['gravity'] = $this->computeGravity($asset);
@@ -153,14 +153,9 @@ class ImageTransformBehavior extends Behavior
         return $format ?? ($asset?->kind === Asset::KIND_PDF ? 'auto' : null);
     }
 
-    private function computeQuality(?string $format): ?int
+    private function computeQuality(): int
     {
-        // Craft saves PNGs losslessly and treats quality as a compression level.
-        // Cloudflare would use any quality as permission to output palette-based PNG8.
-        if ($format === 'png') {
-            return null;
-        }
-
+        // The gateway drops quality for PNG output, so Cloudflare keeps PNGs lossless like Craft.
         return $this->owner->quality ?: Craft::$app->getConfig()->getGeneral()->defaultImageQuality;
     }
 
