@@ -55,6 +55,7 @@ class ImageTransformTest extends Unit
                 'x' => 0.57,
                 'y' => 0.7707,
             ],
+            'quality' => 82,
             'height' => 750,
             'width' => 1200,
         ], $this->behavior($transform)->toOptions());
@@ -75,14 +76,15 @@ class ImageTransformTest extends Unit
                 'x' => 0.5,
                 'y' => 0,
             ],
+            'quality' => 82,
             'height' => 750,
             'width' => 1200,
         ], $this->behavior($transform)->toOptions());
     }
 
-    public function testFocalPointGravityPassesThroughUnchanged(): void
+    public function testFocalPointGravityCentersCropOnFocalPoint(): void
     {
-        $asset = $this->makeAssetStub(['x' => 0.474, 'y' => 0.3064]);
+        $asset = $this->makeTransformUrlAsset('focal.jpg', ['x' => 0.474, 'y' => 0.3064]);
         $transform = new ImageTransform([
             'mode' => 'crop',
             'position' => 'top-center',
@@ -90,13 +92,30 @@ class ImageTransformTest extends Unit
             'height' => 750,
         ]);
 
-        $gravity = (new TestImageTransformer())->applyFocalPointGravity($asset, $transform);
-
         $this->assertSame([
             'x' => 0.474,
             'y' => 0.3064,
-        ], $gravity);
+            'mode' => 'box-center',
+        ], $this->behavior($transform)->toOptions($asset)['gravity']);
         $this->assertNull($this->behavior($transform)->gravity);
+    }
+
+    public function testMissingFocalPointFallsBackToPosition(): void
+    {
+        $asset = new class('document.pdf', []) extends TransformUrlAsset {
+            public function getFocalPoint(bool $asCss = false): array|string|null
+            {
+                return null;
+            }
+        };
+        $transform = new ImageTransform([
+            'mode' => 'crop',
+            'position' => 'top-center',
+            'width' => 1200,
+            'height' => 750,
+        ]);
+
+        $this->assertSame(['x' => 0.5, 'y' => 0], $this->behavior($transform)->toOptions($asset)['gravity']);
     }
 
     public function testInlineCloudPropertyDoesNotBreakBaseTransform(): void
@@ -110,8 +129,74 @@ class ImageTransformTest extends Unit
         $this->assertSame([
             'blur' => 5,
             'fit' => 'cover',
+            'quality' => 82,
             'width' => 200,
         ], $this->behavior($transform)->toOptions());
+    }
+
+    public function testQualityFallsBackToDefaultImageQuality(): void
+    {
+        $generalConfig = Craft::$app->getConfig()->getGeneral();
+        $defaultImageQuality = $generalConfig->defaultImageQuality;
+
+        try {
+            $generalConfig->defaultImageQuality = 73;
+
+            $default = new ImageTransform(['width' => 100]);
+            $explicit = new ImageTransform(['width' => 100, 'quality' => 60]);
+
+            $this->assertSame(73, $this->behavior($default)->toOptions()['quality']);
+            $this->assertSame(60, $this->behavior($explicit)->toOptions()['quality']);
+        } finally {
+            $generalConfig->defaultImageQuality = $defaultImageQuality;
+        }
+    }
+
+    public function testLetterboxWithoutFillMatchesCraftOutputAlpha(): void
+    {
+        $pngAsset = $this->makeTransformUrlAsset('photo.png', ['x' => 0.5, 'y' => 0.5]);
+        $jpgAsset = $this->makeTransformUrlAsset('photo.jpg', ['x' => 0.5, 'y' => 0.5]);
+        $background = fn(Asset $asset, array $config = []) => $this->behavior(new ImageTransform([
+            'mode' => 'letterbox',
+            'width' => 300,
+            'height' => 200,
+            ...$config,
+        ]))->toOptions($asset)['background'];
+
+        $this->assertSame('rgba(255,255,255,0)', $background($pngAsset));
+        $this->assertSame('rgba(255,255,255,0)', $background($jpgAsset, ['format' => 'webp']));
+        $this->assertSame('rgba(255,255,255,0)', $background($pngAsset, ['fill' => 'transparent']));
+        $this->assertSame('#FFFFFF', $background($jpgAsset));
+        $this->assertSame('#FFFFFF', $background($pngAsset, ['format' => 'jpg']));
+        $this->assertSame('#ff0000', $background($pngAsset, ['fill' => '#ff0000']));
+    }
+
+    public function testCropModeWithoutUpscaleUsesAspectCrop(): void
+    {
+        $transform = new ImageTransform([
+            'mode' => 'crop',
+            'width' => 1920,
+            'height' => 1120,
+            'upscale' => false,
+        ]);
+
+        $this->assertSame('aspect-crop', $this->behavior($transform)->toOptions()['fit']);
+    }
+
+    public function testFocalPointGravityOnlyAppliesInCropMode(): void
+    {
+        $asset = $this->makeTransformUrlAsset('focal.jpg', ['x' => 0.474, 'y' => 0.3064]);
+
+        foreach (['fit', 'letterbox', 'stretch'] as $mode) {
+            $options = $this->behavior(new ImageTransform([
+                'mode' => $mode,
+                'position' => 'bottom-right',
+                'width' => 300,
+                'height' => 200,
+            ]))->toOptions($asset);
+
+            $this->assertSame(['x' => 1, 'y' => 1], $options['gravity'], $mode);
+        }
     }
 
     public function testGetTransformUrlDoesNotLeakGravityBetweenAssets(): void
@@ -126,21 +211,17 @@ class ImageTransformTest extends Unit
         $firstAsset = $this->makeTransformUrlAsset('first.jpg', ['x' => 0.57, 'y' => 0.7707]);
         $secondAsset = $this->makeTransformUrlAsset('second.jpg', ['x' => 0.4631, 'y' => 0.308]);
 
-        $transformer = new UrlTestImageTransformer();
+        $transformer = new ImageTransformer();
+        $gravity = fn(Asset $asset) => Query::fromUri($transformer->getTransformUrl($asset, $transform, true))
+            ->parameters()['gravity'];
 
-        $firstUrl = $transformer->buildTransformQuery($firstAsset, $transform);
-        $secondUrl = $transformer->buildTransformQuery($secondAsset, $transform);
-
-        $this->assertStringContainsString('gravity%5Bx%5D=0.57', $firstUrl);
-        $this->assertStringContainsString('gravity%5By%5D=0.7707', $firstUrl);
-        $this->assertStringContainsString('gravity%5Bx%5D=0.4631', $secondUrl);
-        $this->assertStringContainsString('gravity%5By%5D=0.308', $secondUrl);
-        $this->assertStringNotContainsString('gravity%5Bx%5D=0.57', $secondUrl);
+        $this->assertSame(['x' => '0.57', 'y' => '0.7707', 'mode' => 'box-center'], $gravity($firstAsset));
+        $this->assertSame(['x' => '0.4631', 'y' => '0.308', 'mode' => 'box-center'], $gravity($secondAsset));
     }
 
     public function testTransformUrlSigningUsesSharedUrlSigner(): void
     {
-        $transformer = new UrlTestImageTransformer();
+        $transformer = new ImageTransformer();
         $asset = $this->makeTransformUrlAsset('test.jpg', ['x' => 0.5, 'y' => 0.5]);
         $transform = new ImageTransform(['width' => 100, 'height' => 100]);
 
@@ -158,7 +239,7 @@ class ImageTransformTest extends Unit
         try {
             $generalConfig->revAssetUrls = true;
 
-            $transformer = new UrlTestImageTransformer();
+            $transformer = new ImageTransformer();
             $asset = $this->makeTransformUrlAsset('test image.jpg', ['x' => 0.5, 'y' => 0.5]);
             $transform = new ImageTransform(['width' => 100, 'height' => 100]);
 
@@ -449,30 +530,6 @@ class ImageTransformTest extends Unit
         $property->setValue(Craft::$app->getRequest(), $actionSegments);
     }
 
-    private function makeAssetStub(array $focalPoint): Asset
-    {
-        return new class($focalPoint) extends Asset {
-            public function __construct(private array $focalPointValue)
-            {
-                parent::__construct();
-            }
-
-            public function getHasFocalPoint(): bool
-            {
-                return true;
-            }
-
-            public function getFocalPoint(bool $asCss = false): array|string|null
-            {
-                if ($asCss) {
-                    return ($this->focalPointValue['x'] * 100) . '% ' . ($this->focalPointValue['y'] * 100) . '%';
-                }
-
-                return $this->focalPointValue;
-            }
-        };
-    }
-
     private function makeTransformUrlAsset(string $filename, array $focalPoint, bool $useLocalFs = false): Asset
     {
         return new TransformUrlAsset($filename, $focalPoint, $useLocalFs);
@@ -488,11 +545,7 @@ class ImageTransformTest extends Unit
                 parent::__construct();
                 $this->kind = self::KIND_PDF;
                 $this->folderPath = 'tests/';
-            }
-
-            public function getFilename(bool $withExtension = true): string
-            {
-                return 'document.pdf';
+                $this->setFilename('document.pdf');
             }
 
             public function getPath(?string $filename = null): string
@@ -560,27 +613,6 @@ class ImageTransformTest extends Unit
     }
 }
 
-class TestImageTransformer extends ImageTransformer
-{
-    public function applyFocalPointGravity(Asset $asset, ImageTransform $imageTransform): array|string|null
-    {
-        return $this->applyAssetFocalPointGravity($asset, $imageTransform);
-    }
-}
-
-class UrlTestImageTransformer extends ImageTransformer
-{
-    public function buildTransformQuery(Asset $asset, ImageTransform $imageTransform): string
-    {
-        $gravity = $this->applyAssetFocalPointGravity($asset, $imageTransform);
-
-        /** @var ImageTransformBehavior $behavior */
-        $behavior = $imageTransform->getBehavior('cloud');
-
-        return (string) \League\Uri\Components\Query::fromVariable($behavior->toOptions($gravity));
-    }
-}
-
 class TestCloudModule extends CloudModule
 {
     public function usesAssetCdnTransform(GenerateTransformEvent $event): bool
@@ -635,11 +667,7 @@ class SignedPdfImageAsset extends Asset
         parent::__construct();
         $this->kind = self::KIND_PDF;
         $this->folderPath = 'tests/';
-    }
-
-    public function getFilename(bool $withExtension = true): string
-    {
-        return 'document.pdf';
+        $this->setFilename('document.pdf');
     }
 
     public function getPath(?string $filename = null): string
@@ -694,6 +722,7 @@ class TransformUrlAsset extends Asset
     ) {
         parent::__construct();
         $this->kind = self::KIND_IMAGE;
+        $this->setFilename($filenameValue);
     }
 
     public function getHasFocalPoint(): bool
@@ -708,11 +737,6 @@ class TransformUrlAsset extends Asset
         }
 
         return $this->focalPointValue;
-    }
-
-    public function getFilename(bool $withExtension = true): string
-    {
-        return $this->filenameValue;
     }
 
     public function getPath(?string $filename = null): string

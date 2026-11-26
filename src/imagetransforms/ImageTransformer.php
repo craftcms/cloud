@@ -59,11 +59,7 @@ class ImageTransformer extends Component implements ImageTransformerInterface
             }
         }
 
-        $options = $behavior->toOptions($this->applyAssetFocalPointGravity($asset, $imageTransform));
-
-        if ($asset->kind === Asset::KIND_PDF) {
-            $options['format'] ??= 'auto';
-        }
+        $options = $behavior->toOptions($asset);
 
         $uri = Modifier::wrap($this->createBaseUri($asset))
             ->mergeQuery(Query::fromVariable($options))
@@ -76,16 +72,6 @@ class ImageTransformer extends Component implements ImageTransformerInterface
 
     public function invalidateAssetTransforms(Asset $asset): void
     {
-    }
-
-    protected function applyAssetFocalPointGravity(Asset $asset, ImageTransform $imageTransform): array|string|null
-    {
-        // @phpstan-ignore-next-line property.notFound
-        if (!$asset->getHasFocalPoint() || isset($imageTransform->gravity)) {
-            return null;
-        }
-
-        return $asset->getFocalPoint();
     }
 
     private function normalizeTransform(mixed $transform): ?ImageTransform
