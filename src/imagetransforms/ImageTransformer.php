@@ -59,17 +59,7 @@ class ImageTransformer extends Component implements ImageTransformerInterface
             }
         }
 
-        $options = $behavior->toOptions($this->applyAssetFocalPointGravity($asset, $imageTransform));
-
-        if ($asset->kind === Asset::KIND_PDF) {
-            $options['format'] ??= 'auto';
-        }
-
-        // Craft saves PNGs losslessly and treats quality as a compression level.
-        // Cloudflare would use any quality as permission to output palette-based PNG8.
-        if (strtolower($options['format'] ?? $asset->getExtension()) === 'png') {
-            unset($options['quality']);
-        }
+        $options = $behavior->toOptions($asset);
 
         $uri = Modifier::wrap($this->createBaseUri($asset))
             ->mergeQuery(Query::fromVariable($options))
@@ -82,26 +72,6 @@ class ImageTransformer extends Component implements ImageTransformerInterface
 
     public function invalidateAssetTransforms(Asset $asset): void
     {
-    }
-
-    protected function applyAssetFocalPointGravity(Asset $asset, ImageTransform $imageTransform): array|string|null
-    {
-        // Like Craft, only crop mode uses the focal point; other modes use `position`.
-        // @phpstan-ignore-next-line property.notFound
-        if ($imageTransform->mode !== 'crop' || !$asset->getHasFocalPoint() || isset($imageTransform->gravity)) {
-            return null;
-        }
-
-        $focalPoint = $asset->getFocalPoint();
-
-        // A PDF can report a focal point but return none.
-        if (!is_array($focalPoint)) {
-            return null;
-        }
-
-        // Center the crop on the focal point, clamped to the image bounds, like Craft's native transforms.
-        // Cloudflare's default (`remainder`) keeps the point at the same relative position in the crop instead.
-        return [...$focalPoint, 'mode' => 'box-center'];
     }
 
     private function normalizeTransform(mixed $transform): ?ImageTransform

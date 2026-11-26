@@ -4,6 +4,7 @@ namespace craft\cloud\imagetransforms;
 
 use Craft;
 use craft\cloud\Module;
+use craft\elements\Asset;
 use craft\models\ImageTransform;
 use Illuminate\Support\Collection;
 use yii\base\Behavior;
@@ -55,7 +56,7 @@ class ImageTransformBehavior extends Behavior
     public ?array $draw = null;
 
     /**
-     * @var 'scale-down'|'contain'|'cover'|'crop'|'pad'|'squeeze'|null
+     * @var 'scale-down'|'contain'|'cover'|'crop'|'aspect-crop'|'pad'|'squeeze'|null
      */
     public ?string $fit = null;
 
@@ -111,7 +112,10 @@ class ImageTransformBehavior extends Behavior
 
     public ?float $zoom = null;
 
-    public function toOptions(array|string|null $gravity = null): array
+    /**
+     * @param Asset|null $asset The asset being transformed. Without it, nothing that depends on the source is applied.
+     */
+    public function toOptions(?Asset $asset = null): array
     {
         $reflection = new \ReflectionClass($this);
 
@@ -122,11 +126,11 @@ class ImageTransformBehavior extends Behavior
 
         // Compute derived Cloudflare values from Craft's base transform settings,
         // without mutating the model (so the same instance can be safely reused).
-        $options['format'] = $this->computeFormat();
-        $options['quality'] = $this->owner->quality ?: Craft::$app->getConfig()->getGeneral()->defaultImageQuality;
-        $options['fit'] = $this->computeFit();
-        $options['background'] = $this->computeBackground();
-        $options['gravity'] ??= $gravity ?? $this->computeGravity();
+        $options['format'] = $this->computeFormat($asset);
+        $options['quality'] = $this->computeQuality($options['format']);
+        $options['fit'] = $this->computeFit($asset, $options['format']);
+        $options['background'] = $this->computeBackground($asset);
+        $options['gravity'] = $this->computeGravity($asset);
         $options['height'] = $this->owner->height;
         $options['width'] = $this->owner->width;
 
@@ -135,22 +139,35 @@ class ImageTransformBehavior extends Behavior
             ->all();
     }
 
-    private function computeFormat(): ?string
+    private function computeFormat(?Asset $asset): ?string
     {
         if ($this->owner->format === 'jpg' && $this->owner->interlace === 'none') {
             return 'baseline-jpeg';
         }
 
-        return match ($this->owner->format) {
+        $format = match ($this->owner->format) {
             'jpg' => 'jpeg',
             default => $this->owner->format,
         };
+
+        return $format ?? ($asset?->kind === Asset::KIND_PDF ? 'auto' : null);
+    }
+
+    private function computeQuality(?string $format): ?int
+    {
+        // Craft saves PNGs losslessly and treats quality as a compression level.
+        // Cloudflare would use any quality as permission to output palette-based PNG8.
+        if ($format === 'png') {
+            return null;
+        }
+
+        return $this->owner->quality ?: Craft::$app->getConfig()->getGeneral()->defaultImageQuality;
     }
 
     /**
      * @see https://developers.cloudflare.com/images/transform-images/transform-via-url/#fit
      */
-    private function computeFit(): string
+    private function computeFit(?Asset $asset, ?string $format): string
     {
         if ($this->fit !== null) {
             return $this->fit;
@@ -162,11 +179,27 @@ class ImageTransformBehavior extends Behavior
             'letterbox' => 'pad',
             // Craft crops smaller images to the target aspect ratio without enlarging them.
             // Cloudflare's `crop` would return them at their original size and shape instead.
-            default => $this->owner->upscale ? 'cover' : 'aspect-crop',
+            // Rasterized PDFs and SVGs go through the Images binding, which doesn't accept `aspect-crop`.
+            default => match (true) {
+                (bool)$this->owner->upscale => 'cover',
+                $this->isRasterized($asset, $format) => 'crop',
+                default => 'aspect-crop',
+            },
         };
     }
 
-    private function computeBackground(): ?string
+    private function isRasterized(?Asset $asset, ?string $format): bool
+    {
+        if ($asset?->kind === Asset::KIND_PDF) {
+            return true;
+        }
+
+        return $asset !== null
+            && strtolower($asset->getExtension()) === 'svg'
+            && !in_array($format, [null, 'auto', 'json', 'svg'], true);
+    }
+
+    private function computeBackground(?Asset $asset): ?string
     {
         if ($this->background !== null) {
             return $this->background;
@@ -176,20 +209,34 @@ class ImageTransformBehavior extends Behavior
             return null;
         }
 
-        // Craft letterboxes with transparent white when no fill is set; Cloudflare defaults to opaque white.
-        return match ($this->owner->fill) {
-            null, 'transparent' => 'rgba(255,255,255,0)',
-            default => $this->owner->fill,
-        };
+        if ($this->owner->fill !== null && $this->owner->fill !== 'transparent') {
+            return $this->owner->fill;
+        }
+
+        // Craft letterboxes with transparent white when no fill is set. That stays transparent only when
+        // Craft's output format has an alpha channel; JPEG output flattens it to opaque white.
+        // Cloudflare may serve AVIF or WebP instead, so match the color Craft's output would have.
+        $outputFormat = strtolower($this->owner->format ?? $asset?->getExtension() ?? '');
+
+        return in_array($outputFormat, ['png', 'webp', 'gif', 'avif'], true)
+            ? 'rgba(255,255,255,0)'
+            : '#FFFFFF';
     }
 
-    /**
-     * @return array{x: float, y: float}|null|'face'
-     */
-    private function computeGravity(): array|null|string
+    private function computeGravity(?Asset $asset): array|null|string
     {
         if ($this->gravity !== null) {
             return $this->gravity;
+        }
+
+        // Like Craft, only crop mode uses the focal point; other modes use `position`.
+        // A PDF can report a focal point but return none.
+        $focalPoint = $this->owner->mode === 'crop' && $asset?->getHasFocalPoint() ? $asset->getFocalPoint() : null;
+
+        if (is_array($focalPoint)) {
+            // Center the crop on the focal point, clamped to the image bounds, like Craft's native transforms.
+            // Cloudflare's default (`remainder`) keeps the point at the same relative position in the crop instead.
+            return [...$focalPoint, 'mode' => 'box-center'];
         }
 
         if ($this->owner->position === 'center-center') {
