@@ -128,7 +128,7 @@ class ImageTransformBehavior extends Behavior
         // without mutating the model (so the same instance can be safely reused).
         $options['format'] = $this->computeFormat($asset);
         $options['quality'] = $this->computeQuality();
-        $options['fit'] = $this->computeFit($asset, $options['format']);
+        $options['fit'] = $this->computeFit();
         $options['background'] = $this->computeBackground($asset);
         $options['gravity'] = $this->computeGravity($asset);
         $options['height'] = $this->owner->height;
@@ -162,7 +162,7 @@ class ImageTransformBehavior extends Behavior
     /**
      * @see https://developers.cloudflare.com/images/transform-images/transform-via-url/#fit
      */
-    private function computeFit(?Asset $asset, ?string $format): string
+    private function computeFit(): string
     {
         if ($this->fit !== null) {
             return $this->fit;
@@ -174,24 +174,8 @@ class ImageTransformBehavior extends Behavior
             'letterbox' => 'pad',
             // Craft crops smaller images to the target aspect ratio without enlarging them.
             // Cloudflare's `crop` would return them at their original size and shape instead.
-            // Rasterized PDFs and SVGs go through the Images binding, which doesn't accept `aspect-crop`.
-            default => match (true) {
-                (bool)$this->owner->upscale => 'cover',
-                $this->isRasterized($asset, $format) => 'crop',
-                default => 'aspect-crop',
-            },
+            default => $this->owner->upscale ? 'cover' : 'aspect-crop',
         };
-    }
-
-    private function isRasterized(?Asset $asset, ?string $format): bool
-    {
-        if ($asset?->kind === Asset::KIND_PDF) {
-            return true;
-        }
-
-        return $asset !== null
-            && strtolower($asset->getExtension()) === 'svg'
-            && !in_array($format, [null, 'auto', 'json', 'svg'], true);
     }
 
     private function computeBackground(?Asset $asset): ?string

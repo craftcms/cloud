@@ -173,20 +173,14 @@ class ImageTransformTest extends Unit
 
     public function testCropModeWithoutUpscaleUsesAspectCrop(): void
     {
-        $fit = fn(?Asset $asset, array $config = []) => $this->behavior(new ImageTransform([
+        $transform = new ImageTransform([
             'mode' => 'crop',
             'width' => 1920,
             'height' => 1120,
             'upscale' => false,
-            ...$config,
-        ]))->toOptions($asset)['fit'];
-        $svgAsset = $this->makeTransformUrlAsset('logo.svg', ['x' => 0.5, 'y' => 0.5]);
+        ]);
 
-        $this->assertSame('aspect-crop', $fit($this->makeTransformUrlAsset('photo.jpg', ['x' => 0.5, 'y' => 0.5])));
-        $this->assertSame('aspect-crop', $fit($svgAsset));
-        // The gateway rasterizes these with the Images binding, which rejects `aspect-crop`.
-        $this->assertSame('crop', $fit($this->makePdfAssetStub()));
-        $this->assertSame('crop', $fit($svgAsset, ['format' => 'png']));
+        $this->assertSame('aspect-crop', $this->behavior($transform)->toOptions()['fit']);
     }
 
     public function testFocalPointGravityOnlyAppliesInCropMode(): void
