@@ -82,7 +82,7 @@ class ImageTransformTest extends Unit
         ], $this->behavior($transform)->toOptions());
     }
 
-    public function testFocalPointGravityPassesThroughUnchanged(): void
+    public function testFocalPointGravityCentersCropOnFocalPoint(): void
     {
         $asset = $this->makeAssetStub(['x' => 0.474, 'y' => 0.3064]);
         $transform = new ImageTransform([
@@ -97,8 +97,31 @@ class ImageTransformTest extends Unit
         $this->assertSame([
             'x' => 0.474,
             'y' => 0.3064,
+            'mode' => 'box-center',
         ], $gravity);
         $this->assertNull($this->behavior($transform)->gravity);
+    }
+
+    public function testMissingFocalPointFallsBackToPosition(): void
+    {
+        $asset = new class() extends Asset {
+            public function getHasFocalPoint(): bool
+            {
+                return true;
+            }
+
+            public function getFocalPoint(bool $asCss = false): array|string|null
+            {
+                return null;
+            }
+        };
+        $transform = new ImageTransform([
+            'mode' => 'crop',
+            'width' => 1200,
+            'height' => 750,
+        ]);
+
+        $this->assertNull((new TestImageTransformer())->applyFocalPointGravity($asset, $transform));
     }
 
     public function testInlineCloudPropertyDoesNotBreakBaseTransform(): void
@@ -223,6 +246,7 @@ class ImageTransformTest extends Unit
         $this->assertStringContainsString('gravity%5Bx%5D=0.4631', $secondUrl);
         $this->assertStringContainsString('gravity%5By%5D=0.308', $secondUrl);
         $this->assertStringNotContainsString('gravity%5Bx%5D=0.57', $secondUrl);
+        $this->assertStringContainsString('gravity%5Bmode%5D=box-center', $firstUrl);
     }
 
     public function testTransformUrlSigningUsesSharedUrlSigner(): void

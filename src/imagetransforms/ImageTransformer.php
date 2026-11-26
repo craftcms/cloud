@@ -92,7 +92,16 @@ class ImageTransformer extends Component implements ImageTransformerInterface
             return null;
         }
 
-        return $asset->getFocalPoint();
+        $focalPoint = $asset->getFocalPoint();
+
+        // A PDF can report a focal point but return none.
+        if (!is_array($focalPoint)) {
+            return null;
+        }
+
+        // Center the crop on the focal point, clamped to the image bounds, like Craft's native transforms.
+        // Cloudflare's default (`remainder`) keeps the point at the same relative position in the crop instead.
+        return [...$focalPoint, 'mode' => 'box-center'];
     }
 
     private function normalizeTransform(mixed $transform): ?ImageTransform
