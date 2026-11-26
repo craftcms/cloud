@@ -61,7 +61,6 @@ class StaticCache extends \yii\base\Component
     private ?int $cacheDuration = null;
     private Collection $tags;
     private Collection $tagsToPurge;
-    private Collection $fetchUrls;
     private bool $collectingCacheInfo = false;
     /** @var bool[] */
     private array $graphqlCachingStack = [];
@@ -70,7 +69,6 @@ class StaticCache extends \yii\base\Component
     {
         $this->tags = Collection::make();
         $this->tagsToPurge = Collection::make();
-        $this->fetchUrls = Collection::make();
     }
 
     public function registerEventHandlers(): void
@@ -132,17 +130,13 @@ class StaticCache extends \yii\base\Component
         Craft::$app->onAfterRequest(function() {
             if ($this->tagsToPurge->isNotEmpty()) {
                 try {
-                    $this->sendPurgeTagsRequest(
-                        $this->tagsToPurge,
-                        $this->fetchUrls,
-                    );
+                    $this->sendInvalidateTagsRequest($this->tagsToPurge);
                 } catch (\Throwable $e) {
                     Module::error(
-                        'Failed to purge tags after request',
+                        'Failed to invalidate tags after request',
                         [
                             'exception' => $e,
                             'tags' => $this->tagsToPurge->all(),
-                            'fetchUrls' => $this->fetchUrls->all(),
                         ],
                     );
                 }
@@ -246,15 +240,7 @@ class StaticCache extends \yii\base\Component
 
     private function handleSaveElement(ElementEvent $event): void
     {
-        if (!$this->purgeElementUri($event->element)) {
-            return;
-        }
-
-        $url = $event->element->getUrl();
-
-        if ($url !== null) {
-            $this->fetchUrls->push($url);
-        }
+        $this->purgeElementUri($event->element);
     }
 
     private function handleDeleteElement(ElementEvent $event): void
@@ -336,6 +322,11 @@ class StaticCache extends \yii\base\Component
         $this->sendPurgeTagsRequest(Collection::make($tags));
     }
 
+    public function invalidateTags(string|StaticCacheTag ...$tags): void
+    {
+        $this->sendInvalidateTagsRequest(Collection::make($tags));
+    }
+
     /**
      * @param array<array-key, string|StaticCacheTag> $tags
      */
@@ -344,48 +335,17 @@ class StaticCache extends \yii\base\Component
         $this->tagsToPurge->push(...$this->normalizeCacheTags(...$tags));
     }
 
-    private function sendPurgeTagsRequest(
-        Collection $tags,
-        ?Collection $fetchUrls = null,
-    ): void {
+    private function sendPurgeTagsRequest(Collection $tags): void
+    {
         $response = Craft::$app->getResponse();
         $isWebResponse = $response instanceof \craft\web\Response;
-
-        // Add any existing tags from the response headers
-        if ($isWebResponse) {
-            $tags->push(...$this->parseCacheTagsFromHeader(HeaderEnum::CACHE_PURGE_TAG->value));
-        }
-
-        $tags = $this->normalizeCacheTags(...$tags);
+        $tags = $this->preparePurgeTags($tags, $isWebResponse);
 
         if ($tags->isEmpty()) {
             return;
         }
 
-        $event = new PurgeEvent([
-            'tags' => $tags->values()->all(),
-        ]);
-        $this->trigger(self::EVENT_BEFORE_PURGE, $event);
-
         if ($isWebResponse) {
-            $response->getHeaders()->remove(HeaderEnum::CACHE_PURGE_TAG->value);
-        }
-
-        $overflowTag = $this->overflowTag();
-        $tags = $event->isValid
-            ? $this->normalizeCacheTags(...$event->tags)
-                ->map(fn(StaticCacheTag $tag) => StringHelper::byteLength($tag->getValue()) > self::MAX_TAG_VALUE_LENGTH ? $overflowTag : $tag)
-                ->unique(fn(StaticCacheTag $tag) => $tag->getValue())
-            : Collection::make();
-
-        if ($tags->isEmpty()) {
-            return;
-        }
-
-        $fetchUrls ??= Collection::make();
-        $sendApiRequest = !$isWebResponse || $fetchUrls->isNotEmpty();
-
-        if (!$sendApiRequest) {
             $tags = $this->truncateCacheTagsForHeader($tags);
 
             Module::info('Purging tags', [
@@ -402,23 +362,35 @@ class StaticCache extends \yii\base\Component
 
         Module::info('Purging tags', [
             'tags' => $tags,
-            'fetchUrls' => $fetchUrls,
         ]);
 
-        $payload = [
-            'tags' => $tags->map(fn(StaticCacheTag $tag) => (string) $tag)->values()->all(),
-        ];
+        Helper::createGatewayApiClient()->request('POST', 'cache/purge', [
+            RequestOptions::JSON => [
+                'tags' => $tags->map(fn(StaticCacheTag $tag) => (string) $tag)->values()->all(),
+            ],
+            RequestOptions::TIMEOUT => 40,
+        ]);
+    }
 
-        if ($fetchUrls->isNotEmpty()) {
-            $payload['fetchUrls'] = $fetchUrls
-                ->unique()
-                ->values()
-                ->all();
+    private function sendInvalidateTagsRequest(Collection $tags): void
+    {
+        $response = Craft::$app->getResponse();
+        $isWebResponse = $response instanceof \craft\web\Response;
+        $tags = $this->preparePurgeTags($tags, $isWebResponse);
+
+        if ($tags->isEmpty()) {
+            return;
         }
 
+        Module::info('Invalidating tags', [
+            'tags' => $tags,
+        ]);
+
         try {
-            Helper::createGatewayApiClient()->request('POST', 'cache/purge', [
-                RequestOptions::JSON => $payload,
+            Helper::createGatewayApiClient()->request('POST', 'cache/invalidate', [
+                RequestOptions::JSON => [
+                    'tags' => $tags->map(fn(StaticCacheTag $tag) => (string) $tag)->values()->all(),
+                ],
                 RequestOptions::TIMEOUT => 40,
             ]);
         } catch (\Throwable $e) {
@@ -431,6 +403,36 @@ class StaticCache extends \yii\base\Component
 
             throw $e;
         }
+    }
+
+    private function preparePurgeTags(Collection $tags, bool $includeResponseHeader): Collection
+    {
+        if ($includeResponseHeader) {
+            $tags->push(...$this->parseCacheTagsFromHeader(HeaderEnum::CACHE_PURGE_TAG->value));
+        }
+
+        $tags = $this->normalizeCacheTags(...$tags);
+
+        if ($tags->isEmpty()) {
+            return $tags;
+        }
+
+        $event = new PurgeEvent([
+            'tags' => $tags->values()->all(),
+        ]);
+        $this->trigger(self::EVENT_BEFORE_PURGE, $event);
+
+        if ($includeResponseHeader) {
+            Craft::$app->getResponse()->getHeaders()->remove(HeaderEnum::CACHE_PURGE_TAG->value);
+        }
+
+        $overflowTag = $this->overflowTag();
+
+        return $event->isValid
+            ? $this->normalizeCacheTags(...$event->tags)
+                ->map(fn(StaticCacheTag $tag) => StringHelper::byteLength($tag->getValue()) > self::MAX_TAG_VALUE_LENGTH ? $overflowTag : $tag)
+                ->unique(fn(StaticCacheTag $tag) => $tag->getValue())
+            : Collection::make();
     }
 
     public function purgeUrlPrefixes(string ...$urlPrefixes): void
@@ -446,6 +448,25 @@ class StaticCache extends \yii\base\Component
         ]);
 
         Helper::createGatewayApiClient()->request('POST', 'cache/purge', [
+            RequestOptions::JSON => [
+                'prefixes' => $urlPrefixes->values()->all(),
+            ],
+        ]);
+    }
+
+    public function invalidateUrlPrefixes(string ...$urlPrefixes): void
+    {
+        $urlPrefixes = Collection::make($urlPrefixes)->filter()->unique();
+
+        if ($urlPrefixes->isEmpty()) {
+            return;
+        }
+
+        Module::info('Invalidating URL prefixes', [
+            'urlPrefixes' => $urlPrefixes->all(),
+        ]);
+
+        Helper::createGatewayApiClient()->request('POST', 'cache/invalidate', [
             RequestOptions::JSON => [
                 'prefixes' => $urlPrefixes->values()->all(),
             ],
