@@ -781,6 +781,7 @@ class TransformUrlAsset extends Asset
     ) {
         parent::__construct();
         $this->kind = self::KIND_IMAGE;
+        $this->setFilename($filenameValue);
     }
 
     public function getHasFocalPoint(): bool
@@ -795,11 +796,6 @@ class TransformUrlAsset extends Asset
         }
 
         return $this->focalPointValue;
-    }
-
-    public function getFilename(bool $withExtension = true): string
-    {
-        return $this->filenameValue;
     }
 
     public function getPath(?string $filename = null): string

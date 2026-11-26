@@ -67,7 +67,7 @@ class ImageTransformer extends Component implements ImageTransformerInterface
 
         // Craft saves PNGs losslessly and treats quality as a compression level.
         // Cloudflare would use any quality as permission to output palette-based PNG8.
-        if (strtolower($options['format'] ?? pathinfo($asset->getFilename(), PATHINFO_EXTENSION)) === 'png') {
+        if (strtolower($options['format'] ?? $asset->getExtension()) === 'png') {
             unset($options['quality']);
         }
 
