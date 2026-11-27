@@ -1041,13 +1041,13 @@
             "version": "dev-timkelty/http-cache",
             "source": {
                 "type": "git",
-                "url": "git@github.com:craftcms/cms.git",
-                "reference": "676c4466e25db4c80c6a7aa5753e7c66fc92dff7"
+                "url": "https://github.com/craftcms/cms.git",
+                "reference": "a1a7bf6a60719d863b138e50c3d02abbaac24202"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/craftcms/cms/zipball/676c4466e25db4c80c6a7aa5753e7c66fc92dff7",
-                "reference": "676c4466e25db4c80c6a7aa5753e7c66fc92dff7",
+                "url": "https://api.github.com/repos/craftcms/cms/zipball/a1a7bf6a60719d863b138e50c3d02abbaac24202",
+                "reference": "a1a7bf6a60719d863b138e50c3d02abbaac24202",
                 "shasum": ""
             },
             "require": {
@@ -1154,6 +1154,7 @@
                         "Assets": "CraftCms\\Cms\\Support\\Facades\\Assets",
                         "AuthMethods": "CraftCms\\Cms\\Support\\Facades\\AuthMethods",
                         "BulkOps": "CraftCms\\Cms\\Support\\Facades\\BulkOps",
+                        "CacheInfo": "CraftCms\\Cms\\Support\\Facades\\CacheInfo",
                         "Conditions": "CraftCms\\Cms\\Support\\Facades\\Conditions",
                         "DeltaRegistry": "CraftCms\\Cms\\Support\\Facades\\DeltaRegistry",
                         "Deprecator": "CraftCms\\Cms\\Support\\Facades\\Deprecator",
@@ -1181,7 +1182,6 @@
                         "Path": "CraftCms\\Cms\\Support\\Facades\\Path",
                         "Plugins": "CraftCms\\Cms\\Support\\Facades\\Plugins",
                         "ProjectConfig": "CraftCms\\Cms\\Support\\Facades\\ProjectConfig",
-                        "CacheInfo": "CraftCms\\Cms\\Support\\Facades\\CacheInfo",
                         "ResponseHeaders": "CraftCms\\Cms\\Support\\Facades\\ResponseHeaders",
                         "Revisions": "CraftCms\\Cms\\Support\\Facades\\Revisions",
                         "Search": "CraftCms\\Cms\\Support\\Facades\\Search",
@@ -1294,7 +1294,7 @@
                 "docs": "https://craftcms.com/docs/5.x/",
                 "rss": "https://github.com/craftcms/cms/releases.atom"
             },
-            "time": "2026-11-25T21:08:17+00:00"
+            "time": "2026-11-27T21:59:15+00:00"
         },
         {
             "name": "craftcms/cms-assets",
@@ -1302,12 +1302,12 @@
             "source": {
                 "type": "git",
                 "url": "https://github.com/craftcms/cms-assets.git",
-                "reference": "602aba42ab156f77f30758aa64a716637f5c327e"
+                "reference": "99859c4da370f562a27e0c3c86d9a3b093e06d94"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/craftcms/cms-assets/zipball/602aba42ab156f77f30758aa64a716637f5c327e",
-                "reference": "602aba42ab156f77f30758aa64a716637f5c327e",
+                "url": "https://api.github.com/repos/craftcms/cms-assets/zipball/99859c4da370f562a27e0c3c86d9a3b093e06d94",
+                "reference": "99859c4da370f562a27e0c3c86d9a3b093e06d94",
                 "shasum": ""
             },
             "default-branch": true,
@@ -1320,15 +1320,15 @@
             "support": {
                 "source": "https://github.com/craftcms/cms-assets/tree/6.x"
             },
-            "time": "2026-11-25T17:38:51+00:00",
-            "published-time": "2026-11-25T17:38:58+00:00"
+            "time": "2026-11-27T21:34:39+00:00",
+            "published-time": "2026-11-27T21:34:46+00:00"
         },
         {
             "name": "craftcms/http-cache",
             "version": "dev-main",
             "source": {
                 "type": "git",
-                "url": "git@github.com:craftcms/http-cache.git",
+                "url": "https://github.com/craftcms/http-cache.git",
                 "reference": "bcaf245c57cbf155ba691032e4e25c6c8393586b"
             },
             "dist": {
@@ -1402,6 +1402,10 @@
                 "craftcms",
                 "http-cache"
             ],
+            "support": {
+                "source": "https://github.com/craftcms/http-cache/tree/main",
+                "issues": "https://github.com/craftcms/http-cache/issues"
+            },
             "time": "2026-11-25T21:08:29+00:00"
         },
         {
