@@ -20,6 +20,7 @@ class CloudServiceProvider extends ServiceProvider
             return;
         }
 
+        $this->app->register(StaticCacheServiceProvider::class);
         $this->configureQueue();
         $this->configureCache();
         $this->configureLogging();
